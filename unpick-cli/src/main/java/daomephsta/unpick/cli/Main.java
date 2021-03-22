@@ -18,10 +18,7 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.LinkedList;
+import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
@@ -55,10 +52,11 @@ public class Main {
     private static void unpick(Path inputJar, Path outputJar, Path unpickDefinition, Path constantJar, Collection<Path> classpath) throws IOException {
         Files.deleteIfExists(outputJar);
 
-        JarClassResolver minecraftClassResolver = new JarClassResolver(classpath);
-        JarClassResolver constantClassResolver = new JarClassResolver(Collections.singleton(constantJar));
-
-        try (InputStream unpickDefinitionStream = Files.newInputStream(unpickDefinition)) {
+        try (
+             JarClassResolver minecraftClassResolver = new JarClassResolver(classpath);
+             JarClassResolver constantClassResolver = new JarClassResolver(Collections.singleton(constantJar));
+             InputStream unpickDefinitionStream = Files.newInputStream(unpickDefinition)
+        ) {
             ConstantUninliner uninliner = new ConstantUninliner(
                     ConstantMappers.dataDriven(minecraftClassResolver, unpickDefinitionStream),
                     ConstantResolvers.bytecodeAnalysis(constantClassResolver)
@@ -71,11 +69,9 @@ public class Main {
                     JarEntry entry = entries.nextElement();
 
                     JarEntry outputEntry = new JarEntry(entry.getName());
-                    outputEntry.setTime(System.currentTimeMillis());
+                    outputStream.putNextEntry(outputEntry);
 
                     InputStream inputStream = jarFile.getInputStream(entry);
-
-                    byte[] outputBytes;
 
                     if (entry.getName().endsWith(".class")) {
                         ClassReader classReader = new ClassReader(inputStream);
@@ -86,34 +82,20 @@ public class Main {
 
                         ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
                         classNode.accept(classWriter);
-                        outputBytes = classWriter.toByteArray();
+                        outputStream.write(classWriter.toByteArray());
                     } else {
-                        outputBytes = readAll(inputStream);
+                        byte[] buf = new byte[1024];
+                        int length;
+
+                        while ((length = inputStream.read(buf)) > 0) {
+                            outputStream.write(buf, 0, length);
+                        }
                     }
 
-                    outputEntry.setSize(outputBytes.length);
-                    outputStream.putNextEntry(outputEntry);
-                    outputStream.write(outputBytes);
                     outputStream.closeEntry();
                 }
             }
-        } finally {
-            minecraftClassResolver.close();
-            constantClassResolver.close();
         }
-    }
-
-    private static byte[] readAll(InputStream inputStream) throws IOException {
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        int nRead;
-        byte[] data = new byte[1024];
-
-        while ((nRead = inputStream.read(data, 0, data.length)) != -1) {
-            buffer.write(data, 0, nRead);
-        }
-
-        buffer.flush();
-        return buffer.toByteArray();
     }
 
     private static class JarClassResolver implements IClassResolver, Closeable {
