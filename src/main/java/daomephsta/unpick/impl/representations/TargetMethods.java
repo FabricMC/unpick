@@ -210,7 +210,7 @@ public class TargetMethods implements Iterable<TargetMethod>
 				return true;
 			if (nonimplementors.contains(classInternalName))
 				return false;
-			if (InheritanceChecker.inheritsFrom(Opcodes.ASM7, classResolver, classInternalName, this.declarator))
+			if (InheritanceChecker.inheritsFrom(Opcodes.ASM9, classResolver, classInternalName, this.declarator))
 			{
 				implementors.add(classInternalName);
 				return true;

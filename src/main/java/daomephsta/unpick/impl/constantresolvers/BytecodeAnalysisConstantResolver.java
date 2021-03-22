@@ -32,11 +32,11 @@ public class BytecodeAnalysisConstantResolver implements IConstantResolver
 	{
 		return constantDataCache.computeIfAbsent(owner, this::extractConstants).get(name);
 	}
-	
+
 	private ResolvedConstants extractConstants(String owner)
 	{
 		ClassReader cr = classResolver.resolveClass(owner);
-		ResolvedConstants resolvedConstants = new ResolvedConstants(Opcodes.ASM7);
+		ResolvedConstants resolvedConstants = new ResolvedConstants(Opcodes.ASM9);
 		cr.accept(resolvedConstants, 0);
 		return resolvedConstants;
 	}
