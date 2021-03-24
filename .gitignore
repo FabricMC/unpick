@@ -3,6 +3,7 @@
 bin/
 build/
 test-out/
+out/
 
 .project
 .classpath

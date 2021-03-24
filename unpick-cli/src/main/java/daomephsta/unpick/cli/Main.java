@@ -8,7 +8,6 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.tree.ClassNode;
 
-import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,7 +36,7 @@ public class Main {
 
         Collection<Path> classPath = new LinkedList<>();
 
-        for (int i = 3; i < args.length; i++) {
+        for (int i = 4; i < args.length; i++) {
             classPath.add(Paths.get(args[i]));
         }
 
@@ -107,6 +106,10 @@ public class Main {
 
         public JarClassResolver(Collection<Path> paths) {
             this(paths.stream().map(path -> {
+                if (!Files.exists(path)) {
+                    throw new RuntimeException("Could not find " + path.toString());
+                }
+
                 try {
                     return new URL(null, path.toUri().toString());
                 } catch (MalformedURLException e) {
