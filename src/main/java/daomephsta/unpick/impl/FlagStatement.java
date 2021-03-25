@@ -21,7 +21,7 @@ public class FlagStatement
 		this.root = root;
 	}
 
-	public static Optional<FlagStatement> create(AbstractInsnNode rootInsn, Function<AbstractInsnNode, Frame<SourceValue>> insnToFrame)
+	public static Optional<FlagStatement> create(AbstractInsnNode rootInsn, Function<AbstractInsnNode, Frame<UnpickValue>> insnToFrame)
 	{
 		boolean isBitwiseOp = rootInsn.getOpcode() >= Opcodes.IAND || rootInsn.getOpcode() <= Opcodes.LXOR;
 		boolean isLiteral = rootInsn.getOpcode() >= Opcodes.ICONST_M1 && rootInsn.getOpcode() <= Opcodes.LDC;
@@ -31,16 +31,16 @@ public class FlagStatement
 		return toNode(rootInsn, insnToFrame).map(FlagStatement::new);
 	}
 	
-	private static Optional<Node> toNode(AbstractInsnNode insn, Function<AbstractInsnNode, Frame<SourceValue>> insnToFrame)
+	private static Optional<Node> toNode(AbstractInsnNode insn, Function<AbstractInsnNode, Frame<UnpickValue>> insnToFrame)
 	{
 		if (insn.getOpcode() >= Opcodes.IAND && insn.getOpcode() <= Opcodes.LXOR)
 		{
 			BitOp operation = getOp(insn);
-			Frame<SourceValue> frame = insnToFrame.apply(insn);
+			Frame<UnpickValue> frame = insnToFrame.apply(insn);
 			List<Node> args = new ArrayList<>(operation.argCount);
 			for (int s = frame.getStackSize() - operation.argCount; s < frame.getStackSize(); s++)
 			{
-				Set<AbstractInsnNode> insns = frame.getStack(s).insns;
+				Set<AbstractInsnNode> insns = frame.getStack(s).getSourceValue().insns;
 				if (insns.size() != 1)
 					return Optional.empty();
 				Optional<Node> node = toNode(insns.iterator().next(), insnToFrame);
