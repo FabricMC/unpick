@@ -71,6 +71,35 @@ public class UnpickValue implements Value
 		this.usages = usages;
 	}
 
+	@Override
+	public boolean equals(Object o)
+	{
+		if (this == o)
+			return true;
+		if (o == null || getClass() != o.getClass())
+			return false;
+
+		UnpickValue that = (UnpickValue) o;
+
+		if (!sourceValue.equals(that.sourceValue))
+			return false;
+		if (!parameterSources.equals(that.parameterSources))
+			return false;
+		if (!methodUsages.equals(that.methodUsages))
+			return false;
+		return usages.equals(that.usages);
+	}
+
+	@Override
+	public int hashCode()
+	{
+		int result = sourceValue.hashCode();
+		result = 31 * result + parameterSources.hashCode();
+		result = 31 * result + methodUsages.hashCode();
+		result = 31 * result + usages.hashCode();
+		return result;
+	}
+
 	public static class MethodUsage
 	{
 		private final AbstractInsnNode methodInvocation;

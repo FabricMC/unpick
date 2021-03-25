@@ -18,7 +18,7 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 
 	public UnpickInterpreter(MethodNode method)
 	{
-		super(ASM7);
+		super(ASM9);
 		this.method = method;
 	}
 
@@ -42,6 +42,8 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	@Override
 	public UnpickValue newValue(Type type)
 	{
+		if (type == Type.VOID_TYPE)
+			return null;
 		return new UnpickValue(delegate.newValue(type));
 	}
 
