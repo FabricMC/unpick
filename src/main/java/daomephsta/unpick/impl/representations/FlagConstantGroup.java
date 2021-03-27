@@ -81,7 +81,7 @@ public class FlagConstantGroup extends AbstractConstantGroup<FlagDefinition>
 		List<FlagDefinition> negatedConstants = new ArrayList<>();
 		long negatedResidual = getConstantsEncompassing(negatedLiteral, integerType, negatedConstants);
 
-		boolean negated = orResidual != 0 && (negatedResidual == 0 || negatedConstants.size() < orConstants.size());
+		boolean negated = negatedResidual == 0 && (orResidual != 0 || negatedConstants.size() < orConstants.size());
 		List<FlagDefinition> constants = negated ? negatedConstants : orConstants;
 		if (constants.isEmpty())
 			return;
