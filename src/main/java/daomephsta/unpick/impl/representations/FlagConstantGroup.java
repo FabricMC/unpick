@@ -40,22 +40,16 @@ public class FlagConstantGroup extends AbstractConstantGroup<FlagDefinition>
 	@Override
 	public boolean canReplace(Context context)
 	{
-		boolean isLiteral = AbstractInsnNodes.hasLiteralValue(context.getArgSeed()) 
-				&& AbstractInsnNodes.getLiteralValue(context.getArgSeed()) instanceof Number;
-		boolean isBitwiseOp = context.getArgSeed().getOpcode() >= Opcodes.IAND 
-				&& context.getArgSeed().getOpcode() <= Opcodes.LXOR;
-		return isLiteral || isBitwiseOp;
+		if (!AbstractInsnNodes.hasLiteralValue(context.getArgSeed()))
+			return false;
+		Object literalObj = AbstractInsnNodes.getLiteralValue(context.getArgSeed());
+		return literalObj instanceof Integer || literalObj instanceof Long;
 	}
 	
 	@Override
 	public void generateReplacements(Context context)
 	{
-		if (!AbstractInsnNodes.hasLiteralValue(context.getArgSeed()))
-			return;
-		Object literalObj = AbstractInsnNodes.getLiteralValue(context.getArgSeed());
-		if (!(literalObj instanceof Integer || literalObj instanceof Long))
-			return;
-		Number literalNum = (Number) literalObj;
+		Number literalNum = (Number) AbstractInsnNodes.getLiteralValue(context.getArgSeed());
 		IntegerType integerType = IntegerType.from(literalNum.getClass());
 
 		resolveAllConstants(context.getConstantResolver());
