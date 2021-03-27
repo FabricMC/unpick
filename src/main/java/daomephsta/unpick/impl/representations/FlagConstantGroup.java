@@ -8,7 +8,6 @@ import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.InsnList;
 
 import daomephsta.unpick.impl.*;
-import daomephsta.unpick.impl.FlagStatement.BitOp;
 
 /**
  * A group of flags represented by {@link FlagDefinition}s.
@@ -51,74 +50,91 @@ public class FlagConstantGroup extends AbstractConstantGroup<FlagDefinition>
 	@Override
 	public void generateReplacements(Context context)
 	{
+		if (!AbstractInsnNodes.hasLiteralValue(context.getArgSeed()))
+			return;
+		Object literalObj = AbstractInsnNodes.getLiteralValue(context.getArgSeed());
+		if (!(literalObj instanceof Integer || literalObj instanceof Long))
+			return;
+		Number literalNum = (Number) literalObj;
+		IntegerType integerType = IntegerType.from(literalNum.getClass());
+
 		resolveAllConstants(context.getConstantResolver());
-		FlagStatement.create(context.getArgSeed(), context::getFrameForInstruction)
-			.ifPresent(fs -> fs.collectReplacements(context.getReplacementSet(), this::convertLiteral));
-	}
-	
-	private Optional<InsnList> convertLiteral(Number literal, BitOp bitOp)
-	{	 
-		switch (bitOp)
-		{
-		case AND:
-			return convertANDedLiteral(literal);
-			
-		//Assuming OR gives more useful results than assuming AND
-		case NONE:
-		case OR:
-			return convertORedLiteral(literal);
 
-		case NOT:
-		case XOR:
-		default:
-			return Optional.empty();
-		}
-	}
-
-	private Optional<InsnList> convertANDedLiteral(Number literal)
-	{
-		IntegerType integerType = IntegerType.from(literal.getClass());
-		return convertORedLiteral(integerType.binaryNegate(literal)).map(replacementInstructions ->
+		long literal = integerType.toUnsignedLong(literalNum);
+		if (literal == 0 || literal == -1)
 		{
-			replacementInstructions.add(integerType.createLiteralPushInsn(-1));
-			replacementInstructions.add(integerType.createXorInsn());
-			return replacementInstructions;
-		});
-	}
-
-	private Optional<InsnList> convertORedLiteral(Number literal)
-	{
-		long longLiteral = literal.longValue();
-		long remainder = longLiteral;
-		List<FlagDefinition> matches = new ArrayList<>();
-		for (FlagDefinition definition : resolvedConstantDefinitions)
-		{
-			long definitionLongValue = definition.getValue().longValue();
-			if ((definitionLongValue & longLiteral) == definitionLongValue)
+			// Special cases: likely we want just the literal constant, but check for any named constants representing 0 or -1
+			for (FlagDefinition constant : resolvedConstantDefinitions)
 			{
-				matches.add(definition);
-				remainder &= ~definitionLongValue;
+				if (integerType.toUnsignedLong(constant.getValue()) == literal)
+				{
+					context.getReplacementSet().addReplacement(context.getArgSeed(), new FieldInsnNode(Opcodes.GETSTATIC, constant.getOwner(), constant.getName(), constant.getDescriptorString()));
+					break;
+				}
+			}
+			return;
+		}
+
+		List<FlagDefinition> orConstants = new ArrayList<>();
+		long orResidual = getConstantsEncompassing(literal, integerType, orConstants);
+		long negatedLiteral = integerType.toUnsignedLong(integerType.binaryNegate(literalNum));
+		List<FlagDefinition> negatedConstants = new ArrayList<>();
+		long negatedResidual = getConstantsEncompassing(negatedLiteral, integerType, negatedConstants);
+
+		boolean negated = orResidual != 0 && (negatedResidual == 0 || negatedConstants.size() < orConstants.size());
+		List<FlagDefinition> constants = negated ? negatedConstants : orConstants;
+		if (constants.isEmpty())
+			return;
+		long residual = negated ? negatedResidual : orResidual;
+
+		InsnList replacement = new InsnList();
+
+		boolean firstConstant = true;
+		for (FlagDefinition constant : constants)
+		{
+			replacement.add(new FieldInsnNode(Opcodes.GETSTATIC, constant.getOwner(), constant.getName(), constant.getDescriptorString()));
+
+			if (firstConstant)
+				firstConstant = false;
+			else
+				replacement.add(integerType.createOrInsn());
+		}
+
+		if (residual != 0)
+		{
+			replacement.add(integerType.createLiteralPushInsn(residual));
+			replacement.add(integerType.createOrInsn());
+		}
+
+		if (negated)
+		{
+			// bitwise not
+			replacement.add(integerType.createLiteralPushInsn(-1));
+			replacement.add(integerType.createXorInsn());
+		}
+
+		context.getReplacementSet().addReplacement(context.getArgSeed(), replacement);
+	}
+
+	/**
+	 * Adds the constants that encompass {@code literal} to {@code constantsOut}.
+	 * Returns the residual (bits set in the literal not covered by the returned constants).
+	 */
+	private long getConstantsEncompassing(long literal, IntegerType integerType, List<FlagDefinition> constantsOut)
+	{
+		long residual = literal;
+		for (FlagDefinition constant : resolvedConstantDefinitions)
+		{
+			long val = integerType.toUnsignedLong(constant.getValue());
+			if ((val & residual) != 0 && (val & literal) == val)
+			{
+				residual &= ~val;
+				constantsOut.add(constant);
+				if (residual == 0)
+					break;
 			}
 		}
-		if (matches.isEmpty())
-			return Optional.empty();
-		
-		InsnList replacementInstructions = new InsnList();
-		FlagDefinition match0 = matches.get(0);
-		IntegerType integerType = IntegerType.from(literal.getClass());
-		replacementInstructions.add(new FieldInsnNode(Opcodes.GETSTATIC, match0.getOwner(), match0.getName(), match0.getDescriptorString()));
-		for (int i = 1; i < matches.size(); i++)
-		{
-			FlagDefinition match = matches.get(i);
-			replacementInstructions.add(new FieldInsnNode(Opcodes.GETSTATIC, match.getOwner(), match.getName(), match.getDescriptorString()));
-			replacementInstructions.add(integerType.createOrInsn());
-		}
-		if (remainder != 0)
-		{
-			replacementInstructions.add(integerType.createLiteralPushInsn(literal.longValue()));
-			replacementInstructions.add(integerType.createOrInsn());
-		}
-		return Optional.of(replacementInstructions);
+		return residual;
 	}
 	
 	@Override

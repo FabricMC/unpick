@@ -23,6 +23,10 @@ public enum IntegerType
 		@Override
 		public Number binaryNegate(Number value)
 			{ return ~value.intValue(); }
+
+		@Override
+		public long toUnsignedLong(Number value)
+			{ return Integer.toUnsignedLong(value.intValue()); }
 	},
 	LONG(Long.class, long.class, Type.LONG_TYPE, Opcodes.LAND, Opcodes.LRETURN) 
 	{
@@ -41,6 +45,10 @@ public enum IntegerType
 		@Override
 		public Number binaryNegate(Number value)
 			{ return ~value.longValue(); }
+
+		@Override
+		public long toUnsignedLong(Number value)
+			{ return value.longValue(); }
 	};
 	
 	private final Class<? extends Number> boxed, primitive;
@@ -148,4 +156,6 @@ public enum IntegerType
 	public abstract Number box(long value);
 	
 	public abstract Number binaryNegate(Number value);
+
+	public abstract long toUnsignedLong(Number value);
 }
