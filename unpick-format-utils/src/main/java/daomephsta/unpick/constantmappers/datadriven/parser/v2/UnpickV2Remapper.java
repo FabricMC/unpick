@@ -32,10 +32,7 @@ public class UnpickV2Remapper implements Visitor
 	 */
 	public UnpickV2Remapper(Map<String, String> classMappings, Map<MethodKey, String> methodMappings, Visitor delegate)
 	{
-		this.classMappings = classMappings;
-		this.methodMappings = methodMappings;
-		this.fieldMappings = Collections.emptyMap();
-		this.delegate = delegate;
+		this(classMappings, methodMappings, Collections.emptyMap(), delegate);
 	}
 
 	/**
