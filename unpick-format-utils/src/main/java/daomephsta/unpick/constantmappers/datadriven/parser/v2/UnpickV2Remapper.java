@@ -54,27 +54,46 @@ public class UnpickV2Remapper implements Visitor
 		this.delegate = delegate;
 	}
 
+	private String remapClass(String name)
+	{
+		return classMappings.getOrDefault(name, name);
+	}
+
+	private String remapMethod(String owner, String name, String descriptor)
+	{
+		return methodMappings.getOrDefault(new MethodKey(owner, name, descriptor), name);
+	}
+
+	private String remapField(String owner, String name)
+	{
+		return fieldMappings.getOrDefault(new FieldKey(owner, name), name);
+	}
+
+	private String remapDescriptor(String descriptor)
+	{
+		String remappedDescriptor = descriptor;
+
+		if (descriptor != null)
+		{
+			Matcher objectSignatureMatcher = OBJECT_SIGNATURE_FINDER.matcher(descriptor);
+			while(objectSignatureMatcher.find())
+			{
+				String objectSignature = objectSignatureMatcher.group(1);
+				if (classMappings.containsKey(objectSignature))
+					remappedDescriptor = remappedDescriptor.replace(objectSignature, classMappings.get(objectSignature));
+			}
+		}
+
+		return remappedDescriptor;
+	}
+
 	public TargetMethodDefinitionVisitor visitTargetMethodDefinition(String owner, String name, String descriptor)
 	{
 		//Reassigning the parameters tends to cause bugs
-		String remappedOwner = owner, 
-			   remappedName = name, 
-			   remappedDescriptor = descriptor;
-		
-		if (classMappings.containsKey(owner))
-            remappedOwner = classMappings.get(owner);
+		String remappedOwner = remapClass(owner),
+		       remappedName = remapMethod(owner, name, descriptor),
+		       remappedDescriptor = remapDescriptor(descriptor);
 
-		MethodKey methodKey = new MethodKey(owner, name, descriptor);
-        if (methodMappings.containsKey(methodKey))
-        	remappedName = methodMappings.get(methodKey);
-
-		Matcher objectSignatureMatcher = OBJECT_SIGNATURE_FINDER.matcher(descriptor);
-		while(objectSignatureMatcher.find())
-		{
-			String objectSignature = objectSignatureMatcher.group(1);
-			if (classMappings.containsKey(objectSignature))
-				remappedDescriptor = remappedDescriptor.replace(objectSignature, classMappings.get(objectSignature));
-		}
 		return delegate.visitTargetMethodDefinition(remappedOwner, remappedName, remappedDescriptor);
 	}
 
@@ -91,23 +110,9 @@ public class UnpickV2Remapper implements Visitor
 	public void visitSimpleConstantDefinition(String group, String owner, String name, String value, String descriptor)
 	{
 		//Reassigning the parameters tends to cause bugs
-		String remappedOwner = owner,
-			   remappedName = fieldMappings.getOrDefault(new FieldKey(owner, name), name),
-			   remappedDescriptor = descriptor;
-
-		if (classMappings.containsKey(owner))
-			remappedOwner = classMappings.get(owner);
-
-		if (descriptor != null)
-		{
-			Matcher objectSignatureMatcher = OBJECT_SIGNATURE_FINDER.matcher(descriptor);
-			while (objectSignatureMatcher.find())
-			{
-				String objectSignature = objectSignatureMatcher.group(1);
-				if (classMappings.containsKey(objectSignature))
-					remappedDescriptor = remappedDescriptor.replace(objectSignature, classMappings.get(objectSignature));
-			}
-		}
+		String remappedOwner = remapClass(owner),
+		       remappedName = remapField(owner, name),
+		       remappedDescriptor = remapDescriptor(descriptor);
 
 		delegate.visitSimpleConstantDefinition(group, remappedOwner, remappedName, value, remappedDescriptor);
 	}
@@ -115,23 +120,9 @@ public class UnpickV2Remapper implements Visitor
 	public void visitFlagConstantDefinition(String group, String owner, String name, String value, String descriptor)
 	{
 		//Reassigning the parameters tends to cause bugs
-		String remappedOwner = owner,
-			   remappedName = fieldMappings.getOrDefault(new FieldKey(owner, name), name),
-			   remappedDescriptor = descriptor;
-
-		if (classMappings.containsKey(owner))
-			remappedOwner = classMappings.get(owner);
-
-		if (descriptor != null)
-		{
-			Matcher objectSignatureMatcher = OBJECT_SIGNATURE_FINDER.matcher(descriptor);
-			while (objectSignatureMatcher.find())
-			{
-				String objectSignature = objectSignatureMatcher.group(1);
-				if (classMappings.containsKey(objectSignature))
-					remappedDescriptor = remappedDescriptor.replace(objectSignature, classMappings.get(objectSignature));
-			}
-		}
+		String remappedOwner = remapClass(owner),
+		       remappedName = remapField(owner, name),
+		       remappedDescriptor = remapDescriptor(descriptor);
 
 		delegate.visitFlagConstantDefinition(group, remappedOwner, remappedName, value, remappedDescriptor);
 	}
