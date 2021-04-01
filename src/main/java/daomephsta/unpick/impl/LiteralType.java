@@ -9,7 +9,21 @@ import org.objectweb.asm.tree.InsnNode;
 
 public enum LiteralType
 {
-	INT(Integer.class, int.class, Type.INT_TYPE, Opcodes.IRETURN) 
+	BYTE(Byte.class, byte.class, Type.BYTE_TYPE, Opcodes.IRETURN)
+	{
+		@Override
+		public AbstractInsnNode createLiteralPushInsn(Object literal)
+		{ return InstructionFactory.pushesInt(((Number) literal).byteValue()); }
+
+		@Override
+		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
+		{ InstructionFactory.pushesInt(mv, ((Number) literal).byteValue()); }
+
+		@Override
+		public Object parse(String valueString)
+		{ return Byte.parseByte(valueString); }
+	},
+	INT(Integer.class, int.class, Type.INT_TYPE, Opcodes.IRETURN)
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(Object literal)
@@ -123,7 +137,7 @@ public enum LiteralType
 		if (valuesByClass.containsKey(clazz))
 			return valuesByClass.get(clazz);
 		else
-			throw new IllegalArgumentException(clazz + " is not an int, long, float, double, String, or type reference");
+			throw new IllegalArgumentException(clazz + " is not an byte, int, long, float, double, String, or type reference");
 	}
 	
 	public static LiteralType from(Type type)
@@ -131,7 +145,7 @@ public enum LiteralType
 		if (valuesByType.containsKey(type))
 			return valuesByType.get(type);
 		else 
-			throw new IllegalArgumentException(type + " is not an int, float, long, double, String, or type reference");
+			throw new IllegalArgumentException(type + " is not an byte, int, float, long, double, String, or type reference");
 	}
 	
 	public AbstractInsnNode createReturnInsn()
