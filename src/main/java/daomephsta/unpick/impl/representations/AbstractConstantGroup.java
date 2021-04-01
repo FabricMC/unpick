@@ -2,6 +2,7 @@ package daomephsta.unpick.impl.representations;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import daomephsta.unpick.api.constantresolvers.IConstantResolver;
@@ -36,7 +37,8 @@ public abstract class AbstractConstantGroup<T extends AbstractConstantDefinition
 				} 
 				catch (ResolutionException e)
 				{
-					LOGGER.warning(e.getMessage());
+					LOGGER.log(Level.SEVERE, e.getMessage());
+					throw new RuntimeException("Failed to resolve constants", e);
 				}
 			}
 			unresolvedConstantDefinitions.clear();
