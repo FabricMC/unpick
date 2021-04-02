@@ -21,16 +21,8 @@ public class ClasspathConstantResolver extends BytecodeAnalysisConstantResolver
 			{
 				try
 				{
-					Class.forName(internalName);
-				} 
-				catch (ClassNotFoundException e)
-				{
-					throw new ClassResolutionException(e);
-				}
-				try
-				{
 					return new ClassReader(internalName);
-				} 
+				}
 				catch (IOException e)
 				{
 					throw new ClassResolutionException(e);
