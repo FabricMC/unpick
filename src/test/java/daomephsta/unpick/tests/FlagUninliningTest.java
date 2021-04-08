@@ -19,7 +19,6 @@ import org.objectweb.asm.tree.MethodNode;
 
 import daomephsta.unpick.api.ConstantUninliner;
 import daomephsta.unpick.api.constantmappers.IConstantMapper;
-import daomephsta.unpick.impl.AbstractInsnNodes;
 import daomephsta.unpick.impl.IntegerType;
 import daomephsta.unpick.impl.constantresolvers.ClasspathConstantResolver;
 import daomephsta.unpick.tests.lib.*;
@@ -29,7 +28,17 @@ public class FlagUninliningTest
 {
 	@SuppressWarnings("unused")
 	private static class Constants
-	{	
+	{
+		public static final byte BYTE_FLAG_BIT_0 = 1 << 0,
+								 BYTE_FLAG_BIT_1 = 1 << 1,
+								 BYTE_FLAG_BIT_2 = 1 << 2,
+								 BYTE_FLAG_BIT_3 = 1 << 3;
+		
+		public static final short SHORT_FLAG_BIT_0 = 1 << 0,
+								  SHORT_FLAG_BIT_1 = 1 << 1,
+								  SHORT_FLAG_BIT_2 = 1 << 2,
+								  SHORT_FLAG_BIT_3 = 1 << 3;
+		
 		public static final int INT_FLAG_BIT_0 = 1 << 0,
 								INT_FLAG_BIT_1 = 1 << 1,
 								INT_FLAG_BIT_2 = 1 << 2,
@@ -52,9 +61,41 @@ public class FlagUninliningTest
 	@SuppressWarnings("unused")
 	private static class Methods
 	{
+		private static void byteConsumer(byte test) {}
+		
+		private static void shortConsumer(short test) {}
+
 		private static void intConsumer(int test) {}
 
 		private static void longConsumer(long test) {}
+	}
+	
+	@ParameterizedTest(name = "{0} -> {1}")
+	@MethodSource("byteFlagsProvider")
+	public void testKnownByteFlagsReturn(Byte testConstant, String[] expectedConstantCombination, String[] constantNames)
+	{
+		testKnownFlagsReturn(testConstant, expectedConstantCombination, constantNames);
+	}
+	
+	@ParameterizedTest(name = "{0} -> {1}")
+	@MethodSource("byteFlagsProvider")
+	public void testKnownByteFlagsParameter(Byte testConstant, String[] expectedConstantCombination, String[] constantNames)
+	{
+		testKnownFlagsParameter(testConstant, expectedConstantCombination, constantNames, "byteConsumer", "(B)V");
+	}
+	
+	@ParameterizedTest(name = "{0} -> {1}")
+	@MethodSource("shortFlagsProvider")
+	public void testKnownShortFlagsReturn(Short testConstant, String[] expectedConstantCombination, String[] constantNames)
+	{
+		testKnownFlagsReturn(testConstant, expectedConstantCombination, constantNames);
+	}
+	
+	@ParameterizedTest(name = "{0} -> {1}")
+	@MethodSource("shortFlagsProvider")
+	public void testKnownShortFlagsParameter(Short testConstant, String[] expectedConstantCombination, String[] constantNames)
+	{
+		testKnownFlagsParameter(testConstant, expectedConstantCombination, constantNames, "shortConsumer", "(S)V");
 	}
 	
 	@ParameterizedTest(name = "{0} -> {1}")
@@ -155,6 +196,34 @@ public class FlagUninliningTest
 					expectedConstantCombination[j], integerType.getTypeDescriptor());
 			ASMAssertions.assertOpcode(mockMethod.instructions.get(j + 1), integerType.getOrOpcode());
 		}
+	}
+
+	@ParameterizedTest(name = "~{0} -> {1}")
+	@MethodSource("byteFlagsProvider")
+	public void testNegatedByteFlagsParameter(Byte testConstant, String[] expectedConstantCombination, String[] constantNames)
+	{
+		testNegatedFlagsParameter(testConstant, expectedConstantCombination, constantNames, "byteConsumer", "(B)V");
+	}
+	
+	@ParameterizedTest(name = "~{0} -> {1}")
+	@MethodSource("byteFlagsProvider")
+	public void testNegatedByteFlagsReturn(Byte testConstant, String[] expectedConstantCombination, String[] constantNames)
+	{
+		testNegatedFlagsReturn(testConstant, expectedConstantCombination, constantNames);
+	}
+
+	@ParameterizedTest(name = "~{0} -> {1}")
+	@MethodSource("shortFlagsProvider")
+	public void testNegatedShortFlagsParameter(Short testConstant, String[] expectedConstantCombination, String[] constantNames)
+	{
+		testNegatedFlagsParameter(testConstant, expectedConstantCombination, constantNames, "shortConsumer", "(B)V");
+	}
+	
+	@ParameterizedTest(name = "~{0} -> {1}")
+	@MethodSource("shortFlagsProvider")
+	public void testNegatedShortFlagsReturn(Short testConstant, String[] expectedConstantCombination, String[] constantNames)
+	{
+		testNegatedFlagsReturn(testConstant, expectedConstantCombination, constantNames);
 	}
 	
 	@ParameterizedTest(name = "~{0} -> {1}")
@@ -260,6 +329,32 @@ public class FlagUninliningTest
 	}
 	
 	@ParameterizedTest(name = "{0} -> {0}")
+	@ValueSource(bytes = {0b0000, 0b100000, 0b01000, 0b11000})
+	public void testUnknownByteFlagsParameter(Byte testConstant)
+	{
+		testUnknownFlagsParameter(testConstant, "byteConsumer", "(B)V");
+	}
+	@ParameterizedTest(name = "{0} -> {0}")
+	@ValueSource(bytes = {0b0000, 0b100000, 0b01000, 0b11000})
+	public void testUnknownByteFlagsReturn(Byte testConstant)
+	{
+		testUnknownFlagsReturn(testConstant);
+	}
+
+	@ParameterizedTest(name = "{0} -> {0}")
+	@ValueSource(shorts = {0b0000, 0b100000, 0b01000, 0b11000})
+	public void testUnknownShortFlagsParameter(Short testConstant)
+	{
+		testUnknownFlagsParameter(testConstant, "shortConsumer", "(S)V");
+	}
+	@ParameterizedTest(name = "{0} -> {0}")
+	@ValueSource(shorts = {0b0000, 0b100000, 0b01000, 0b11000})
+	public void testUnknownShortFlagsReturn(Short testConstant)
+	{
+		testUnknownFlagsReturn(testConstant);
+	}	
+	
+	@ParameterizedTest(name = "{0} -> {0}")
 	@ValueSource(ints = {0b0000, 0b100000, 0b01000, 0b11000})
 	public void testUnknownIntFlagsParameter(Integer testConstant)
 	{
@@ -338,6 +433,30 @@ public class FlagUninliningTest
 		ASMAssertions.assertOpcode(mockInvocation.instructions.get(1), integerType.getReturnOpcode());
 	}
 	
+	private static Stream<Arguments> byteFlagsProvider()
+	{
+		String[] constantNames = {"BYTE_FLAG_BIT_0", "BYTE_FLAG_BIT_1", "BYTE_FLAG_BIT_2", "BYTE_FLAG_BIT_3"};
+		return Stream.of
+		(
+			Arguments.of((byte) 0b0100, new String[] {"BYTE_FLAG_BIT_2"}, constantNames),
+			Arguments.of((byte) 0b1100, new String[] {"BYTE_FLAG_BIT_2", "BYTE_FLAG_BIT_3"}, constantNames),
+			Arguments.of((byte) 0b1010, new String[] {"BYTE_FLAG_BIT_1", "BYTE_FLAG_BIT_3"}, constantNames),
+			Arguments.of((byte) 0b0111, new String[] {"BYTE_FLAG_BIT_0", "BYTE_FLAG_BIT_1", "BYTE_FLAG_BIT_2"}, constantNames)
+		);	
+	}
+	
+	private static Stream<Arguments> shortFlagsProvider()
+	{
+		String[] constantNames = {"SHORT_FLAG_BIT_0", "SHORT_FLAG_BIT_1", "SHORT_FLAG_BIT_2", "SHORT_FLAG_BIT_3"};
+		return Stream.of
+		(
+			Arguments.of((short) 0b0100, new String[] {"SHORT_FLAG_BIT_2"}, constantNames),
+			Arguments.of((short) 0b1100, new String[] {"SHORT_FLAG_BIT_2", "SHORT_FLAG_BIT_3"}, constantNames),
+			Arguments.of((short) 0b1010, new String[] {"SHORT_FLAG_BIT_1", "SHORT_FLAG_BIT_3"}, constantNames),
+			Arguments.of((short) 0b0111, new String[] {"SHORT_FLAG_BIT_0", "SHORT_FLAG_BIT_1", "SHORT_FLAG_BIT_2"}, constantNames)
+		);	
+	}
+	
 	private static Stream<Arguments> intFlagsProvider()
 	{
 		String[] constantNames = {"INT_FLAG_BIT_0", "INT_FLAG_BIT_1", "INT_FLAG_BIT_2", "INT_FLAG_BIT_3"};
@@ -369,7 +488,7 @@ public class FlagUninliningTest
 		int expectedInstructionCount = 3;
 		assertEquals(expectedInstructionCount, mockInvocation.instructions.size(), 
 				String.format("Expected %d instructions, found %d", expectedInstructionCount, mockInvocation.instructions.size()));
-		assertEquals(expectedLiteralValue, AbstractInsnNodes.getLiteralValue(mockInvocation.instructions.get(invocationInsnIndex - 1)));
+		ASMAssertions.assertIsLiteral(mockInvocation.instructions.get(invocationInsnIndex - 1), expectedLiteralValue);
 		ASMAssertions.assertInvokesMethod(mockInvocation.instructions.get(invocationInsnIndex), Methods.class, 
 				constantConsumerName, constantConsumerDescriptor);
 		ASMAssertions.assertOpcode(mockInvocation.instructions.get(invocationInsnIndex + 1), RETURN);
