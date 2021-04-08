@@ -6,27 +6,37 @@ import static org.objectweb.asm.Opcodes.RETURN;
 import java.io.IOException;
 import java.util.stream.Stream;
 
-import daomephsta.unpick.api.IClassResolver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.*;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.MethodNode;
 
 import daomephsta.unpick.api.ConstantUninliner;
+import daomephsta.unpick.api.IClassResolver;
 import daomephsta.unpick.api.constantmappers.IConstantMapper;
-import daomephsta.unpick.impl.AbstractInsnNodes;
 import daomephsta.unpick.impl.LiteralType;
 import daomephsta.unpick.impl.constantresolvers.ClasspathConstantResolver;
-import daomephsta.unpick.tests.lib.*;
+import daomephsta.unpick.tests.lib.ASMAssertions;
+import daomephsta.unpick.tests.lib.MethodMocker;
 import daomephsta.unpick.tests.lib.MethodMocker.MockMethod;
+import daomephsta.unpick.tests.lib.MockConstantMapper;
+import daomephsta.unpick.tests.lib.TestUtils;
 
 public class SimpleConstantUninliningTest
 {
 	@SuppressWarnings("unused")
 	private static class Methods
 	{
+		private static void byteConsumer(byte test) {}
+
 		private static void intConsumer(int test) {}
+		
+		private static void shortConsumer(short test) {}
+		
+		private static void charConsumer(char test) {}
 
 		private static void longConsumer(long test) {}
 
@@ -36,10 +46,36 @@ public class SimpleConstantUninliningTest
 
 		private static void stringConsumer(String test) {}
 	}
-	
+
 	@SuppressWarnings("unused")
 	private static class Constants
 	{
+		public static final byte BYTE_CONST_M1 = -1,
+								 BYTE_CONST_0 = 0,
+								 BYTE_CONST_1 = 1,
+								 BYTE_CONST_2 = 2,
+								 BYTE_CONST_3 = 3,
+								 BYTE_CONST_4 = 4,
+								 BYTE_CONST_5 = 5,
+								 BYTE_CONST = 117;
+
+		public static final short SHORT_CONST_M1 = -1,
+								  SHORT_CONST_0 = 0,
+								  SHORT_CONST_1 = 1,
+								  SHORT_CONST_2 = 2,
+								  SHORT_CONST_3 = 3,
+								  SHORT_CONST_4 = 4,
+								  SHORT_CONST_5 = 5,
+								  SHORT_CONST = 257;
+		
+		public static final char CHAR_CONST_0 = '\0',
+			                     CHAR_CONST_1 = '\1',
+			                     CHAR_CONST_2 = '\2',
+			                     CHAR_CONST_3 = '\3',
+			                     CHAR_CONST_4 = '\4',
+			                     CHAR_CONST_5 = '\5',
+			                     CHAR_CONST = '\257';
+		
 		public static final int INT_CONST_M1 = -1,
 								INT_CONST_0 = 0,
 								INT_CONST_1 = 1,
@@ -72,6 +108,131 @@ public class SimpleConstantUninliningTest
 				throw new IClassResolver.ClassResolutionException(e);
 			}
 		};
+	}
+	
+	@ParameterizedTest(name = "{0} -> {1}")
+	@MethodSource("knownBytesProvider")
+	public void testKnownByteConstantsParameter(Byte constant, String constantName)
+	{	
+		testKnownConstantParameter(constant, constantName, "byteConsumer", "(B)V");
+	}
+	
+	@ParameterizedTest(name = "{0} -> {1}")
+	@MethodSource("knownBytesProvider")
+	public void testKnownByteConstantsReturn(Byte constant, String constantName)
+	{	
+		testKnownConstantReturn(constant, constantName);
+	}
+	
+	private static Stream<Arguments> knownBytesProvider()
+	{
+		return Stream.of
+		(
+			Arguments.of(Constants.BYTE_CONST_M1, "BYTE_CONST_M1"),
+			Arguments.of(Constants.BYTE_CONST_0, "BYTE_CONST_0"),
+			Arguments.of(Constants.BYTE_CONST_1, "BYTE_CONST_1"),
+			Arguments.of(Constants.BYTE_CONST_2, "BYTE_CONST_2"),
+			Arguments.of(Constants.BYTE_CONST_3, "BYTE_CONST_3"),
+			Arguments.of(Constants.BYTE_CONST_4, "BYTE_CONST_4"),
+			Arguments.of(Constants.BYTE_CONST_5, "BYTE_CONST_5")
+		);
+	}
+	
+	@ParameterizedTest(name = "{0}")
+	@ValueSource(bytes = {8, 13, 42, -1, -7, -23})
+	public void testUnknownByteConstantsParameter(Byte constant)
+	{
+		testUnknownConstantParameter(constant, "byteConsumer", "(B)V");
+	}
+	
+	@ParameterizedTest(name = "{0}")
+	@ValueSource(bytes = {8, 13, 42, -1, -7, -23})
+	public void testUnknownByteConstantsReturn(Byte constant)
+	{
+		testUnknownConstantReturn(constant);
+	}
+	
+	@ParameterizedTest(name = "{0} -> {1}")
+	@MethodSource("knownShortsProvider")
+	public void testKnownShortConstantsParameter(Short constant, String constantName)
+	{	
+		testKnownConstantParameter(constant, constantName, "shortConsumer", "(S)V");
+	}
+	
+	@ParameterizedTest(name = "{0} -> {1}")
+	@MethodSource("knownShortsProvider")
+	public void testKnownShortConstantsReturn(Short constant, String constantName)
+	{	
+		testKnownConstantReturn(constant, constantName);
+	}
+	
+	private static Stream<Arguments> knownShortsProvider()
+	{
+		return Stream.of
+		(
+			Arguments.of(Constants.SHORT_CONST_M1, "SHORT_CONST_M1"),
+			Arguments.of(Constants.SHORT_CONST_0, "SHORT_CONST_0"),
+			Arguments.of(Constants.SHORT_CONST_1, "SHORT_CONST_1"),
+			Arguments.of(Constants.SHORT_CONST_2, "SHORT_CONST_2"),
+			Arguments.of(Constants.SHORT_CONST_3, "SHORT_CONST_3"),
+			Arguments.of(Constants.SHORT_CONST_4, "SHORT_CONST_4"),
+			Arguments.of(Constants.SHORT_CONST_5, "SHORT_CONST_5")
+		);
+	}
+	
+	@ParameterizedTest(name = "{0}")
+	@ValueSource(shorts = {8, 13, 42, -1, -7, -23})
+	public void testUnknownShortConstantsParameter(Short constant)
+	{
+		testUnknownConstantParameter(constant, "shortConsumer", "(S)V");
+	}
+	
+	@ParameterizedTest(name = "{0}")
+	@ValueSource(shorts = {8, 13, 42, -1, -7, -23})
+	public void testUnknownShortConstantsReturn(Short constant)
+	{
+		testUnknownConstantReturn(constant);
+	}
+	
+    @ParameterizedTest(name = "{0} -> {1}")
+	@MethodSource("knownCharactersProvider")
+	public void testKnownCharacterConstantsParameter(Character constant, String constantName)
+	{	
+		testKnownConstantParameter(constant, constantName, "charConsumer", "(C)V");
+	}
+	
+	@ParameterizedTest(name = "{0} -> {1}")
+	@MethodSource("knownCharactersProvider")
+	public void testKnownCharacterConstantsReturn(Character constant, String constantName)
+	{	
+		testKnownConstantReturn(constant, constantName);
+	}
+	
+	private static Stream<Arguments> knownCharactersProvider()
+	{
+		return Stream.of
+		(
+			Arguments.of(Constants.CHAR_CONST_0, "CHAR_CONST_0"),
+			Arguments.of(Constants.CHAR_CONST_1, "CHAR_CONST_1"),
+			Arguments.of(Constants.CHAR_CONST_2, "CHAR_CONST_2"),
+			Arguments.of(Constants.CHAR_CONST_3, "CHAR_CONST_3"),
+			Arguments.of(Constants.CHAR_CONST_4, "CHAR_CONST_4"),
+			Arguments.of(Constants.CHAR_CONST_5, "CHAR_CONST_5")
+		);
+	}
+	
+	@ParameterizedTest(name = "{0}")
+	@ValueSource(chars = {'b', '#', ':', 'E', '$', '=', 's', '?', '/', '\\'})
+	public void testUnknownCharacterConstantsParameter(Character constant)
+	{
+		testUnknownConstantParameter(constant, "charConsumer", "(C)V");
+	}
+	
+	@ParameterizedTest(name = "{0}")
+	@ValueSource(chars = {'b', '#', ':', 'E', '$', '=', 's', '?', '/', '\\'})
+	public void testUnknownCharacterConstantsReturn(Character constant)
+	{
+		testUnknownConstantReturn(constant);
 	}
 	
 	@ParameterizedTest(name = "{0} -> {1}")
@@ -399,7 +560,7 @@ public class SimpleConstantUninliningTest
 		int expectedInstructionCount = 3;
 		assertEquals(expectedInstructionCount, mockInvocation.instructions.size(), 
 				String.format("Expected %d instructions, found %d", expectedInstructionCount, mockInvocation.instructions.size()));
-		assertEquals(expectedLiteralValue, AbstractInsnNodes.getLiteralValue(mockInvocation.instructions.get(invocationInsnIndex - 1)));
+		ASMAssertions.assertIsLiteral(mockInvocation.instructions.get(invocationInsnIndex - 1), expectedLiteralValue);
 		ASMAssertions.assertInvokesMethod(mockInvocation.instructions.get(invocationInsnIndex), Methods.class, 
 				constantConsumerName, constantConsumerDescriptor);
 		ASMAssertions.assertOpcode(mockInvocation.instructions.get(invocationInsnIndex + 1), RETURN);

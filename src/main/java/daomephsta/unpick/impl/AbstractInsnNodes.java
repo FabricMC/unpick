@@ -51,6 +51,16 @@ public class AbstractInsnNodes
 	
 	public static boolean isLiteral(AbstractInsnNode insn, Object literal)
 	{
-		return getLiteralValue(insn).equals(literal);
+		Object literalValue = getLiteralValue(insn);
+		// Chars are stored as ints, so conversion is necessary
+		if (literal instanceof Character && literalValue instanceof Integer)
+		{
+			Character charLiteral = (char) (int) literalValue;
+			return literal.equals(charLiteral);
+		}
+		// Compare numbers by long value, to support widening comparisons
+		if (literalValue instanceof Number && literal instanceof Number)
+		    return ((Number) literalValue).longValue() == ((Number) literal).longValue();
+		return literalValue.equals(literal);
 	}
 }

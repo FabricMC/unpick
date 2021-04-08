@@ -19,9 +19,11 @@ public class InstructionFactory
 				return pushesDouble(number.doubleValue());
 			else if (number instanceof Float)
 				return pushesFloat(number.floatValue());
-			else //Shorts, bytes, and chars are all ints internally
+			else //Shorts and bytes are all ints internally
 				return pushesInt(number.intValue());
 		}
+		else if (value instanceof Character)
+			return pushesChar((char) value);
 		else if (value instanceof Boolean)
 			return pushesBoolean((boolean) value);
 		else if (value instanceof String)
@@ -43,9 +45,11 @@ public class InstructionFactory
 				pushesDouble(method, number.doubleValue());
 			else if (number instanceof Float)
 				pushesFloat(method, number.floatValue());
-			else //Shorts, bytes, and chars are all ints internally
+			else //Shorts and bytes are all ints internally
 				pushesInt(method, number.intValue());
 		}
+		else if (value instanceof Character)
+			pushesChar(method, (char) value);
 		else if (value instanceof Boolean)
 			pushesBoolean(method, (boolean) value);
 		else if (value instanceof String)
@@ -64,6 +68,16 @@ public class InstructionFactory
 	public static void pushesBoolean(MethodVisitor method, boolean bool)
 	{
 		method.visitInsn(bool ? ICONST_1 : ICONST_0);
+	}
+	
+	public static AbstractInsnNode pushesChar(char c)
+	{
+		return pushesInt(c);
+	}
+	
+	public static void pushesChar(MethodVisitor method, char c)
+	{
+		pushesInt(method, c);
 	}
 	
 	private static final int[] I_OPCODES = {ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5}; 

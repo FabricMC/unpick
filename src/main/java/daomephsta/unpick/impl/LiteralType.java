@@ -1,7 +1,10 @@
 package daomephsta.unpick.impl;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.objectweb.asm.*;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -9,6 +12,52 @@ import org.objectweb.asm.tree.InsnNode;
 
 public enum LiteralType
 {
+	BYTE(Byte.class, byte.class, Type.BYTE_TYPE, Opcodes.IRETURN)
+	{
+		@Override
+		public AbstractInsnNode createLiteralPushInsn(Object literal)
+			{ return InstructionFactory.pushesInt(((Number) literal).intValue()); }
+
+		@Override
+		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
+			{ InstructionFactory.pushesInt(mv, ((Number) literal).intValue()); }
+
+		@Override
+		public Object parse(String valueString)
+			{ return Byte.parseByte(valueString); }
+	},
+	SHORT(Short.class, short.class, Type.SHORT_TYPE, Opcodes.IRETURN)
+	{
+		@Override
+		public AbstractInsnNode createLiteralPushInsn(Object literal)
+			{ return InstructionFactory.pushesInt(((Number) literal).intValue()); }
+
+		@Override
+		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
+			{ InstructionFactory.pushesInt(mv, ((Number) literal).intValue()); }
+
+		@Override
+		public Object parse(String valueString)
+			{ return Short.parseShort(valueString); }
+	},
+	CHAR(Character.class, char.class, Type.CHAR_TYPE, Opcodes.IRETURN)
+	{
+		@Override
+		public AbstractInsnNode createLiteralPushInsn(Object literal)
+			{ return InstructionFactory.pushesChar((char) literal); }
+
+		@Override
+		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
+			{ InstructionFactory.pushesChar(mv, (char) literal); }
+
+		@Override
+		public Object parse(String valueString)	
+		{ 
+			if (valueString.length() != 1)
+				throw new IllegalArgumentException(valueString + " is not a single character");
+			return valueString.charAt(0);
+		}
+	},
 	INT(Integer.class, int.class, Type.INT_TYPE, Opcodes.IRETURN) 
 	{
 		@Override
@@ -123,7 +172,7 @@ public enum LiteralType
 		if (valuesByClass.containsKey(clazz))
 			return valuesByClass.get(clazz);
 		else
-			throw new IllegalArgumentException(clazz + " is not an int, long, float, double, String, or type reference");
+			throw new IllegalArgumentException(clazz + " is not one of: " + describeValidTypes());
 	}
 	
 	public static LiteralType from(Type type)
@@ -131,7 +180,14 @@ public enum LiteralType
 		if (valuesByType.containsKey(type))
 			return valuesByType.get(type);
 		else 
-			throw new IllegalArgumentException(type + " is not an int, float, long, double, String, or type reference");
+			throw new IllegalArgumentException(type + " is not one of: " + describeValidTypes());
+	}
+
+	private static String describeValidTypes()
+	{
+		return Arrays.stream(values())
+			.map(t -> t.name().toLowerCase(Locale.ROOT).replace('_', ' '))
+			.collect(Collectors.joining(", "));
 	}
 	
 	public AbstractInsnNode createReturnInsn()
