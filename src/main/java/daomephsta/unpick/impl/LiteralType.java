@@ -4,6 +4,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.objectweb.asm.*;
@@ -53,8 +55,13 @@ public enum LiteralType
 		@Override
 		public Object parse(String valueString)	
 		{ 
+			// Unicode escape parsing
+			Matcher m = UNICODE_ESCAPE.matcher(valueString);
+			if (m.matches())
+				return (char) Integer.parseInt(m.group(1), 16);
+			// Plain java char parsing
 			if (valueString.length() != 1)
-				throw new IllegalArgumentException(valueString + " is not a single character");
+				throw new IllegalArgumentException(valueString + " is not a single character or valid unicode escape");
 			return valueString.charAt(0);
 		}
 	},
@@ -143,6 +150,7 @@ public enum LiteralType
 			{ return Type.getType(valueString); }
 	};
 	
+	private static final Pattern UNICODE_ESCAPE = Pattern.compile("\\\\u+([0-9a-fA-F]{1,4})");
 	private static final Map<Class<?>, LiteralType> valuesByClass = new HashMap<>();
 	private static final Map<Type, LiteralType> valuesByType = new HashMap<>();
 	static
