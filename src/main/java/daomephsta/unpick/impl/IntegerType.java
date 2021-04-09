@@ -26,11 +26,11 @@ public enum IntegerType
 
 		@Override
 		public Number binaryNegate(Number value)
-			{ return ~value.intValue(); }
+			{ return ~value.byteValue(); }
 
 		@Override
 		public long toUnsignedLong(Number value)
-			{ return Integer.toUnsignedLong(value.intValue()); }
+			{ return Byte.toUnsignedLong(value.byteValue()); }
 	},
 	SHORT(Short.class, short.class, Type.SHORT_TYPE, Opcodes.IAND, Opcodes.IRETURN) 
 	{
@@ -48,11 +48,11 @@ public enum IntegerType
 
 		@Override
 		public Number binaryNegate(Number value)
-			{ return ~value.intValue(); }
+			{ return ~value.shortValue(); }
 
 		@Override
 		public long toUnsignedLong(Number value)
-			{ return Integer.toUnsignedLong(value.intValue()); }
+			{ return Short.toUnsignedLong(value.shortValue()); }
 	},
 	INT(Integer.class, int.class, Type.INT_TYPE, Opcodes.IAND, Opcodes.IRETURN) 
 	{
@@ -66,7 +66,7 @@ public enum IntegerType
 		
 		@Override
 		public Number box(long value)
-			{ return new Integer((int) value); }
+			{ return Integer.valueOf((int) value); }
 
 		@Override
 		public Number binaryNegate(Number value)
@@ -88,7 +88,7 @@ public enum IntegerType
 		
 		@Override
 		public Number box(long value)
-			{ return new Long(value); }
+			{ return Long.valueOf(value); }
 
 		@Override
 		public Number binaryNegate(Number value)

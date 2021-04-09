@@ -16,11 +16,11 @@ public enum LiteralType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(Object literal)
-			{ return InstructionFactory.pushesInt(((Number) literal).intValue()); }
+			{ return InstructionFactory.pushesInt(((Number) literal).byteValue()); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
-			{ InstructionFactory.pushesInt(mv, ((Number) literal).intValue()); }
+			{ InstructionFactory.pushesInt(mv, ((Number) literal).byteValue()); }
 
 		@Override
 		public Object parse(String valueString)
@@ -30,11 +30,11 @@ public enum LiteralType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(Object literal)
-			{ return InstructionFactory.pushesInt(((Number) literal).intValue()); }
+			{ return InstructionFactory.pushesInt(((Number) literal).shortValue()); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
-			{ InstructionFactory.pushesInt(mv, ((Number) literal).intValue()); }
+			{ InstructionFactory.pushesInt(mv, ((Number) literal).shortValue()); }
 
 		@Override
 		public Object parse(String valueString)
