@@ -26,7 +26,7 @@ public enum IntegerType
 
 		@Override
 		public Number binaryNegate(Number value)
-			{ return ~value.byteValue(); }
+			{ return (byte) ~value.byteValue(); }
 
 		@Override
 		public long toUnsignedLong(Number value)
@@ -52,7 +52,7 @@ public enum IntegerType
 
 		@Override
 		public Number binaryNegate(Number value)
-			{ return ~value.shortValue(); }
+			{ return (short) ~value.shortValue(); }
 
 		@Override
 		public long toUnsignedLong(Number value)
