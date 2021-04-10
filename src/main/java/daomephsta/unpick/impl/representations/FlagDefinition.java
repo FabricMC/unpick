@@ -3,6 +3,7 @@ package daomephsta.unpick.impl.representations;
 import org.objectweb.asm.Type;
 
 import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
+import daomephsta.unpick.impl.IntegerType;
 
 /**
  * Represents a flag field. The value and descriptor may be
@@ -42,11 +43,7 @@ public class FlagDefinition extends AbstractConstantDefinition<FlagDefinition>
 	{
 		try 
 		{ 
-			if (descriptor == Type.INT_TYPE)
-				return Integer.parseInt(valueString);
-			else if (descriptor == Type.LONG_TYPE)
-				return Long.parseLong(valueString); 
-			else throw new UnpickSyntaxException("Cannot parse value " + valueString + " with descriptor " + descriptor);
+			return IntegerType.from(descriptor).parse(valueString);
 		}
 		catch (IllegalArgumentException e) 
 		{
@@ -57,10 +54,16 @@ public class FlagDefinition extends AbstractConstantDefinition<FlagDefinition>
 	@Override
 	protected void setValue(Object value) throws ResolutionException
 	{
-		if (value instanceof Long || value instanceof Integer)
+		try
+		{
+			// Will throw if value is not of an integral type
+			IntegerType.from(value);
 			this.value = value;
-		else 
-			throw new ResolutionException(this + " is not of a valid flag type. Flags must be ints or longs.");
+		}
+		catch (IllegalArgumentException e)
+		{
+			throw new ResolutionException(value + " is not of a valid flag type", e);
+		}
 	}
 	
 	@Override

@@ -50,7 +50,7 @@ public class FlagConstantGroup extends AbstractConstantGroup<FlagDefinition>
 	public void generateReplacements(Context context)
 	{
 		Number literalNum = (Number) AbstractInsnNodes.getLiteralValue(context.getArgSeed());
-		IntegerType integerType = IntegerType.from(literalNum.getClass());
+		IntegerType integerType = IntegerType.from(literalNum);
 
 		resolveAllConstants(context.getConstantResolver());
 

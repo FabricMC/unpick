@@ -137,7 +137,7 @@ public class FlagUninliningTest
 				.add()
 				.build();
 		
-		IntegerType integerType = IntegerType.from(testConstant.getClass());
+		IntegerType integerType = IntegerType.from(testConstant);
 		ConstantUninliner uninliner = new ConstantUninliner(mapper, new ClasspathConstantResolver());
 		
 		MockMethod mockMethod = TestUtils.mockInvokeStatic(Methods.class, 
@@ -164,7 +164,7 @@ public class FlagUninliningTest
 
 	private void testKnownFlagsReturn(Number testConstant, String[] expectedConstantCombination, String[] constantNames)
 	{
-		IntegerType integerType = IntegerType.from(testConstant.getClass());
+		IntegerType integerType = IntegerType.from(testConstant);
 		MockMethod mock = MethodMocker.mock(integerType.getPrimitiveClass(), mv -> 
 		{
 			integerType.appendLiteralPushInsn(mv, testConstant.longValue());
@@ -266,7 +266,7 @@ public class FlagUninliningTest
 				.build();
 
 		ConstantUninliner uninliner = new ConstantUninliner(mapper, new ClasspathConstantResolver());
-		IntegerType integerType = IntegerType.from(testConstant.getClass());
+		IntegerType integerType = IntegerType.from(testConstant);
 
 		MockMethod mockMethod = MethodMocker.mock(void.class, mv -> 
 		{
@@ -293,7 +293,7 @@ public class FlagUninliningTest
 	
 	private void testNegatedFlagsReturn(Number testConstant, String[] expectedConstantCombination, String[] constantNames)
 	{
-		IntegerType integerType = IntegerType.from(testConstant.getClass());
+		IntegerType integerType = IntegerType.from(testConstant);
 		MockMethod mock = MethodMocker.mock(integerType.getPrimitiveClass(), mv -> 
 		{
 			mv.visitFieldInsn(Opcodes.GETSTATIC, "Foo", "bar", integerType.getTypeDescriptor());
@@ -406,7 +406,7 @@ public class FlagUninliningTest
 	
 	private void testUnknownFlagsReturn(Number testConstant)
 	{
-		IntegerType integerType = IntegerType.from(testConstant.getClass());
+		IntegerType integerType = IntegerType.from(testConstant);
 		MockMethod mock = MethodMocker.mock(integerType.getPrimitiveClass(), mv -> 
 		{
 			integerType.appendLiteralPushInsn(mv, testConstant.longValue());

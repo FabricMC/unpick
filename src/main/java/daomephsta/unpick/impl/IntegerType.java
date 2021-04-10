@@ -31,6 +31,10 @@ public enum IntegerType
 		@Override
 		public long toUnsignedLong(Number value)
 			{ return Byte.toUnsignedLong(value.byteValue()); }
+
+		@Override
+		public Number parse(String valueString)
+			{ return Byte.parseByte(valueString); }
 	},
 	SHORT(Short.class, short.class, Type.SHORT_TYPE, Opcodes.IAND, Opcodes.IRETURN) 
 	{
@@ -53,6 +57,10 @@ public enum IntegerType
 		@Override
 		public long toUnsignedLong(Number value)
 			{ return Short.toUnsignedLong(value.shortValue()); }
+
+		@Override
+		public Number parse(String valueString)
+			{ return Short.parseShort(valueString); }
 	},
 	INT(Integer.class, int.class, Type.INT_TYPE, Opcodes.IAND, Opcodes.IRETURN) 
 	{
@@ -75,6 +83,10 @@ public enum IntegerType
 		@Override
 		public long toUnsignedLong(Number value)
 			{ return Integer.toUnsignedLong(value.intValue()); }
+		
+		@Override
+		public Number parse(String valueString)
+			{ return Integer.parseInt(valueString); }
 	},
 	LONG(Long.class, long.class, Type.LONG_TYPE, Opcodes.LAND, Opcodes.LRETURN) 
 	{
@@ -97,6 +109,10 @@ public enum IntegerType
 		@Override
 		public long toUnsignedLong(Number value)
 			{ return value.longValue(); }
+		
+		@Override
+		public Number parse(String valueString)
+			{ return Long.parseLong(valueString); }
 	};
 	
 	private final Class<? extends Number> boxed, primitive;
@@ -112,14 +128,24 @@ public enum IntegerType
 		this.returnOpcode = returnOpcode;
 	}
 	
-	public static IntegerType from(Class<?> clazz)
+	public static IntegerType from(Type type)
+	{ 
+		for (IntegerType intType : values())
+		{
+			if (intType.type == type)
+				return intType;
+		}
+		throw new IllegalArgumentException(type + " is not one of: " + describeValidTypes());
+	}
+	
+	public static IntegerType from(Object literal)
 	{ 
 		for (IntegerType type : values())
 		{
-			if (clazz == type.getBoxClass() || clazz == type.getPrimitiveClass())
+			if (literal.getClass() == type.getBoxClass() || literal.getClass() == type.getPrimitiveClass())
 				return type;
 		}
-		throw new IllegalArgumentException(clazz + " is not one of: " + describeValidTypes());
+		throw new IllegalArgumentException(literal + " is not one of: " + describeValidTypes());
 	}
 
 	private static String describeValidTypes()
@@ -213,4 +239,6 @@ public enum IntegerType
 	public abstract Number binaryNegate(Number value);
 
 	public abstract long toUnsignedLong(Number value);
+	
+	public abstract Number parse(String valueString);
 }

@@ -124,5 +124,10 @@ public abstract class AbstractConstantDefinition<C extends AbstractConstantDefin
 		{
 			super(message);
 		}
+
+		public ResolutionException(String message, Throwable cause)
+		{
+			super(message, cause);
+		}
 	}
 }
