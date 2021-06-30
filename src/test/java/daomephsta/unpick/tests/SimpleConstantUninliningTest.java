@@ -1,6 +1,7 @@
 package daomephsta.unpick.tests;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.objectweb.asm.Opcodes.RETURN;
 
 import java.io.IOException;
@@ -448,7 +449,9 @@ public class SimpleConstantUninliningTest
 		ConstantUninliner uninliner = new ConstantUninliner(mapper, new ClasspathConstantResolver());
 		MethodNode mockInvocation = TestUtils.mockInvokeStatic(Methods.class, constantConsumerName, constantConsumerDescriptor, 1)
 				.getMockMethod();
-		uninliner.transformMethod(MethodMocker.CLASS_NAME, mockInvocation);
+		Exception ex = assertThrows(RuntimeException.class, () -> 
+		    uninliner.transformMethod(MethodMocker.CLASS_NAME, mockInvocation));
+		assertEquals(ex.getMessage(), "Failed to resolve one or more constants of group test");
 	}
 
 	private void testKnownConstantParameter(Object constant, String expectedConstant, String constantConsumerName, String constantConsumerDescriptor)

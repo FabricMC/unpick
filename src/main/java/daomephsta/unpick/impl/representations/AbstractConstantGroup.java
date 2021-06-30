@@ -2,6 +2,7 @@ package daomephsta.unpick.impl.representations;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.logging.Logger;
 
 import daomephsta.unpick.api.constantresolvers.IConstantResolver;
@@ -26,21 +27,21 @@ public abstract class AbstractConstantGroup<T extends AbstractConstantDefinition
 	
 	protected final void resolveAllConstants(IConstantResolver constantResolver)
 	{
+	    for (Iterator<T> iter = unresolvedConstantDefinitions.iterator(); iter.hasNext();)
+	    {
+            T definition = iter.next();
+            try
+            {
+                acceptResolved(definition.resolve(constantResolver));
+                iter.remove();
+            } 
+            catch (ResolutionException e)
+            {
+                LOGGER.severe(e.getMessage());
+            }
+	    }
 		if (!unresolvedConstantDefinitions.isEmpty())
-		{
-			for (T definition : unresolvedConstantDefinitions)
-			{
-				try
-				{
-					acceptResolved(definition.resolve(constantResolver));
-				} 
-				catch (ResolutionException e)
-				{
-					LOGGER.warning(e.getMessage());
-				}
-			}
-			unresolvedConstantDefinitions.clear();
-		}
+		    throw new RuntimeException("Failed to resolve one or more constants of group " + id);
 	}
 	
 	protected abstract void acceptResolved(T definition);
