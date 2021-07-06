@@ -52,8 +52,6 @@ public class FlagConstantGroup extends AbstractConstantGroup<FlagDefinition>
 		Number literalNum = (Number) AbstractInsnNodes.getLiteralValue(context.getArgSeed());
 		IntegerType integerType = IntegerType.from(literalNum);
 
-		resolveAllConstants(context.getConstantResolver());
-
 		long literal = integerType.toUnsignedLong(literalNum);
 		if (literal == 0 || literal == -1)
 		{

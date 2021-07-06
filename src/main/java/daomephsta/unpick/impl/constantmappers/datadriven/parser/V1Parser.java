@@ -17,7 +17,7 @@ public enum V1Parser
 	
 	private static final Pattern WHITESPACE_SPLITTER = Pattern.compile("\\s");
 	
-	public void parse(InputStream mappingSource, Map<String, ReplacementInstructionGenerator> constantGroups, TargetMethods.Builder targetMethodsBuilder) throws IOException
+	public void parse(InputStream mappingSource, Map<String, AbstractConstantGroup<?>> constantGroups, TargetMethods.Builder targetMethodsBuilder) throws IOException
 	{
 		try(LineNumberReader reader = new LineNumberReader(new InputStreamReader(mappingSource)))
 		{
@@ -39,7 +39,7 @@ public enum V1Parser
 
 					String group = tokens[1];
 					SimpleConstantDefinition parsedConstant = parseConstantDefinition(tokens, reader.getLineNumber());
-					ReplacementInstructionGenerator constantGroup = constantGroups.get(group);
+					AbstractConstantGroup<?> constantGroup = constantGroups.get(group);
 					if (constantGroup == null)
 					{
 						constantGroups.put(group, (constantGroup = new SimpleConstantGroup(group)));
@@ -58,7 +58,7 @@ public enum V1Parser
 
 					String group = tokens[1];
 					FlagDefinition parsedFlag = parseFlagDefinition(tokens, reader.getLineNumber());
-					ReplacementInstructionGenerator constantGroup = constantGroups.get(group);
+					AbstractConstantGroup<?> constantGroup = constantGroups.get(group);
 					if (constantGroup == null)
 					{
 						constantGroups.put(group, (constantGroup = new FlagConstantGroup(group)));

@@ -17,17 +17,17 @@ import daomephsta.unpick.impl.representations.TargetMethods.TargetMethodBuilder;
 
 public class V2Parser implements Visitor
 {
-	private final Map<String, ReplacementInstructionGenerator> constantGroups;
+	private final Map<String, AbstractConstantGroup<?>> constantGroups;
 	private final TargetMethods.Builder targetMethodsBuilder;
 	private int lineNumber;
 
-	public V2Parser(Map<String, ReplacementInstructionGenerator> constantGroups, TargetMethods.Builder targetMethodsBuilder)
+	public V2Parser(Map<String, AbstractConstantGroup<?>> constantGroups, TargetMethods.Builder targetMethodsBuilder)
 	{
 		this.constantGroups = constantGroups;
 		this.targetMethodsBuilder = targetMethodsBuilder;
 	}
 
-	public static void parse(InputStream mappingSource, Map<String, ReplacementInstructionGenerator> constantGroups, TargetMethods.Builder targetMethodsBuilder) throws IOException
+	public static void parse(InputStream mappingSource, Map<String, AbstractConstantGroup<?>> constantGroups, TargetMethods.Builder targetMethodsBuilder) throws IOException
 	{
 		try (UnpickV2Reader unpickDefinitions = new UnpickV2Reader(mappingSource))
 		{

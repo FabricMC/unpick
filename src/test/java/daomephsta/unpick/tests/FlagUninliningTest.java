@@ -26,7 +26,9 @@ import daomephsta.unpick.tests.lib.MethodMocker.MockMethod;
 
 public class FlagUninliningTest
 {
-	@SuppressWarnings("unused")
+	private static final ClasspathConstantResolver CONSTANT_RESOLVER = new ClasspathConstantResolver();
+
+    @SuppressWarnings("unused")
 	private static class Constants
 	{
 		public static final byte BYTE_FLAG_BIT_0 = 1 << 0,
@@ -128,7 +130,7 @@ public class FlagUninliningTest
 
 	private void testKnownFlagsParameter(Number testConstant, String[] expectedConstantCombination, String[] constantNames, String constantConsumerName, String constantConsumerDescriptor)
 	{
-		IConstantMapper mapper = MockConstantMapper.builder(Constants.CLASS_RESOLVER)
+		IConstantMapper mapper = MockConstantMapper.builder(Constants.CLASS_RESOLVER, CONSTANT_RESOLVER)
 				.flagConstantGroup("test")
 					.defineAll(Constants.class, constantNames)
 				.add()
@@ -138,7 +140,7 @@ public class FlagUninliningTest
 				.build();
 		
 		IntegerType integerType = IntegerType.from(testConstant);
-		ConstantUninliner uninliner = new ConstantUninliner(mapper, new ClasspathConstantResolver());
+		ConstantUninliner uninliner = new ConstantUninliner(mapper, CONSTANT_RESOLVER);
 		
 		MockMethod mockMethod = TestUtils.mockInvokeStatic(Methods.class, 
 				constantConsumerName, constantConsumerDescriptor, testConstant);
@@ -172,7 +174,7 @@ public class FlagUninliningTest
 		});
 		MethodNode mockMethod = mock.getMockMethod();
 		
-		IConstantMapper mapper = MockConstantMapper.builder(Constants.CLASS_RESOLVER)
+		IConstantMapper mapper = MockConstantMapper.builder(Constants.CLASS_RESOLVER, CONSTANT_RESOLVER)
 				.flagConstantGroup("test")
 					.defineAll(Constants.class, constantNames)
 				.add()
@@ -181,7 +183,7 @@ public class FlagUninliningTest
 				.add()
 				.build();
 
-		ConstantUninliner uninliner = new ConstantUninliner(mapper, new ClasspathConstantResolver());
+		ConstantUninliner uninliner = new ConstantUninliner(mapper, CONSTANT_RESOLVER);
 		
 		uninliner.transformMethod(mock.getMockClass().name, mockMethod);
 		int minimumInsnCount = 2 * (expectedConstantCombination.length - 1) + 1;
@@ -256,7 +258,7 @@ public class FlagUninliningTest
 	
 	private void testNegatedFlagsParameter(Number testConstant, String[] expectedConstantCombination, String[] constantNames, String consumerName, String consumerDescriptor)
 	{		
-		IConstantMapper mapper = MockConstantMapper.builder(Constants.CLASS_RESOLVER)
+		IConstantMapper mapper = MockConstantMapper.builder(Constants.CLASS_RESOLVER, CONSTANT_RESOLVER)
 				.flagConstantGroup("test")
 				.defineAll(Constants.class, constantNames)
 				.add()
@@ -265,7 +267,7 @@ public class FlagUninliningTest
 				.add()
 				.build();
 
-		ConstantUninliner uninliner = new ConstantUninliner(mapper, new ClasspathConstantResolver());
+		ConstantUninliner uninliner = new ConstantUninliner(mapper, CONSTANT_RESOLVER);
 		IntegerType integerType = IntegerType.from(testConstant);
 
 		MockMethod mockMethod = MethodMocker.mock(void.class, mv -> 
@@ -303,7 +305,7 @@ public class FlagUninliningTest
 		});
 		MethodNode mockMethod = mock.getMockMethod();
 		
-		IConstantMapper mapper = MockConstantMapper.builder(Constants.CLASS_RESOLVER)
+		IConstantMapper mapper = MockConstantMapper.builder(Constants.CLASS_RESOLVER, CONSTANT_RESOLVER)
 				.flagConstantGroup("test")
 					.defineAll(Constants.class, constantNames)
 				.add()
@@ -312,7 +314,7 @@ public class FlagUninliningTest
 				.add()
 				.build();
 
-		ConstantUninliner uninliner = new ConstantUninliner(mapper, new ClasspathConstantResolver());
+		ConstantUninliner uninliner = new ConstantUninliner(mapper, CONSTANT_RESOLVER);
 		
 		uninliner.transformMethod(MethodMocker.CLASS_NAME, mockMethod);
 		ListIterator<AbstractInsnNode> instructions = mockMethod.instructions.iterator(0);
@@ -383,7 +385,7 @@ public class FlagUninliningTest
 	
 	private void testUnknownFlagsParameter(Number constant, String constantConsumerName, String constantConsumerDescriptor)
 	{
-		IConstantMapper mapper = MockConstantMapper.builder(Constants.CLASS_RESOLVER)
+		IConstantMapper mapper = MockConstantMapper.builder(Constants.CLASS_RESOLVER, CONSTANT_RESOLVER)
 				.flagConstantGroup("test")
 				.add()
 				.targetMethod(Methods.class, constantConsumerName, constantConsumerDescriptor)
@@ -391,7 +393,7 @@ public class FlagUninliningTest
 				.add()
 				.build();
 
-		ConstantUninliner uninliner = new ConstantUninliner(mapper, new ClasspathConstantResolver());
+		ConstantUninliner uninliner = new ConstantUninliner(mapper, CONSTANT_RESOLVER);
 
 		MethodNode mockInvocation = TestUtils.mockInvokeStatic(Methods.class, 
 				constantConsumerName, constantConsumerDescriptor, constant).getMockMethod();
@@ -414,7 +416,7 @@ public class FlagUninliningTest
 		});
 		MethodNode mockMethod = mock.getMockMethod();
 		
-		IConstantMapper mapper = MockConstantMapper.builder(Constants.CLASS_RESOLVER)
+		IConstantMapper mapper = MockConstantMapper.builder(Constants.CLASS_RESOLVER, CONSTANT_RESOLVER)
 				.flagConstantGroup("test")
 				.add()
 				.targetMethod(mock.getMockClass().name, mockMethod.name, mockMethod.desc)
@@ -422,7 +424,7 @@ public class FlagUninliningTest
 				.add()
 				.build();
 
-		ConstantUninliner uninliner = new ConstantUninliner(mapper, new ClasspathConstantResolver());
+		ConstantUninliner uninliner = new ConstantUninliner(mapper, CONSTANT_RESOLVER);
 
 		MethodNode mockInvocation = mockMethod;
 		ASMAssertions.assertIsLiteral(mockInvocation.instructions.get(0), testConstant);

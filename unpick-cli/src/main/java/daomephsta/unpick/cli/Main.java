@@ -4,6 +4,8 @@ import daomephsta.unpick.api.ConstantUninliner;
 import daomephsta.unpick.api.IClassResolver;
 import daomephsta.unpick.api.constantmappers.ConstantMappers;
 import daomephsta.unpick.api.constantresolvers.ConstantResolvers;
+import daomephsta.unpick.api.constantresolvers.IConstantResolver;
+
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.tree.ClassNode;
@@ -58,9 +60,10 @@ public class Main {
              JarClassResolver classResolver = new JarClassResolver(classpath);
              InputStream unpickDefinitionStream = Files.newInputStream(unpickDefinition)
         ) {
+            IConstantResolver constantResolver = ConstantResolvers.bytecodeAnalysis(classResolver);
             ConstantUninliner uninliner = new ConstantUninliner(
-                    ConstantMappers.dataDriven(classResolver, unpickDefinitionStream),
-                    ConstantResolvers.bytecodeAnalysis(classResolver)
+                    ConstantMappers.dataDriven(classResolver, constantResolver, unpickDefinitionStream),
+                    constantResolver
             );
 
             try (JarFile jarFile = new JarFile(inputJar.toFile()); JarOutputStream outputStream = new JarOutputStream(Files.newOutputStream(outputJar))) {
