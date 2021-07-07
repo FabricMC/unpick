@@ -1,5 +1,6 @@
 package daomephsta.unpick.api;
 
+import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -8,18 +9,23 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import daomephsta.unpick.impl.AbstractInsnNodes;
-import daomephsta.unpick.impl.UnpickInterpreter;
-import daomephsta.unpick.impl.UnpickValue;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.*;
-import org.objectweb.asm.tree.analysis.*;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.InvokeDynamicInsnNode;
+import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.analysis.Analyzer;
+import org.objectweb.asm.tree.analysis.AnalyzerException;
+import org.objectweb.asm.tree.analysis.Frame;
 
 import daomephsta.unpick.api.constantmappers.IConstantMapper;
 import daomephsta.unpick.api.constantresolvers.IConstantResolver;
-import daomephsta.unpick.impl.Utils;
+import daomephsta.unpick.impl.AbstractInsnNodes;
+import daomephsta.unpick.impl.UnpickInterpreter;
+import daomephsta.unpick.impl.UnpickValue;
 import daomephsta.unpick.impl.representations.ReplacementInstructionGenerator.Context;
 import daomephsta.unpick.impl.representations.ReplacementSet;
 /**
@@ -31,6 +37,7 @@ public class ConstantUninliner
 	private final Logger logger;
 	private final IConstantMapper mapper;
 	private final IConstantResolver constantResolver;
+	private final Map<Handle, Handle> lambdaSpecifications = new HashMap<>();
 
 	/**
 	 * Constructs a new instance of ConstantUninliner that maps
@@ -116,6 +123,19 @@ public class ConstantUninliner
 							Context context = new Context(constantResolver, replacementSet, insn, method.instructions, frames, logger);
 							mapper.accept(context);
 						}
+					}
+				}
+				else if (insn instanceof InvokeDynamicInsnNode)
+				{
+					InvokeDynamicInsnNode invokeDynamic = (InvokeDynamicInsnNode) insn;
+					if ("java/lang/invoke/LambdaMetafactory".equals(invokeDynamic.bsm.getOwner()) && 
+						"metafactory".equals(invokeDynamic.bsm.getName()))
+					{
+						Handle implementation = (Handle) invokeDynamic.bsmArgs[1];
+						Handle specification = new Handle(Opcodes.H_INVOKEINTERFACE, 
+							Type.getMethodType(invokeDynamic.desc).getReturnType().getInternalName(), 
+							invokeDynamic.name, invokeDynamic.bsmArgs[0].toString(), true);
+						lambdaSpecifications.put(implementation, specification);
 					}
 				}
 			}
@@ -212,14 +232,44 @@ public class ConstantUninliner
 
 		if (usage.getOpcode() >= Opcodes.IRETURN && usage.getOpcode() <= Opcodes.RETURN)
 		{
-			if (!mapper.targets(methodOwner, enclosingMethod.name, enclosingMethod.desc))
+			String owner = methodOwner;
+			String name = enclosingMethod.name;
+			String desc = enclosingMethod.desc;
+			Handle implementation = new Handle(getHandleType(enclosingMethod), methodOwner, 
+				enclosingMethod.name, enclosingMethod.desc, Modifier.isInterface(enclosingMethod.access));
+			if (lambdaSpecifications.containsKey(implementation))
+			{
+				Handle specification = lambdaSpecifications.get(implementation);
+				owner = specification.getOwner();
+				name = specification.getName();
+				desc = specification.getDesc();
+			}
+			if (!mapper.targets(owner, name, desc))
 				return null;
-			if (!mapper.targetsReturn(methodOwner, enclosingMethod.name, enclosingMethod.desc))
+			if (!mapper.targetsReturn(owner, name, desc))
 				return null;
 			logger.log(Level.INFO, String.format("Using enclosing method %s.%s%s return type", methodOwner, enclosingMethod.name, enclosingMethod.desc));
-			return context -> mapper.mapReturn(methodOwner, enclosingMethod.name, enclosingMethod.desc, context);
+			return context -> {
+				if (lambdaSpecifications.containsKey(implementation)) {
+					Handle specification = lambdaSpecifications.get(implementation);
+					mapper.mapReturn(specification.getOwner(), specification.getName(), specification.getDesc(), context);
+				}
+				else
+					mapper.mapReturn(methodOwner, enclosingMethod.name, enclosingMethod.desc, context);
+			};
 		}
 
 		return null;
+	}
+
+	private int getHandleType(MethodNode method)
+	{
+		if (Modifier.isInterface(method.access))
+			return Opcodes.H_INVOKEINTERFACE;
+		if (Modifier.isStatic(method.access))
+			return Opcodes.H_INVOKESTATIC;
+		if (Modifier.isPrivate(method.access))
+			return Opcodes.H_INVOKESPECIAL;
+		return Opcodes.H_INVOKEVIRTUAL;
 	}
 }
