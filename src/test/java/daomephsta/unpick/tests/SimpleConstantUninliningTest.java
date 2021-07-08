@@ -13,7 +13,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.objectweb.asm.tree.MethodNode;
 
 import daomephsta.unpick.api.ConstantUninliner;
-import daomephsta.unpick.api.IClassResolver;
 import daomephsta.unpick.api.constantmappers.IConstantMapper;
 import daomephsta.unpick.impl.LiteralType;
 import daomephsta.unpick.impl.constantresolvers.BytecodeAnalysisConstantResolver;
@@ -426,7 +425,8 @@ public class SimpleConstantUninliningTest
 		String constantConsumerDescriptor = "(I)V";
 		Class<?> fieldClass = Constants.class;
 		String fieldName = "DOES_NOT_EXIST";
-		IClassResolver classResolver = new ClasspathClassResolver();
+		MockClassResolver classResolver = new MockClassResolver();
+		MethodNode mock = classResolver.mock(TestUtils.mockInvokeStatic(Methods.class, constantConsumerName, constantConsumerDescriptor, 1));
 		IConstantMapper mapper = MockConstantMapper.builder(classResolver)
 				.simpleConstantGroup("test")
 					.define(fieldClass, fieldName)
@@ -438,13 +438,12 @@ public class SimpleConstantUninliningTest
 
 		ConstantUninliner uninliner = new ConstantUninliner(classResolver, mapper, 
 			new BytecodeAnalysisConstantResolver(classResolver));
-		MethodNode mockInvocation = TestUtils.mockInvokeStatic(Methods.class, constantConsumerName, constantConsumerDescriptor, 1).getMockMethod();
-		uninliner.transformMethod(MethodMocker.CLASS_NAME, mockInvocation);
+		uninliner.transformMethod(MethodMocker.CLASS_NAME, mock.name, mock.desc);
 	}
 
 	private void testKnownConstantParameter(Object constant, String expectedConstant, String constantConsumerName, String constantConsumerDescriptor)
 	{
-		IClassResolver classResolver = new ClasspathClassResolver();
+		MockClassResolver classResolver = new MockClassResolver();
 		IConstantMapper mapper = MockConstantMapper.builder(classResolver)
 				.simpleConstantGroup("test")
 					.define(Constants.class, expectedConstant)
@@ -457,12 +456,12 @@ public class SimpleConstantUninliningTest
 		LiteralType literalType = LiteralType.from(constant.getClass());
 		ConstantUninliner uninliner = new ConstantUninliner(classResolver, mapper, 
 			new BytecodeAnalysisConstantResolver(classResolver));
-		MethodNode mockInvocation = TestUtils.mockInvokeStatic(Methods.class, constantConsumerName, constantConsumerDescriptor, 
-				constant).getMockMethod();
+		MethodNode mockInvocation = classResolver.mock(
+			TestUtils.mockInvokeStatic(Methods.class, constantConsumerName, constantConsumerDescriptor, constant));
 		int invocationInsnIndex = 1;
 		checkMockInvocationStructure(constantConsumerName, constantConsumerDescriptor, constant, mockInvocation, 
 				invocationInsnIndex);
-		uninliner.transformMethod(MethodMocker.CLASS_NAME, mockInvocation);
+		uninliner.transformMethod(MethodMocker.CLASS_NAME, mockInvocation.name, mockInvocation.desc);
 		ASMAssertions.assertReadsField(mockInvocation.instructions.get(invocationInsnIndex - 1), Constants.class, expectedConstant, 
 				literalType.getTypeDescriptor());
 	}
@@ -470,15 +469,13 @@ public class SimpleConstantUninliningTest
 	private void testKnownConstantReturn(Object constant, String expectedConstant)
 	{
 		LiteralType literalType = LiteralType.from(constant.getClass());
-		
+		MockClassResolver classResolver = new MockClassResolver();
 		MockMethod mock = MethodMocker.mock(literalType.getPrimitiveClass(), mv -> 
 		{
 			literalType.appendLiteralPushInsn(mv, constant);
 			literalType.appendReturnInsn(mv);
 		});
-		MethodNode mockMethod = mock.getMockMethod();
-		
-		IClassResolver classResolver = new ClasspathClassResolver();
+		MethodNode mockMethod = classResolver.mock(mock);
 		IConstantMapper mapper = MockConstantMapper.builder(classResolver)
 				.simpleConstantGroup("test")
 					.define(Constants.class, expectedConstant)
@@ -494,14 +491,14 @@ public class SimpleConstantUninliningTest
 		int returnInsnIndex = 1;
 		ASMAssertions.assertIsLiteral(mockMethod.instructions.get(returnInsnIndex - 1), constant);
 		ASMAssertions.assertOpcode(mockMethod.instructions.get(returnInsnIndex), literalType.getReturnOpcode());
-		uninliner.transformMethod(mock.getMockClass().name, mockMethod);
+		uninliner.transformMethod(MethodMocker.CLASS_NAME, mockMethod.name, mockMethod.desc);
 		ASMAssertions.assertReadsField(mockMethod.instructions.get(returnInsnIndex - 1), Constants.class, expectedConstant, 
 				literalType.getTypeDescriptor());
 	}
 	
 	private void testUnknownConstantParameter(Object constant, String constantConsumerName, String constantConsumerDescriptor)
 	{
-		IClassResolver classResolver = new ClasspathClassResolver();
+		MockClassResolver classResolver = new MockClassResolver();
 		IConstantMapper mapper = MockConstantMapper.builder(classResolver)
 				.simpleConstantGroup("test")
 				.add()
@@ -512,12 +509,12 @@ public class SimpleConstantUninliningTest
 
 		ConstantUninliner uninliner = new ConstantUninliner(classResolver, mapper, 
 			new BytecodeAnalysisConstantResolver(classResolver));
-		MethodNode mockInvocation = TestUtils.mockInvokeStatic(Methods.class, constantConsumerName, constantConsumerDescriptor, 
-				constant).getMockMethod();
+		MethodNode mockInvocation = classResolver.mock(
+			TestUtils.mockInvokeStatic(Methods.class, constantConsumerName, constantConsumerDescriptor, constant));
 		int invocationInsnIndex = 1;
 		checkMockInvocationStructure(constantConsumerName, constantConsumerDescriptor, constant, mockInvocation, 
 				invocationInsnIndex);
-		uninliner.transformMethod(MethodMocker.CLASS_NAME, mockInvocation);
+		uninliner.transformMethod(MethodMocker.CLASS_NAME, mockInvocation.name, mockInvocation.desc);
 		//Should be unchanged, so this should still pass
 		checkMockInvocationStructure(constantConsumerName, constantConsumerDescriptor, constant, mockInvocation, 
 				invocationInsnIndex);
@@ -526,27 +523,26 @@ public class SimpleConstantUninliningTest
 	private void testUnknownConstantReturn(Object constant)
 	{
 		LiteralType literalType = LiteralType.from(constant.getClass());
-		MockMethod mock = MethodMocker.mock(literalType.getPrimitiveClass(), mv -> 
+		MockClassResolver classResolver = new MockClassResolver();
+		MethodNode mockMethod = classResolver.mock(MethodMocker.mock(literalType.getPrimitiveClass(), mv -> 
 		{
 			literalType.appendLiteralPushInsn(mv, constant);
 			literalType.appendReturnInsn(mv);
-		});
-		MethodNode mockMethod = mock.getMockMethod();
-		IClassResolver classResolver = new ClasspathClassResolver();
+		}));
 		IConstantMapper mapper = MockConstantMapper.builder(classResolver)
 				.simpleConstantGroup("test")
 				.add()
-				.targetMethod(mock.getMockClass().name, mockMethod.name, mockMethod.desc)
+				.targetMethod(MethodMocker.CLASS_NAME, mockMethod.name, mockMethod.desc)
 					.remapReturn("test")
 				.add()
 				.build();
 		ConstantUninliner uninliner = new ConstantUninliner(classResolver, mapper, 
 			new BytecodeAnalysisConstantResolver(classResolver));
-
+		
 		int returnInsnIndex = 1;
 		ASMAssertions.assertIsLiteral(mockMethod.instructions.get(returnInsnIndex - 1), constant);
 		ASMAssertions.assertOpcode(mockMethod.instructions.get(returnInsnIndex), literalType.getReturnOpcode());
-		uninliner.transformMethod(mock.getMockClass().name, mockMethod);
+		uninliner.transformMethod(MethodMocker.CLASS_NAME, mockMethod.name, mockMethod.desc);
 		//Should be unchanged, so this should still pass
 		ASMAssertions.assertIsLiteral(mockMethod.instructions.get(returnInsnIndex - 1), constant);
 		ASMAssertions.assertOpcode(mockMethod.instructions.get(returnInsnIndex), literalType.getReturnOpcode());

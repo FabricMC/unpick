@@ -71,32 +71,43 @@ public class ConstantUninliner
 	}
 
 	/**
-	 * Unlines all inlined values in the specified class.
-	 * @param clazz the internal name of the class to transform
+	 * Uninlines all inlined values in the specified class.
+	 * @param className the binary name of the class to transform
 	 * @return the transformed class as a ClassNode
 	 */
-	public ClassNode transform(String clazz)
+	public ClassNode transform(String className)
 	{	
-		ClassNode classNode = classResolver.resolveClassNode(clazz);
-		for (MethodNode method : classNode .methods)
+		ClassNode classNode = classResolver.resolveClassNode(className);
+		for (MethodNode method : classNode.methods)
 		{
-			transformMethod(classNode.name, method);
+			transformMethod(classNode, method);
 		}
 		return classNode;
 	}
 
 	/**
-	 * Unlines all inlined values in the specified method.
-	 * @param methodOwner the internal name of the class that owns {@code method}.
-	 * @param method the class to transform, as a MethodNode.
+	 * Uninlines all inlined values in the specified method. 
+	 * @param owner the binary name of the class that owns {@code method}
+	 * @param name the name of the method to transform
+	 * @param desc the descriptor of the method to transform 
+	 * @return the class node corresponding to {@code owner} with uninlining 
+	 * applied to the target method. Other methods in the class node will also be 
+	 * transformed if they are part of the target from a source perspective (e.g. lambdas).
 	 */
-	public void transformMethod(String methodOwner, MethodNode method)
+	public ClassNode transformMethod(String owner, String name, String desc)
+	{
+		ClassNode ownerClass = classResolver.resolveClassNode(owner);
+		transformMethod(ownerClass, findMethod(ownerClass, name, desc));
+		return ownerClass;
+	}
+	
+	private ClassNode transformMethod(ClassNode methodOwner, MethodNode method)
 	{
 		logger.log(Level.INFO, String.format("Processing %s.%s%s", methodOwner, method.name, method.desc));
 		try
 		{ 
 			ReplacementSet replacementSet = new ReplacementSet(method.instructions);
-			Frame<UnpickValue>[] frames = new Analyzer<>(new UnpickInterpreter(method)).analyze(methodOwner, method);
+			Frame<UnpickValue>[] frames = new Analyzer<>(new UnpickInterpreter(method)).analyze(methodOwner.name, method);
 
 			Map<AbstractInsnNode, Consumer<Context>> mappers = new HashMap<>();
 			Set<AbstractInsnNode> unmapped = new HashSet<>();
@@ -113,7 +124,7 @@ public class ConstantUninliner
 						Consumer<Context> mapper = mappers.get(insn);
 						if (mapper == null)
 						{
-							mapper = findMapper(methodOwner, method, unpickValue);
+							mapper = findMapper(methodOwner.name, method, unpickValue);
 							if (mapper == null)
 								unmapped.addAll(unpickValue.getUsages());
 							else
@@ -140,6 +151,7 @@ public class ConstantUninliner
 		{
 			logger.log(Level.WARNING, String.format("Processing %s.%s%s failed", methodOwner, method.name, method.desc), e);
 		}
+		return methodOwner;
 	}
 
 	private Consumer<Context> findMapper(String methodOwner, MethodNode method, UnpickValue unpickValue)
@@ -254,13 +266,14 @@ public class ConstantUninliner
 			if (createsLambda(invokeDynamic))
 			{
 				Handle implementation = (Handle) invokeDynamic.bsmArgs[1];
-				MethodNode lambda = findMethod(classResolver.resolveClassNode(implementation.getOwner()), 
+				ClassNode lambdaOwner = classResolver.resolveClassNode(implementation.getOwner());
+				MethodNode lambda = findMethod(lambdaOwner, 
 					implementation.getName(), implementation.getDesc());
 				String samOwner = Type.getMethodType(invokeDynamic.desc).getReturnType().getInternalName();
 				String samName = invokeDynamic.name;
 				String samDesc = ((Type) invokeDynamic.bsmArgs[0]).getDescriptor();
 				lambdaSAMs.put(MethodTriple.fromHandle(implementation), new MethodTriple(samOwner, samName, samDesc));
-				return context -> transformMethod(implementation.getOwner(), lambda);
+				return context -> transformMethod(lambdaOwner, lambda);
 			}
 		}
 
