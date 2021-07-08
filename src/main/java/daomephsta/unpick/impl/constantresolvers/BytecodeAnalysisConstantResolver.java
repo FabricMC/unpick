@@ -35,7 +35,7 @@ public class BytecodeAnalysisConstantResolver implements IConstantResolver
 
 	private ResolvedConstants extractConstants(String owner)
 	{
-		ClassReader cr = classResolver.resolveClass(owner);
+		ClassReader cr = classResolver.resolveClassReader(owner);
 		ResolvedConstants resolvedConstants = new ResolvedConstants(Opcodes.ASM9);
 		cr.accept(resolvedConstants, 0);
 		return resolvedConstants;

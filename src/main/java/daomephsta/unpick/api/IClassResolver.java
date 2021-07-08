@@ -1,6 +1,7 @@
 package daomephsta.unpick.api;
 
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.tree.ClassNode;
 
 /**
  * Resolves classes as {@link ClassReader}s, by their internal name
@@ -9,12 +10,21 @@ import org.objectweb.asm.ClassReader;
 public interface IClassResolver
 {
 	/**
-	 * @param internalName the internal name of the class to resolve
+	 * @param binaryName the binary name of the class to resolve
 	 * @return a {@link ClassReader} for the resolved class
 	 * @throws ClassResolutionException if construction of the ClassReader throws an IOException
-	 * or no class can be found with the specified internal name.
+	 * or no class can be found with the specified binary name.
 	 */
-	public ClassReader resolveClass(String internalName) throws ClassResolutionException;
+	public ClassReader resolveClassReader(String binaryName) throws ClassResolutionException;
+	
+	/**
+	 * @param binaryName the binary name of the class to resolve
+	 * @return a {@link ClassNode} for the resolved class. If {@code a.equals(b)} then 
+	 * it must be true that<br>{@code resolveClassNode(a) == resolveClassNode(b)}.
+	 * @throws ClassResolutionException if construction of the ClassReader throws an IOException
+	 * or no class can be found with the specified binary name.
+	 */
+	public ClassNode resolveClassNode(String binaryName) throws ClassResolutionException;
 	
 	public static class ClassResolutionException extends RuntimeException
 	{
