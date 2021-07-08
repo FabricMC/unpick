@@ -81,7 +81,9 @@ public class Main {
                     InputStream inputStream = jarFile.getInputStream(entry);
 
                     if (entry.getName().endsWith(".class")) {
-                        String internalName = entry.getName().substring(0, entry.getName().length() - ".class".length());
+                        String internalName = entry.getName()
+                        	.substring(0, entry.getName().length() - ".class".length())
+                        	.replace('/', '.');
                         ClassNode classNode = uninliner.transform(internalName);
 
                         ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
