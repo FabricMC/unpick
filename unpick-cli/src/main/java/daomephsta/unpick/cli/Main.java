@@ -1,13 +1,5 @@
 package daomephsta.unpick.cli;
 
-import daomephsta.unpick.api.ConstantUninliner;
-import daomephsta.unpick.api.IClassResolver;
-import daomephsta.unpick.api.constantmappers.ConstantMappers;
-import daomephsta.unpick.api.constantresolvers.ConstantResolvers;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.tree.ClassNode;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,10 +9,23 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Collection;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
+
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.tree.ClassNode;
+
+import daomephsta.unpick.api.ConstantUninliner;
+import daomephsta.unpick.api.IClassResolver;
+import daomephsta.unpick.api.constantmappers.ConstantMappers;
+import daomephsta.unpick.api.constantresolvers.ConstantResolvers;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -59,6 +64,7 @@ public class Main {
              InputStream unpickDefinitionStream = Files.newInputStream(unpickDefinition)
         ) {
             ConstantUninliner uninliner = new ConstantUninliner(
+            		classResolver,
                     ConstantMappers.dataDriven(classResolver, unpickDefinitionStream),
                     ConstantResolvers.bytecodeAnalysis(classResolver)
             );
@@ -75,11 +81,8 @@ public class Main {
                     InputStream inputStream = jarFile.getInputStream(entry);
 
                     if (entry.getName().endsWith(".class")) {
-                        ClassReader classReader = new ClassReader(inputStream);
-                        ClassNode classNode = new ClassNode();
-                        classReader.accept(classNode, 0);
-
-                        uninliner.transform(classNode);
+                        String internalName = entry.getName().substring(entry.getName().length() - ".class".length(), entry.getName().length());
+                        ClassNode classNode = uninliner.transform(internalName);
 
                         ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
                         classNode.accept(classWriter);
@@ -101,6 +104,7 @@ public class Main {
 
     private static class JarClassResolver implements IClassResolver, Closeable {
         private final URLClassLoader classLoader;
+        private final Map<String, ClassNode> cache = new HashMap<>();
 
         public JarClassResolver(URL[] urls) {
             this.classLoader = new URLClassLoader(urls);
@@ -122,7 +126,7 @@ public class Main {
         }
 
         @Override
-        public ClassReader resolveClass(String internalName) throws ClassResolutionException {
+        public ClassReader resolveClassReader(String internalName) throws ClassResolutionException {
             InputStream inputStream = classLoader.getResourceAsStream(internalName + ".class");
 
             if (inputStream != null) {
@@ -135,6 +139,16 @@ public class Main {
 
             throw new ClassResolutionException("Failed to find " + internalName);
         }
+
+    	@Override
+    	public ClassNode resolveClassNode(String internalName) throws ClassResolutionException
+    	{
+    		return cache.computeIfAbsent(internalName, name -> {
+    			ClassNode node = new ClassNode();
+    			resolveClassReader(name).accept(node, ClassReader.SKIP_DEBUG);
+    			return node;
+    		});
+    	}
 
         @Override
         public void close() throws IOException {

@@ -144,7 +144,7 @@ public class TargetImplementations
 		{ 
 			try
 			{
-				ClassReader classReader = classResolver.resolveClass(clazz);
+				ClassReader classReader = classResolver.resolveClassReader(clazz);
 				InheritanceChecker inheritanceChecker 
 					= new InheritanceChecker(api, classResolver, targetOwner);
 				classReader.accept(inheritanceChecker, 0); 
@@ -176,7 +176,7 @@ public class TargetImplementations
 			{
 				if (superName != null && !superName.equals("java/lang/Object"))
 				{
-					ClassReader classReader = classResolver.resolveClass(superName);
+					ClassReader classReader = classResolver.resolveClassReader(superName);
 					classReader.accept(this, 0);
 					if (result) return;
 				}
@@ -184,7 +184,7 @@ public class TargetImplementations
 				{
 					for (String iface : interfaces)
 					{
-						ClassReader classReader = classResolver.resolveClass(iface);
+						ClassReader classReader = classResolver.resolveClassReader(iface);
 						classReader.accept(this, 0);
 						if (result) return;
 					}
