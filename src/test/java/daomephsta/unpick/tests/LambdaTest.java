@@ -43,7 +43,7 @@ public class LambdaTest
 	@MethodSource
 	public void lambdaConstantReturn(String lambdaParentName, int constant, String constantName) throws IOException 
 	{
-		IClassResolver classResolver = new MockClassResolver();
+		IClassResolver classResolver = new MethodMockingClassResolver();
 		IConstantMapper mapper = MockConstantMapper.builder(classResolver)
 			.simpleConstantGroup("test")
 				.defineAll(this.getClass(), constantName)

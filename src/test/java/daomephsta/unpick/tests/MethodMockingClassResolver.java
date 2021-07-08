@@ -6,21 +6,19 @@ import java.util.Map;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
 
 import daomephsta.unpick.api.IClassResolver;
-import daomephsta.unpick.tests.lib.MethodMocker;
 import daomephsta.unpick.tests.lib.MethodMocker.MockMethod;
 
-class MockClassResolver implements IClassResolver
+class MethodMockingClassResolver implements IClassResolver
 {
 	private final Map<String, ClassNode> cache = new HashMap<>();
 
-	public MethodNode mock(MockMethod mock)
+	public MockMethod mock(MockMethod mock)
 	{
-		if (cache.putIfAbsent(MethodMocker.CLASS_NAME, mock.getMockClass()) != null)
+		if (cache.putIfAbsent(mock.getOwner(), mock.getMockClass()) != null)
 			throw new IllegalStateException("Mock class in use");
-		return mock.getMockMethod();
+		return mock;
 	}
 	
 	@Override

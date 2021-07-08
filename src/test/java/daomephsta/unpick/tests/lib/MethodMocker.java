@@ -8,12 +8,13 @@ import java.util.function.Consumer;
 
 import org.objectweb.asm.*;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.util.CheckClassAdapter;
 
 public class MethodMocker
 {
-	public static final String CLASS_NAME = "MockClass";
+	private static final String CLASS_NAME = "MockClass";
 	private static final String METHOD_NAME = "mock";
 	private static final String[] NO_EXCEPTIONS = null,
 								  NO_INTERFACES = null;
@@ -39,6 +40,26 @@ public class MethodMocker
 		public ClassNode getMockClass()
 		{
 			return mockClass;
+		}
+		
+		public String getOwner()
+		{
+			return mockClass.name;
+		}
+		
+		public String getName()
+		{
+			return mockMethod.name;
+		}
+		
+		public String getDescriptor()
+		{
+			return mockMethod.desc;
+		}
+		
+		public InsnList getInstructions()
+		{
+			return mockMethod.instructions;
 		}
 	}
 	

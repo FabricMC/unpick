@@ -43,7 +43,7 @@ public class ConstantUninliner
 	/**
 	 * Constructs a new instance of ConstantUninliner that maps
 	 * values to constants with {@code mapper}.
-	 * @param classResolver 
+	 * @param classResolver used to resolve target classes and the classes necessary to transform them
 	 * @param mapper an instance of IConstantMapper.
 	 * @param constantResolver an instance of IConstantResolver for resolving constant types and 
 	 * values.
@@ -56,7 +56,7 @@ public class ConstantUninliner
 	/**
 	 * Constructs a new instance of ConstantUninliner that maps
 	 * values to constants with {@code mapper}.
-	 * @param classResolver 
+	 * @param classResolver used to resolve target classes and the classes necessary to transform them
 	 * @param mapper an instance of IConstantMapper.
 	 * @param constantResolver an instance of IConstantResolver for resolving constant types and 
 	 * values.
