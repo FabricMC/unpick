@@ -26,6 +26,7 @@ import daomephsta.unpick.api.ConstantUninliner;
 import daomephsta.unpick.api.IClassResolver;
 import daomephsta.unpick.api.constantmappers.ConstantMappers;
 import daomephsta.unpick.api.constantresolvers.ConstantResolvers;
+import daomephsta.unpick.api.constantresolvers.IConstantResolver;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -63,10 +64,11 @@ public class Main {
              JarClassResolver classResolver = new JarClassResolver(classpath);
              InputStream unpickDefinitionStream = Files.newInputStream(unpickDefinition)
         ) {
+            IConstantResolver constantResolver = ConstantResolvers.bytecodeAnalysis(classResolver);
             ConstantUninliner uninliner = new ConstantUninliner(
-            		classResolver,
-                    ConstantMappers.dataDriven(classResolver, unpickDefinitionStream),
-                    ConstantResolvers.bytecodeAnalysis(classResolver)
+                    classResolver, 
+                    ConstantMappers.dataDriven(classResolver, constantResolver, unpickDefinitionStream),
+                    constantResolver
             );
 
             try (JarFile jarFile = new JarFile(inputJar.toFile()); JarOutputStream outputStream = new JarOutputStream(Files.newOutputStream(outputJar))) {

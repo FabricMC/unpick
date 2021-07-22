@@ -40,7 +40,6 @@ public class SimpleConstantGroup extends AbstractConstantGroup<SimpleConstantDef
 	@Override
 	public boolean canReplace(Context context)
 	{
-		resolveAllConstants(context.getConstantResolver());
 		return AbstractInsnNodes.hasLiteralValue(context.getArgSeed()) 
 				&& resolvedConstantDefinitions.containsKey(AbstractInsnNodes.getLiteralValue(context.getArgSeed()));
 	}
@@ -48,8 +47,6 @@ public class SimpleConstantGroup extends AbstractConstantGroup<SimpleConstantDef
 	@Override
 	public void generateReplacements(Context context)
 	{
-		resolveAllConstants(context.getConstantResolver());
-		
 		Object literalValue = AbstractInsnNodes.getLiteralValue(context.getArgSeed());
 		SimpleConstantDefinition constantDefinition = resolvedConstantDefinitions.get(literalValue);
 		context.getReplacementSet().addReplacement(context.getArgSeed(), 

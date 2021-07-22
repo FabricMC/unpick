@@ -1,27 +1,47 @@
 package daomephsta.unpick.tests.lib;
 
-import java.util.*;
-import java.util.function.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import org.objectweb.asm.Type;
 
 import daomephsta.unpick.api.IClassResolver;
+import daomephsta.unpick.api.constantresolvers.IConstantResolver;
 import daomephsta.unpick.impl.constantmappers.SimpleAbstractConstantMapper;
-import daomephsta.unpick.impl.representations.*;
+import daomephsta.unpick.impl.representations.AbstractConstantDefinition;
+import daomephsta.unpick.impl.representations.AbstractConstantGroup;
+import daomephsta.unpick.impl.representations.FlagConstantGroup;
+import daomephsta.unpick.impl.representations.FlagDefinition;
+import daomephsta.unpick.impl.representations.SimpleConstantDefinition;
+import daomephsta.unpick.impl.representations.SimpleConstantGroup;
+import daomephsta.unpick.impl.representations.TargetMethods;
 
 public class MockConstantMapper extends SimpleAbstractConstantMapper
 {
 	private final TargetMethods targetInvocations;
 
-	private MockConstantMapper(Map<String, ReplacementInstructionGenerator> constantGroups, TargetMethods targetInvocations)
+	private MockConstantMapper(Map<String, AbstractConstantGroup<?>> constantGroups, IConstantResolver constantResolver, TargetMethods targetInvocations)
 	{
 		super(constantGroups);
 		this.targetInvocations = targetInvocations;
+        boolean resolved = true;
+        for (AbstractConstantGroup<?> group : constantGroups.values())
+        {
+            group.resolveAllConstants(constantResolver);
+            if (!group.isResolved())
+                resolved = false;
+        }
+        if (!resolved)
+            throw new RuntimeException("One or more constants failed to resolve, check the log for details");
 	}
 
-	public static Builder builder(IClassResolver classResolver)
+	public static Builder builder(IClassResolver classResolver, IConstantResolver constantResolver)
 	{
-		return new Builder(classResolver);
+		return new Builder(classResolver, constantResolver);
 	}
 
 	@Override
@@ -32,12 +52,14 @@ public class MockConstantMapper extends SimpleAbstractConstantMapper
 	
 	public static class Builder
 	{
-		private final Map<String, ReplacementInstructionGenerator> constantGroups = new HashMap<>();
+		private final Map<String, AbstractConstantGroup<?>> constantGroups = new HashMap<>();
 		private final TargetMethods.Builder targetMethodsBuilder;
+        private final IConstantResolver constantResolver;
 		
-		public Builder(IClassResolver classResolver)
+		public Builder(IClassResolver classResolver, IConstantResolver constantResolver)
 		{
-			targetMethodsBuilder = TargetMethods.builder(classResolver);
+			this.targetMethodsBuilder = TargetMethods.builder(classResolver);
+			this.constantResolver = constantResolver;
 		}
 
 		public TargetMethodBuilder targetMethod(Class<?> owner, String name, String descriptor)
@@ -62,7 +84,7 @@ public class MockConstantMapper extends SimpleAbstractConstantMapper
 		
 		public MockConstantMapper build()
 		{
-			return new MockConstantMapper(constantGroups, targetMethodsBuilder.build());
+			return new MockConstantMapper(constantGroups, constantResolver, targetMethodsBuilder.build());
 		}
 	}
 	

@@ -10,9 +10,9 @@ import daomephsta.unpick.impl.representations.ReplacementInstructionGenerator.Co
 
 public abstract class SimpleAbstractConstantMapper implements IConstantMapper
 {
-	protected final Map<String, ReplacementInstructionGenerator> constantGroups;
+	protected final Map<String, AbstractConstantGroup<?>> constantGroups;
 	
-	protected SimpleAbstractConstantMapper(Map<String, ReplacementInstructionGenerator> constantGroups)
+	protected SimpleAbstractConstantMapper(Map<String, AbstractConstantGroup<?>> constantGroups)
 	{
 		this.constantGroups = constantGroups;
 	}
@@ -43,7 +43,7 @@ public abstract class SimpleAbstractConstantMapper implements IConstantMapper
 		}
 		if (!constantGroup.canReplace(context))
 		{
-			context.getLogger().log(Level.INFO, "Transformation skipped. Constant group '%s' cannot transform this invocation.", constantGroupID);
+			context.getLogger().log(Level.INFO, "Transformation skipped. Constant group " + constantGroupID + " cannot transform this invocation.");
 			return;
 		}
 		
@@ -69,7 +69,7 @@ public abstract class SimpleAbstractConstantMapper implements IConstantMapper
 		}
 		if (!constantGroup.canReplace(context))
 		{
-			context.getLogger().log(Level.INFO, "Transformation skipped. Constant group '%s' cannot transform this invocation.", constantGroupID);
+			context.getLogger().log(Level.INFO, "Transformation skipped. Constant group " + constantGroupID + " cannot transform this invocation.");
 			return;
 		}
 		

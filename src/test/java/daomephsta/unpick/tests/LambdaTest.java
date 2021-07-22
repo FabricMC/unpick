@@ -19,6 +19,7 @@ import org.objectweb.asm.tree.MethodNode;
 import daomephsta.unpick.api.ConstantUninliner;
 import daomephsta.unpick.api.IClassResolver;
 import daomephsta.unpick.api.constantmappers.IConstantMapper;
+import daomephsta.unpick.api.constantresolvers.IConstantResolver;
 import daomephsta.unpick.impl.constantresolvers.BytecodeAnalysisConstantResolver;
 import daomephsta.unpick.tests.lib.ASMAssertions;
 import daomephsta.unpick.tests.lib.MockConstantMapper;
@@ -44,7 +45,8 @@ public class LambdaTest
 	public void lambdaConstantReturn(String lambdaParentName, int constant, String constantName) throws IOException 
 	{
 		IClassResolver classResolver = new MethodMockingClassResolver();
-		IConstantMapper mapper = MockConstantMapper.builder(classResolver)
+		IConstantResolver constantResolver = new BytecodeAnalysisConstantResolver(classResolver);
+		IConstantMapper mapper = MockConstantMapper.builder(classResolver, constantResolver)
 			.simpleConstantGroup("test")
 				.defineAll(this.getClass(), constantName)
 				.add()
