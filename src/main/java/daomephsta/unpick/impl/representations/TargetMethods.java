@@ -1,6 +1,7 @@
 package daomephsta.unpick.impl.representations;
 
 import java.util.*;
+import java.util.Map.Entry;
 
 import org.objectweb.asm.*;
 
@@ -110,14 +111,13 @@ public class TargetMethods implements Iterable<TargetMethod>
 		{
 			String existingGroup = parameterConstantGroups.putIfAbsent(parameterIndex, constantGroup);
 			if (existingGroup != null)
-				throw new DuplicateMappingException("Parameter " + parameterIndex + " is already mapped to constant group " + existingGroup);
+				throw duplicateParameterGroup(parameterIndex, existingGroup);
 			return this;
 		}
-
 		public TargetMethodBuilder returnGroup(String constantGroup)
 		{
 			if (returnConstantGroup != null)
-				throw new DuplicateMappingException("Return is already mapped to constant group " + returnConstantGroup);
+				throw duplicateReturnGroup(constantGroup);
 			else
 				returnConstantGroup = constantGroup;
 			return this;
@@ -125,8 +125,41 @@ public class TargetMethods implements Iterable<TargetMethod>
 
 		public Builder add()
 		{
-			parent.targetMethods.put(name + descriptor, new TargetMethod(owner, name, descriptor, parameterConstantGroups, returnConstantGroup));
+			parent.targetMethods.compute(name + descriptor, (key, existing) -> 
+			{
+				if (existing != null)
+				{
+					// Find non-null returnConstantGroup, throw if both are non-null
+					// Note that exceptions always use values from the existing TargetMethod
+					if (returnConstantGroup == null && existing.returnConstantGroup != null)
+						returnConstantGroup = existing.returnConstantGroup;
+					else if (returnConstantGroup != null && existing.returnConstantGroup == null)
+						/*NO OP*/;
+					else if (!Objects.equals(existing.returnConstantGroup, returnConstantGroup))
+						throw duplicateReturnGroup(existing.returnConstantGroup);
+
+					// Merge parameterConstantGroups, throwing on duplicate keys
+					// Note that exceptions always use keys & values from the existing TargetMethod
+					for (Entry<Integer, String> entry : existing.parameterConstantGroups.entrySet()) 
+					{
+						if (parameterConstantGroups.putIfAbsent(entry.getKey(), entry.getValue()) != null)
+							throw duplicateParameterGroup(entry.getKey(), entry.getValue());
+					}
+				}
+				return new TargetMethod(owner, name, descriptor, parameterConstantGroups, returnConstantGroup);
+			});
 			return parent;
+		}
+
+		private DuplicateMappingException duplicateParameterGroup(int index, String group) 
+		{
+			return new DuplicateMappingException("Parameter " + index + " is already mapped to constant group " + group);
+		}
+
+
+		private DuplicateMappingException duplicateReturnGroup(String group) 
+		{
+			return new DuplicateMappingException("Return is already mapped to constant group " + group);
 		}
 	}
 
