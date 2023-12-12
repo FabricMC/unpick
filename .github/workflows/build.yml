@@ -4,8 +4,8 @@ jobs:
   build:
     strategy:
       matrix:
-        java: [8-jdk, 11-jdk, 15-jdk]
-    runs-on: ubuntu-20.04
+        java: [8-jdk, 11-jdk, 17-jdk]
+    runs-on: ubuntu-22.04
     container:
       image: openjdk:${{ matrix.java }}
       options: --user root
