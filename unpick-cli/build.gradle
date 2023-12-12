@@ -1,6 +1,5 @@
 plugins {
-    id 'com.github.johnrengelman.shadow' version '8.1.+'
-    id 'java'
+    id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
 
 dependencies {
@@ -12,4 +11,8 @@ jar {
     manifest {
         attributes 'Main-Class': 'daomephsta.unpick.cli.Main'
     }
+}
+
+assemble.configure {
+    dependsOn shadowJar
 }
