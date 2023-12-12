@@ -1,4 +1,15 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version '8.1.+'
+    id 'java'
+}
+
 dependencies {
     implementation project(':')
     implementation project(':unpick-format-utils')
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'daomephsta.unpick.cli.Main'
+    }
 }
