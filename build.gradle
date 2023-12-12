@@ -19,10 +19,10 @@ allprojects {
     }
 
     dependencies {
-        api 'org.ow2.asm:asm:9.1'
-        api 'org.ow2.asm:asm-tree:9.1'
-        implementation 'org.ow2.asm:asm-commons:9.1'
-        implementation 'org.ow2.asm:asm-util:9.1'
+        api 'org.ow2.asm:asm:9.6'
+        api 'org.ow2.asm:asm-tree:9.6'
+        implementation 'org.ow2.asm:asm-commons:9.6'
+        implementation 'org.ow2.asm:asm-util:9.6'
 
         // Use JUnit test framework
         testImplementation 'org.junit.jupiter:junit-jupiter-api:5.+'
