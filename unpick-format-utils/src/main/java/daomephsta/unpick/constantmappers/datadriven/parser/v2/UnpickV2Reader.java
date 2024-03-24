@@ -131,7 +131,10 @@ public class UnpickV2Reader implements Closeable
 		{
 			visitor.visitSimpleConstantDefinition(tokens[1], tokens[2], tokens[3], tokens[4], tokens[5]);
 		}
-		visitor.visitSimpleConstantDefinition(tokens[1], tokens[2], tokens[3], null, null);
+		else
+		{
+		    visitor.visitSimpleConstantDefinition(tokens[1], tokens[2], tokens[3], null, null);
+		}
 	}
 	
 	private void visitFlagConstantDefinition(Visitor visitor, String[] tokens, int lineNumber)
@@ -142,7 +145,10 @@ public class UnpickV2Reader implements Closeable
 		{
 			visitor.visitFlagConstantDefinition(tokens[1], tokens[2], tokens[3], tokens[4], tokens[5]);
 		}
-		visitor.visitFlagConstantDefinition(tokens[1], tokens[2], tokens[3], null, null);
+		else
+		{
+		    visitor.visitFlagConstantDefinition(tokens[1], tokens[2], tokens[3], null, null);
+		}
 	}
 	
 	private void visitTargetMethodDefinition(Visitor visitor, String[] tokens, int lineNumber)
