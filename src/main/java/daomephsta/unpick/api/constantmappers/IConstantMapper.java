@@ -1,12 +1,18 @@
 package daomephsta.unpick.api.constantmappers;
 
+import daomephsta.unpick.api.constantgroupers.ConstantGroup;
+import daomephsta.unpick.api.constantgroupers.IConstantGrouper;
 import daomephsta.unpick.impl.representations.ReplacementInstructionGenerator.Context;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Maps inlined values to replacement instructions
  * @author Daomephsta
+ *
+ * @deprecated Use {@link IConstantGrouper} instead.
  */
-public interface IConstantMapper
+@Deprecated
+public interface IConstantMapper extends IConstantGrouper
 {
 	/**
 	 * @param methodOwner the internal name of the class that owns the method.
@@ -52,4 +58,28 @@ public interface IConstantMapper
 	 * @param context the context of the replacement.
 	 */
 	public void mapReturn(String methodOwner, String methodName, String methodDescriptor, Context context);
+
+	@Override
+	@Nullable
+	default ConstantGroup getMethodReturnGroup(String methodOwner, String methodName, String methodDescriptor)
+	{
+		if (targets(methodOwner, methodName, methodDescriptor) && targetsReturn(methodOwner, methodName, methodDescriptor))
+		{
+			return new ConstantGroup("<unknown group>", context -> mapReturn(methodOwner, methodName, methodDescriptor, (Context) context));
+		}
+
+		return null;
+	}
+
+	@Override
+	@Nullable
+	default ConstantGroup getMethodParameterGroup(String methodOwner, String methodName, String methodDescriptor, int parameterIndex)
+	{
+		if (targets(methodOwner, methodName, methodDescriptor) && targetsParameter(methodOwner, methodName, methodDescriptor, parameterIndex))
+		{
+			return new ConstantGroup("<unknown group>", context -> mapParameter(methodOwner, methodName, methodDescriptor, parameterIndex, (Context) context));
+		}
+
+		return null;
+	}
 }

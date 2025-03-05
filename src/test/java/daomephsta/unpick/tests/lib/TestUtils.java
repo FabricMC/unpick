@@ -31,7 +31,7 @@ public class TestUtils
 		
 		return MethodMocker.mock(void.class, mv -> 
 		{
-			InstructionFactory.pushesValue(mv, constant);
+			InstructionFactory.pushValue(mv, constant);
 			mv.visitMethodInsn(INVOKESTATIC, methodOwner.getName().replace('.', '/'), methodName, methodDescriptor, false);
 			mv.visitInsn(RETURN);
 		});

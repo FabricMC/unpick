@@ -4,23 +4,33 @@ import java.io.*;
 import java.util.*;
 import java.util.regex.Pattern;
 
-import org.objectweb.asm.Type;
+import daomephsta.unpick.api.constantresolvers.IConstantResolver;
+import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
+import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
+import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
+import daomephsta.unpick.constantmappers.datadriven.tree.GroupScope;
+import daomephsta.unpick.constantmappers.datadriven.tree.GroupType;
+import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
+import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
+import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
 
 import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
-import daomephsta.unpick.impl.representations.*;
-import daomephsta.unpick.impl.representations.TargetMethods.Builder;
-import daomephsta.unpick.impl.representations.TargetMethods.TargetMethodBuilder;
+import daomephsta.unpick.impl.constantmappers.datadriven.parser.v2.V2Parser;
 
-public enum V1Parser
+public final class V1Parser
 {
-	INSTANCE;
+	private V1Parser()
+	{
+	}
 	
 	private static final Pattern WHITESPACE_SPLITTER = Pattern.compile("\\s");
 	
-	public void parse(InputStream mappingSource, Map<String, ReplacementInstructionGenerator> constantGroups, TargetMethods.Builder targetMethodsBuilder) throws IOException
+	public static void parse(Reader mappingSource, IConstantResolver constantResolver, DataDrivenConstantGrouper.Data data) throws IOException
 	{
-		try(LineNumberReader reader = new LineNumberReader(new InputStreamReader(mappingSource)))
+		try(LineNumberReader reader = new LineNumberReader(mappingSource))
 		{
+			reader.readLine(); // skip version
+
 			String line = "";
 			while((line = reader.readLine()) != null)
 			{
@@ -34,44 +44,18 @@ public enum V1Parser
 				{
 				case "constant":
 				{
-					if (tokens.length != 4 && tokens.length != 6)
-						throw new UnpickSyntaxException(reader.getLineNumber(), "Unexpected token count. Expected 4 or 6. Found " + tokens.length);
-
-					String group = tokens[1];
-					SimpleConstantDefinition parsedConstant = parseConstantDefinition(tokens, reader.getLineNumber());
-					ReplacementInstructionGenerator constantGroup = constantGroups.get(group);
-					if (constantGroup == null)
-					{
-						constantGroups.put(group, (constantGroup = new SimpleConstantGroup(group)));
-					}
-					if (constantGroup instanceof SimpleConstantGroup)
-						((SimpleConstantGroup) constantGroup).add(parsedConstant);
-					else 
-						throw new UnpickSyntaxException(reader.getLineNumber(), "Cannot add simple constant to non-simple constant group of type " + constantGroup.getClass().getSimpleName());
+					data.visitGroupDefinition(parseGroupDefinition(GroupType.CONST, constantResolver, tokens, reader.getLineNumber()));
 					break;
 				}
 
 				case "flag":
 				{
-					if (tokens.length != 4 && tokens.length != 6)
-						throw new UnpickSyntaxException(reader.getLineNumber(), "Unexpected token count. Expected 4 or 6. Found " + tokens.length);
-
-					String group = tokens[1];
-					FlagDefinition parsedFlag = parseFlagDefinition(tokens, reader.getLineNumber());
-					ReplacementInstructionGenerator constantGroup = constantGroups.get(group);
-					if (constantGroup == null)
-					{
-						constantGroups.put(group, (constantGroup = new FlagConstantGroup(group)));
-					}
-					if (constantGroup instanceof FlagConstantGroup)
-						((FlagConstantGroup) constantGroup).add(parsedFlag);
-					else 
-						throw new UnpickSyntaxException(reader.getLineNumber(), "Cannot add flag to non-flag group of type " + constantGroup.getClass().getSimpleName());
+					data.visitGroupDefinition(parseGroupDefinition(GroupType.FLAG, constantResolver, tokens, reader.getLineNumber()));
 					break;
 				}
 
 				case "unpick":
-					parseTargetMethodDefinition(targetMethodsBuilder, tokens, reader.getLineNumber());
+					data.visitTargetMethod(parseTargetMethodDefinition(tokens, reader.getLineNumber()));
 					break;
 
 				default:
@@ -81,13 +65,13 @@ public enum V1Parser
 		}
 	}
 	
-	private String stripComment(String in)
+	private static String stripComment(String in)
 	{
 		int c = in.indexOf('#');
 		return c == -1 ? in : in.substring(0, c);
 	}
 
-	private String[] tokenize(String in)
+	private static String[] tokenize(String in)
 	{
 		List<String> result = new ArrayList<>();
 
@@ -99,79 +83,88 @@ public enum V1Parser
 		return result.toArray(new String[0]);
 	}
 
-	private SimpleConstantDefinition parseConstantDefinition(String[] tokens, int lineNumber)
-	{ 
+	private static GroupDefinition parseGroupDefinition(GroupType groupType, IConstantResolver constantResolver, String[] tokens, int lineNumber)
+	{
+		if (tokens.length != 4 && tokens.length != 6)
+			throw new UnpickSyntaxException(lineNumber, "Unexpected token count. Expected 4 or 6. Found " + tokens.length);
+
+		String group = tokens[1];
 		String owner = tokens[2];
 		String name = tokens[3];
-		
+		DataType dataType;
+		Object value;
+
 		if (tokens.length > 4)
 		{
-			try 
-			{
-				Type descriptor = Type.getType(tokens[5]); 
-				String value = tokens[4];
-				return new SimpleConstantDefinition(owner, name, descriptor, value);
-			}
-			catch (IllegalArgumentException e)
-			{
-				throw new UnpickSyntaxException(lineNumber, "Unable to parse descriptor " + tokens[4]);
-			}
+			dataType = V2Parser.parseType(tokens[5], lineNumber);
+			value = V2Parser.parseConstantKeyValue(dataType, tokens[4], lineNumber);
 		}
-		
-		return new SimpleConstantDefinition(owner, name);
-	}
-	
-	private FlagDefinition parseFlagDefinition(String[] tokens, int lineNumber)
-	{ 
-		String owner = tokens[2];
-		String name = tokens[3];
-		
-		if (tokens.length > 4)
+		else
 		{
-			try 
+			IConstantResolver.ResolvedConstant constant = constantResolver.resolveConstant(owner, name);
+			if (constant == null)
 			{
-				Type descriptor = Type.getType(tokens[5]); 
-				String value = tokens[4];
-				return new FlagDefinition(owner, name, descriptor, value);
+				throw new UnpickSyntaxException(lineNumber, "Cannot resolve constant " + owner + "." + name);
 			}
-			catch (IllegalArgumentException e)
-			{
-				throw new UnpickSyntaxException(lineNumber, "Unable to parse descriptor " + tokens[4]);
-			}
+			dataType = V2Parser.parseType(constant.getType().getDescriptor(), lineNumber);
+			value = constant.getValue();
 		}
-		
-		return new FlagDefinition(owner, name);
+
+		DataType groupDataType = V2Parser.widenGroupType(dataType);
+
+		return new GroupDefinition(
+			GroupScope.Global.INSTANCE,
+			groupType,
+			false,
+			groupDataType,
+			group,
+			Collections.singletonList(
+				new GroupConstant(
+					V2Parser.objectToConstantKey(value, lineNumber),
+					new FieldExpression(
+						owner.replace('/', '.'),
+						name,
+						dataType == groupDataType ? null : dataType,
+						true
+					)
+				)
+			),
+			null
+		);
 	}
 
-	private void parseTargetMethodDefinition(Builder targetMethodsBuilder, String[] tokens, int lineNumber)
+	private static TargetMethod parseTargetMethodDefinition(String[] tokens, int lineNumber)
 	{
 		if (tokens.length < 4 || tokens.length % 2 != 0)
 			throw new UnpickSyntaxException(lineNumber, "Unexpected token count. Expected an even number greater than or equal to 4. Found " + tokens.length);
 		
 		String owner = tokens[1];
 		String name = tokens[2];
-		
-		try 
+		String desc = tokens[3];
+		Map<Integer, String> parameterGroups = new HashMap<>();
+
+		for (int p = 5; p < tokens.length; p += 2)
 		{
-			Type methodType = Type.getMethodType(tokens[3]);
-			TargetMethodBuilder targetMethodBuilder = targetMethodsBuilder.targetMethod(owner, name, methodType);
-			for (int p = 5; p < tokens.length; p += 2)
+			try
 			{
-				try
+				int parameterIndex = Integer.parseInt(tokens[p - 1]);
+				if (parameterGroups.put(parameterIndex, tokens[p]) != null)
 				{
-					int parameterIndex = Integer.parseInt(tokens[p - 1]);
-					targetMethodBuilder.parameterGroup(parameterIndex, tokens[p]);
-				}
-				catch(NumberFormatException e)
-				{
-					throw new UnpickSyntaxException(lineNumber, "Could not parse " + tokens[p - 1] + " as integer", e);
+					throw new UnpickSyntaxException(lineNumber, "Duplicate parameter index " + parameterIndex);
 				}
 			}
-			targetMethodBuilder.add();
+			catch(NumberFormatException e)
+			{
+				throw new UnpickSyntaxException(lineNumber, "Could not parse " + tokens[p - 1] + " as integer", e);
+			}
 		}
-		catch (IllegalArgumentException e)
-		{
-			throw new UnpickSyntaxException(lineNumber, "Unable to parse method descriptor " + tokens[3]);
-		}
+
+		return new TargetMethod(
+			owner.replace('/', '.'),
+			name,
+			desc,
+			parameterGroups,
+			null
+		);
 	}
 }

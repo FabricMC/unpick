@@ -2,6 +2,7 @@ package daomephsta.unpick.impl;
 
 import static org.objectweb.asm.Opcodes.*;
 
+import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.tree.*;
 
 public class AbstractInsnNodes
@@ -59,24 +60,25 @@ public class AbstractInsnNodes
 			return literal.equals(charLiteral);
 		}
 		// Compare integers by long value, to support widening comparisons
-		if (isIntegral(literalValue) && isIntegral(literal))
+		if (Utils.isIntegral(literalValue) && Utils.isIntegral(literal))
 		    return ((Number) literalValue).longValue() == ((Number) literal).longValue();
 		// Compare floating point numbers by double value, to support widening comparisons
-		if (isFloatingPoint(literalValue) && isFloatingPoint(literal))
+		if (Utils.isFloatingPoint(literalValue) && Utils.isFloatingPoint(literal))
 		    return ((Number) literalValue).doubleValue() == ((Number) literal).doubleValue();
 		return literalValue.equals(literal);
 	}
-	
-	private static boolean isIntegral(Object literal)
+
+	@Nullable
+	public static AbstractInsnNode previousInstruction(AbstractInsnNode insn)
 	{
-		return literal instanceof Byte || 
-			   literal instanceof Short || 
-			   literal instanceof Integer || 
-			   literal instanceof Long;
-	}
-	
-	private static boolean isFloatingPoint(Object literal)
-	{
-		return literal instanceof Float || literal instanceof Double;
+		while ((insn = insn.getPrevious()) != null)
+		{
+			if (insn.getOpcode() >= 0)
+			{
+				return insn;
+			}
+		}
+
+		return null;
 	}
 }

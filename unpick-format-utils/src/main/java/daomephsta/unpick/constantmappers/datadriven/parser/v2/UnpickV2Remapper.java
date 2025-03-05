@@ -1,11 +1,13 @@
 package daomephsta.unpick.constantmappers.datadriven.parser.v2;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import daomephsta.unpick.constantmappers.datadriven.parser.FieldKey;
+import daomephsta.unpick.constantmappers.datadriven.parser.MemberKey;
 import daomephsta.unpick.constantmappers.datadriven.parser.MethodKey;
 import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.TargetMethodDefinitionVisitor;
 import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.Visitor;
@@ -19,8 +21,10 @@ public class UnpickV2Remapper implements Visitor
 {
 	private static final Pattern OBJECT_SIGNATURE_FINDER = Pattern.compile("L([a-zA-Z0-9$_\\/]+);");
 	private final Map<String, String> classMappings;
-	private final Map<MethodKey, String> methodMappings;
-	private final Map<FieldKey, String> fieldMappings;
+	private final Map<MemberKey, String> methodMappings;
+	private final Map<MemberKey, String> fieldMappings;
+	@SuppressWarnings("deprecation")
+	private final Map<FieldKey, String> oldFieldMappings;
 	private final Visitor delegate;
 
 	/**
@@ -29,7 +33,10 @@ public class UnpickV2Remapper implements Visitor
 	 * @param methodMappings a mapping of old method names, owner classes, and descriptors; to new method names.
 	 * @param delegate the visitor that should visit the remapped target method definitions. 
 	 * All other visitor methods only delegate to the delegate visitor.
+	 *
+	 * @deprecated Use {@link #create} instead.
 	 */
+	@Deprecated
 	public UnpickV2Remapper(Map<String, String> classMappings, Map<MethodKey, String> methodMappings, Visitor delegate)
 	{
 		this(classMappings, methodMappings, Collections.emptyMap(), delegate);
@@ -42,13 +49,40 @@ public class UnpickV2Remapper implements Visitor
 	 * @param fieldMappings a mapping of old field names and owner classes to new field names.
 	 * @param delegate the visitor that should visit the remapped target method definitions.
 	 * All other visitor methods only delegate to the delegate visitor.
+	 *
+	 * @deprecated Use {@link #create} instead.
 	 */
+	@Deprecated
 	public UnpickV2Remapper(Map<String, String> classMappings, Map<MethodKey, String> methodMappings, Map<FieldKey, String> fieldMappings, Visitor delegate)
+	{
+		this.classMappings = classMappings;
+		this.methodMappings = new HashMap<>();
+		methodMappings.forEach((methodKey, methodName) -> this.methodMappings.put(methodKey.toMemberKey(), methodName));
+		this.fieldMappings = Collections.emptyMap();
+		this.oldFieldMappings = fieldMappings;
+		this.delegate = delegate;
+	}
+
+	private UnpickV2Remapper(@SuppressWarnings("unused") Object disambiguator, Map<String, String> classMappings, Map<MemberKey, String> methodMappings, Map<MemberKey, String> fieldMappings, Visitor delegate)
 	{
 		this.classMappings = classMappings;
 		this.methodMappings = methodMappings;
 		this.fieldMappings = fieldMappings;
+		this.oldFieldMappings = Collections.emptyMap();
 		this.delegate = delegate;
+	}
+
+	/**
+	 * Creates a new {@link UnpickV2Remapper}.
+	 * @param classMappings a mapping of old class names to new class names.
+	 * @param methodMappings a mapping of old method names, owner classes, and descriptors; to new method names.
+	 * @param fieldMappings a mapping of old field names and owner classes, and descriptors; to new field names.
+	 * @param delegate the visitor that should visit the remapped target method definitions.
+	 * All other visitor methods only delegate to the delegate visitor.
+	 */
+	public static UnpickV2Remapper create(Map<String, String> classMappings, Map<MemberKey, String> methodMappings, Map<MemberKey, String> fieldMappings, Visitor delegate)
+	{
+		return new UnpickV2Remapper(null, classMappings, methodMappings, fieldMappings, delegate);
 	}
 
 	private String remapClass(String name)
@@ -58,12 +92,19 @@ public class UnpickV2Remapper implements Visitor
 
 	private String remapMethod(String owner, String name, String descriptor)
 	{
-		return methodMappings.getOrDefault(new MethodKey(owner, name, descriptor), name);
+		return methodMappings.getOrDefault(new MemberKey(owner, name, descriptor), name);
 	}
 
-	private String remapField(String owner, String name)
+	@SuppressWarnings("deprecation")
+	private String remapField(String owner, String name, String descriptor)
 	{
-		return fieldMappings.getOrDefault(new FieldKey(owner, name), name);
+		String remapped = fieldMappings.get(new MemberKey(owner, name, descriptor));
+		if (remapped != null)
+		{
+			return remapped;
+		}
+
+		return oldFieldMappings.getOrDefault(new FieldKey(owner, name), name);
 	}
 
 	private String remapDescriptor(String descriptor)
@@ -108,7 +149,7 @@ public class UnpickV2Remapper implements Visitor
 	{
 		//Reassigning the parameters tends to cause bugs
 		String remappedOwner = remapClass(owner),
-		       remappedName = remapField(owner, name),
+		       remappedName = remapField(owner, name, descriptor),
 		       remappedDescriptor = remapDescriptor(descriptor);
 
 		delegate.visitSimpleConstantDefinition(group, remappedOwner, remappedName, value, remappedDescriptor);
@@ -118,7 +159,7 @@ public class UnpickV2Remapper implements Visitor
 	{
 		//Reassigning the parameters tends to cause bugs
 		String remappedOwner = remapClass(owner),
-		       remappedName = remapField(owner, name),
+		       remappedName = remapField(owner, name, descriptor),
 		       remappedDescriptor = remapDescriptor(descriptor);
 
 		delegate.visitFlagConstantDefinition(group, remappedOwner, remappedName, value, remappedDescriptor);

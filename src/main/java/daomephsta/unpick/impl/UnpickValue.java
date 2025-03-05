@@ -1,32 +1,37 @@
 package daomephsta.unpick.impl;
 
+import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.analysis.SourceValue;
-import org.objectweb.asm.tree.analysis.Value;
 
 import java.util.HashSet;
 import java.util.Set;
 
-public class UnpickValue implements Value
+@LegacyExposed
+public class UnpickValue implements IReplacementGenerator.IDataflowValue
 {
+	private final Type dataType;
 	private final SourceValue sourceValue;
 	private Set<Integer> parameterSources;
-	private Set<MethodUsage> methodUsages;
+	private Set<IReplacementGenerator.IParameterUsage> methodUsages;
 	private Set<AbstractInsnNode> usages;
 
-	public UnpickValue(SourceValue sourceValue)
+	public UnpickValue(Type dataType, SourceValue sourceValue)
 	{
+		this.dataType = dataType;
 		this.sourceValue = sourceValue;
 		this.parameterSources = new HashSet<>();
 		this.methodUsages = new HashSet<>();
 		this.usages = new HashSet<>();
 	}
 
-	public UnpickValue(SourceValue sourceValue, UnpickValue cloneOf)
+	public UnpickValue(Type dataType, SourceValue sourceValue, UnpickValue cloneOf)
 	{
+		this.dataType = dataType;
 		this.sourceValue = sourceValue;
 		this.parameterSources = cloneOf.getParameterSources();
-		this.methodUsages = cloneOf.getMethodUsages();
+		this.methodUsages = cloneOf.getParameterUsages();
 		this.usages = cloneOf.getUsages();
 	}
 
@@ -36,21 +41,44 @@ public class UnpickValue implements Value
 		return sourceValue.getSize();
 	}
 
+	@Override
+	public Type getDataType()
+	{
+		return dataType;
+	}
+
+	@LegacyExposed
 	public SourceValue getSourceValue()
 	{
 		return sourceValue;
 	}
 
+	@LegacyExposed
+	@Override
 	public Set<Integer> getParameterSources()
 	{
 		return parameterSources;
 	}
 
+	/**
+	 * @deprecated Use {@link #getParameterUsages} instead.
+	 */
+	@SuppressWarnings("unchecked")
+	@LegacyExposed
+	@Deprecated
 	public Set<MethodUsage> getMethodUsages()
+	{
+		return (Set<MethodUsage>) (Set<?>) methodUsages;
+	}
+
+	@Override
+	public Set<IReplacementGenerator.IParameterUsage> getParameterUsages()
 	{
 		return methodUsages;
 	}
 
+	@LegacyExposed
+	@Override
 	public Set<AbstractInsnNode> getUsages()
 	{
 		return usages;
@@ -61,7 +89,7 @@ public class UnpickValue implements Value
 		this.parameterSources = parameterSources;
 	}
 
-	void setMethodUsages(Set<MethodUsage> methodUsages)
+	void setParameterUsages(Set<IReplacementGenerator.IParameterUsage> methodUsages)
 	{
 		this.methodUsages = methodUsages;
 	}
@@ -81,6 +109,8 @@ public class UnpickValue implements Value
 
 		UnpickValue that = (UnpickValue) o;
 
+		if (!dataType.equals(that.dataType))
+			return false;
 		if (!sourceValue.equals(that.sourceValue))
 			return false;
 		if (!parameterSources.equals(that.parameterSources))
@@ -93,14 +123,16 @@ public class UnpickValue implements Value
 	@Override
 	public int hashCode()
 	{
-		int result = sourceValue.hashCode();
+		int result = dataType.hashCode();
+		result = 31 * result + sourceValue.hashCode();
 		result = 31 * result + parameterSources.hashCode();
 		result = 31 * result + methodUsages.hashCode();
 		result = 31 * result + usages.hashCode();
 		return result;
 	}
 
-	public static class MethodUsage
+	@LegacyExposed
+	public static class MethodUsage implements IReplacementGenerator.IParameterUsage
 	{
 		private final AbstractInsnNode methodInvocation;
 		private final int paramIndex;
@@ -111,11 +143,15 @@ public class UnpickValue implements Value
 			this.paramIndex = paramIndex;
 		}
 
+		@LegacyExposed
+		@Override
 		public AbstractInsnNode getMethodInvocation()
 		{
 			return methodInvocation;
 		}
 
+		@LegacyExposed
+		@Override
 		public int getParamIndex()
 		{
 			return paramIndex;

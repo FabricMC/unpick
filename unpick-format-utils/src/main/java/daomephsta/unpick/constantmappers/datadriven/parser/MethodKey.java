@@ -6,7 +6,10 @@ import java.util.Objects;
  * Immutable data object that encapsulates a method owner, name and descriptor
  * so that they can be used as a map key.
  * @author Daomephsta
+ *
+ * @deprecated Use {@link MemberKey} instead.
  */
+@Deprecated
 public class MethodKey
 {
 	private final String owner, name, descriptor;
@@ -16,6 +19,11 @@ public class MethodKey
 		this.owner = owner;
 		this.name = name;
 		this.descriptor = descriptor;
+	}
+
+	public MemberKey toMemberKey()
+	{
+		return new MemberKey(owner, name, descriptor);
 	}
 
 	@Override

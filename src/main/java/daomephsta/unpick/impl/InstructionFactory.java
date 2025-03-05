@@ -8,85 +8,82 @@ import org.objectweb.asm.tree.*;
 
 public class InstructionFactory
 {
-	public static AbstractInsnNode pushesValue(Object value)
+	public static AbstractInsnNode pushValue(Object value)
 	{
 		if (value instanceof Number)
 		{
 			Number number = (Number) value;
 			if (number instanceof Long)
-				return pushesLong(number.longValue());
+				return pushLong(number.longValue());
 			else if (number instanceof Double)
-				return pushesDouble(number.doubleValue());
+				return pushDouble(number.doubleValue());
 			else if (number instanceof Float)
-				return pushesFloat(number.floatValue());
+				return pushFloat(number.floatValue());
 			else //Shorts and bytes are all ints internally
-				return pushesInt(number.intValue());
+				return pushInt(number.intValue());
 		}
 		else if (value instanceof Character)
-			return pushesChar((char) value);
+			return pushChar((char) value);
 		else if (value instanceof Boolean)
-			return pushesBoolean((boolean) value);
+			return pushBoolean((boolean) value);
 		else if (value instanceof String)
-			return pushesString((String) value);
+			return pushString((String) value);
 		else if (value instanceof Type)
-			return pushesTypeReference((Type) value);
+			return pushTypeReference((Type) value);
 		else
 			throw new UnsupportedOperationException("Pushing reference types is not supported");
 	}
 	
-	public static void pushesValue(MethodVisitor method, Object value)
+	public static void pushValue(MethodVisitor method, Object value)
 	{
 		if (value instanceof Number)
 		{
 			Number number = (Number) value;
 			if (number instanceof Long)
-				pushesLong(method, number.longValue());
+				pushLong(method, number.longValue());
 			else if (number instanceof Double)
-				pushesDouble(method, number.doubleValue());
+				pushDouble(method, number.doubleValue());
 			else if (number instanceof Float)
-				pushesFloat(method, number.floatValue());
+				pushFloat(method, number.floatValue());
 			else //Shorts and bytes are all ints internally
-				pushesInt(method, number.intValue());
+				pushInt(method, number.intValue());
 		}
 		else if (value instanceof Character)
-			pushesChar(method, (char) value);
+			pushChar(method, (char) value);
 		else if (value instanceof Boolean)
-			pushesBoolean(method, (boolean) value);
+			pushBoolean(method, (boolean) value);
 		else if (value instanceof String)
-			pushesString(method, (String) value);
+			pushString(method, (String) value);
 		else if (value instanceof Type)
-			pushesTypeReference(method, (Type) value);
+			pushTypeReference(method, (Type) value);
 		else
 			throw new UnsupportedOperationException("Pushing reference types is not supported");
 	}
 	
-	public static AbstractInsnNode pushesBoolean(boolean bool)
+	public static AbstractInsnNode pushBoolean(boolean bool)
 	{
 		return new InsnNode(bool ? ICONST_1 : ICONST_0);
 	}
 	
-	public static void pushesBoolean(MethodVisitor method, boolean bool)
+	public static void pushBoolean(MethodVisitor method, boolean bool)
 	{
 		method.visitInsn(bool ? ICONST_1 : ICONST_0);
 	}
 	
-	public static AbstractInsnNode pushesChar(char c)
+	public static AbstractInsnNode pushChar(char c)
 	{
-		return pushesInt(c);
+		return pushInt(c);
 	}
 	
-	public static void pushesChar(MethodVisitor method, char c)
+	public static void pushChar(MethodVisitor method, char c)
 	{
-		pushesInt(method, c);
+		pushInt(method, c);
 	}
 	
-	private static final int[] I_OPCODES = {ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5}; 
-	public static AbstractInsnNode pushesInt(int i)
+	public static AbstractInsnNode pushInt(int i)
 	{
-		if (i == -1) 
-			return new InsnNode(ICONST_M1);
-		else if(i >= 0 && i < I_OPCODES.length)
-			return new InsnNode(I_OPCODES[i]);
+		if (i >= -1 && i <= 5)
+			return new InsnNode(ICONST_0 + i);
 		else if (i >= Byte.MIN_VALUE && i <= Byte.MAX_VALUE)
 			return new IntInsnNode(BIPUSH, i);
 		else if (i >= Short.MIN_VALUE && i <= Short.MAX_VALUE)
@@ -95,12 +92,10 @@ public class InstructionFactory
 			return new LdcInsnNode(i);
 	}
 	
-	public static void pushesInt(MethodVisitor method, int i)
+	public static void pushInt(MethodVisitor method, int i)
 	{
-		if (i == -1) 
-			method.visitInsn(ICONST_M1);
-		else if(i >= 0 && i < I_OPCODES.length)
-			method.visitInsn(I_OPCODES[i]);
+		if (i >= -1 && i <= 5)
+			method.visitInsn(ICONST_0 + i);
 		else if (i >= Byte.MIN_VALUE && i <= Byte.MAX_VALUE)
 			method.visitIntInsn(BIPUSH, i);
 		else if (i >= Short.MIN_VALUE && i <= Short.MAX_VALUE)
@@ -109,7 +104,7 @@ public class InstructionFactory
 			method.visitLdcInsn(i);
 	}
 	
-	public static AbstractInsnNode pushesLong(long l)
+	public static AbstractInsnNode pushLong(long l)
 	{
 		//Longs seem to be pushed using their consts or LDC, never BIPUSH or SIPUSH
 		if (l == 0)
@@ -120,7 +115,7 @@ public class InstructionFactory
 			return new LdcInsnNode(l);
 	}
 	
-	public static void pushesLong(MethodVisitor method, long l)
+	public static void pushLong(MethodVisitor method, long l)
 	{
 		//Longs seem to be pushed using their consts or LDC, never BIPUSH or SIPUSH
 		if (l == 0)
@@ -131,7 +126,7 @@ public class InstructionFactory
 			method.visitLdcInsn(l);
 	}
 	
-	public static AbstractInsnNode pushesFloat(float f)
+	public static AbstractInsnNode pushFloat(float f)
 	{
 		if (f == 0.0F)
 			return new InsnNode(FCONST_0);
@@ -143,7 +138,7 @@ public class InstructionFactory
 			return new LdcInsnNode(f);
 	}
 	
-	public static void pushesFloat(MethodVisitor method, float f)
+	public static void pushFloat(MethodVisitor method, float f)
 	{
 		if (f == 0.0F)
 			method.visitInsn(FCONST_0);
@@ -155,7 +150,7 @@ public class InstructionFactory
 			method.visitLdcInsn(f);
 	}
 	
-	public static AbstractInsnNode pushesDouble(double d)
+	public static AbstractInsnNode pushDouble(double d)
 	{
 		if (d == 0.0D)
 			return new InsnNode(DCONST_0);
@@ -165,7 +160,7 @@ public class InstructionFactory
 			return new LdcInsnNode(d);
 	}
 	
-	public static void pushesDouble(MethodVisitor method, double d)
+	public static void pushDouble(MethodVisitor method, double d)
 	{
 		if (d == 0.0D)
 			method.visitInsn(DCONST_0);
@@ -175,22 +170,22 @@ public class InstructionFactory
 			method.visitLdcInsn(d);
 	}
 	
-	public static AbstractInsnNode pushesString(String s)
+	public static AbstractInsnNode pushString(String s)
 	{
 		return new LdcInsnNode(s);
 	}
 	
-	public static void pushesString(MethodVisitor method, String s)
+	public static void pushString(MethodVisitor method, String s)
 	{
 		method.visitLdcInsn(s);
 	}
 	
-	public static AbstractInsnNode pushesTypeReference(Type type)
+	public static AbstractInsnNode pushTypeReference(Type type)
 	{
 		return new LdcInsnNode(type);
 	}
 	
-	public static void pushesTypeReference(MethodVisitor method, Type type)
+	public static void pushTypeReference(MethodVisitor method, Type type)
 	{
 		method.visitLdcInsn(type);
 	}

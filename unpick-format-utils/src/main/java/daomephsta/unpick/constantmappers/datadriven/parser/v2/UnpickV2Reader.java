@@ -17,7 +17,7 @@ import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException
 public class UnpickV2Reader implements Closeable
 {
 	private static final Pattern WHITESPACE_SPLITTER = Pattern.compile("\\s");
-	private final InputStream definitionsStream;
+	private final Reader definitionsStream;
 	
 	private TargetMethodDefinitionVisitor lastTargetMethodVisitor = null;
 
@@ -27,6 +27,11 @@ public class UnpickV2Reader implements Closeable
 	 * <a href="https://github.com/Daomephsta/unpick/wiki/Unpick-Format">.unpick v2 format</a> 
 	 */
 	public UnpickV2Reader(InputStream definitionsStream)
+	{
+		this(new InputStreamReader(definitionsStream));
+	}
+
+	public UnpickV2Reader(Reader definitionsStream)
 	{
 		this.definitionsStream = definitionsStream;
 	}
@@ -38,7 +43,7 @@ public class UnpickV2Reader implements Closeable
 	 */
 	public void accept(Visitor visitor)
 	{
-		try(LineNumberReader reader = new LineNumberReader(new InputStreamReader(definitionsStream)))
+		try(LineNumberReader reader = new LineNumberReader(definitionsStream))
 		{
 			Iterator<String[]> lineTokensIter = reader.lines()
 				.skip(1) //Skip version

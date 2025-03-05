@@ -5,11 +5,14 @@ import java.util.Objects;
 /**
  * Immutable data object that encapsulates a field owner and name
  * so that they can be used as a map key.
+ *
+ * @deprecated Use {@link MemberKey} instead.
  */
+@Deprecated
+@SuppressWarnings("DeprecatedIsStillUsed")
 public class FieldKey
 {
-	// TODO: (Breaking) Add field descriptors
-	private final String owner, name;
+	final String owner, name;
 
 	public FieldKey(String owner, String name)
 	{

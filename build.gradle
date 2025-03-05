@@ -2,11 +2,22 @@ plugins {
     id 'java-library'
     id 'maven-publish'
     id 'eclipse'
+    id 'checkstyle'
 }
 
 allprojects {
     apply plugin: 'java-library'
     apply plugin: 'maven-publish'
+
+    if (project.name != 'unpick-cli') {
+        apply plugin: 'checkstyle'
+
+        checkstyle {
+            toolVersion = '10.21.1'
+            configFile = rootProject.file("checkstyle.xml")
+            ignoreFailures = false
+        }
+    }
 
     group = 'net.fabricmc.unpick'
 
@@ -23,6 +34,7 @@ allprojects {
         api 'org.ow2.asm:asm-tree:9.6'
         implementation 'org.ow2.asm:asm-commons:9.6'
         implementation 'org.ow2.asm:asm-util:9.6'
+        compileOnly 'org.jetbrains:annotations:24.0.0'
 
         // Use JUnit test framework
         testImplementation platform('org.junit:junit-bom:5.10.1')

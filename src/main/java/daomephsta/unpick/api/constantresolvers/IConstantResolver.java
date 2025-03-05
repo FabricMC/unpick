@@ -2,6 +2,7 @@ package daomephsta.unpick.api.constantresolvers;
 
 import java.util.AbstractMap;
 
+import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Type;
 
 /**
@@ -46,5 +47,6 @@ public interface IConstantResolver
 	 * @param name the name of the constant.
 	 * @return the type and value of the constant as an instance of {@link ResolvedConstant}.
 	 */
+	@Nullable
 	public ResolvedConstant resolveConstant(String owner, String name);
 }

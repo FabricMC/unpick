@@ -3,13 +3,18 @@ package daomephsta.unpick.api.constantmappers;
 import java.io.InputStream;
 
 import daomephsta.unpick.api.IClassResolver;
+import daomephsta.unpick.api.constantgroupers.ConstantGroupers;
+import daomephsta.unpick.api.constantresolvers.ConstantResolvers;
 import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
-import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantMapper;
+import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
 
 /**
  * API methods for creating instances of predefined implementations of {@link IConstantMapper}
  * @author Daomephsta
+ *
+ * @deprecated Use {@link ConstantGroupers} instead.
  */
+@Deprecated
 public class ConstantMappers
 {
 	/**
@@ -20,6 +25,6 @@ public class ConstantMappers
 	 */
 	public static IConstantMapper dataDriven(IClassResolver classResolver, InputStream... mappingSources)
 	{
-		return new DataDrivenConstantMapper(classResolver, mappingSources);
+		return new DataDrivenConstantGrouper(ConstantResolvers.bytecodeAnalysis(classResolver), mappingSources).asMapper();
 	}
 }

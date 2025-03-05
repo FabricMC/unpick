@@ -14,11 +14,11 @@ public enum IntegerType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(long literal)
-			{ return InstructionFactory.pushesInt((byte) literal); }
+			{ return InstructionFactory.pushInt((byte) literal); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, long literal)
-			{ InstructionFactory.pushesInt(mv, (byte) literal); }
+			{ InstructionFactory.pushInt(mv, (byte) literal); }
 		
 		@Override
 		public Number box(long value)
@@ -40,11 +40,11 @@ public enum IntegerType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(long literal)
-			{ return InstructionFactory.pushesInt((short) literal); }
+			{ return InstructionFactory.pushInt((short) literal); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, long literal)
-			{ InstructionFactory.pushesInt(mv, (short) literal); }
+			{ InstructionFactory.pushInt(mv, (short) literal); }
 		
 		@Override
 		public Number box(long value)
@@ -66,11 +66,11 @@ public enum IntegerType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(long literal)
-			{ return InstructionFactory.pushesInt((int) literal); }
+			{ return InstructionFactory.pushInt((int) literal); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, long literal)
-			{ InstructionFactory.pushesInt(mv, (int) literal); }
+			{ InstructionFactory.pushInt(mv, (int) literal); }
 		
 		@Override
 		public Number box(long value)
@@ -92,11 +92,11 @@ public enum IntegerType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(long literal)
-			{ return InstructionFactory.pushesLong(literal); }
+			{ return InstructionFactory.pushLong(literal); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, long literal)
-			{ InstructionFactory.pushesLong(mv, literal); }
+			{ InstructionFactory.pushLong(mv, literal); }
 		
 		@Override
 		public Number box(long value)

@@ -18,11 +18,11 @@ public enum LiteralType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(Object literal)
-			{ return InstructionFactory.pushesInt(((Number) literal).byteValue()); }
+			{ return InstructionFactory.pushInt(((Number) literal).byteValue()); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
-			{ InstructionFactory.pushesInt(mv, ((Number) literal).byteValue()); }
+			{ InstructionFactory.pushInt(mv, ((Number) literal).byteValue()); }
 
 		@Override
 		public Object parse(String valueString)
@@ -32,11 +32,11 @@ public enum LiteralType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(Object literal)
-			{ return InstructionFactory.pushesInt(((Number) literal).shortValue()); }
+			{ return InstructionFactory.pushInt(((Number) literal).shortValue()); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
-			{ InstructionFactory.pushesInt(mv, ((Number) literal).shortValue()); }
+			{ InstructionFactory.pushInt(mv, ((Number) literal).shortValue()); }
 
 		@Override
 		public Object parse(String valueString)
@@ -46,11 +46,11 @@ public enum LiteralType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(Object literal)
-			{ return InstructionFactory.pushesChar((char) literal); }
+			{ return InstructionFactory.pushChar((char) literal); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
-			{ InstructionFactory.pushesChar(mv, (char) literal); }
+			{ InstructionFactory.pushChar(mv, (char) literal); }
 
 		@Override
 		public Object parse(String valueString)	
@@ -69,11 +69,11 @@ public enum LiteralType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(Object literal)
-			{ return InstructionFactory.pushesInt(((Number) literal).intValue()); }
+			{ return InstructionFactory.pushInt(((Number) literal).intValue()); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
-			{ InstructionFactory.pushesInt(mv, ((Number) literal).intValue()); }
+			{ InstructionFactory.pushInt(mv, ((Number) literal).intValue()); }
 		
 		@Override
 		public Object parse(String valueString)
@@ -83,11 +83,11 @@ public enum LiteralType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(Object literal)
-			{ return InstructionFactory.pushesLong(((Number) literal).longValue()); }
+			{ return InstructionFactory.pushLong(((Number) literal).longValue()); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
-			{ InstructionFactory.pushesLong(mv, ((Number) literal).longValue()); }
+			{ InstructionFactory.pushLong(mv, ((Number) literal).longValue()); }
 		
 		@Override
 		public Object parse(String valueString)
@@ -97,11 +97,11 @@ public enum LiteralType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(Object literal)
-			{ return InstructionFactory.pushesFloat(((Number) literal).floatValue()); }
+			{ return InstructionFactory.pushFloat(((Number) literal).floatValue()); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
-			{ InstructionFactory.pushesFloat(mv, ((Number) literal).floatValue()); }
+			{ InstructionFactory.pushFloat(mv, ((Number) literal).floatValue()); }
 		
 		@Override
 		public Object parse(String valueString)
@@ -111,11 +111,11 @@ public enum LiteralType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(Object literal)
-			{ return InstructionFactory.pushesDouble(((Number) literal).doubleValue()); }
+			{ return InstructionFactory.pushDouble(((Number) literal).doubleValue()); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
-			{ InstructionFactory.pushesDouble(mv, ((Number) literal).doubleValue()); }
+			{ InstructionFactory.pushDouble(mv, ((Number) literal).doubleValue()); }
 		
 		@Override
 		public Object parse(String valueString)
@@ -125,11 +125,11 @@ public enum LiteralType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(Object literal)
-			{ return InstructionFactory.pushesString((String) literal); }
+			{ return InstructionFactory.pushString((String) literal); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
-			{ InstructionFactory.pushesString(mv, (String) literal); }
+			{ InstructionFactory.pushString(mv, (String) literal); }
 		
 		@Override
 		public Object parse(String valueString)
@@ -139,11 +139,11 @@ public enum LiteralType
 	{
 		@Override
 		public AbstractInsnNode createLiteralPushInsn(Object literal)
-			{ return InstructionFactory.pushesTypeReference((Type) literal); }
+			{ return InstructionFactory.pushTypeReference((Type) literal); }
 
 		@Override
 		public void appendLiteralPushInsn(MethodVisitor mv, Object literal)
-			{ InstructionFactory.pushesTypeReference(mv, (Type) literal); }
+			{ InstructionFactory.pushTypeReference(mv, (Type) literal); }
 		
 		@Override
 		public Object parse(String valueString)
