@@ -2,7 +2,6 @@ package daomephsta.unpick.impl.constantmappers.datadriven.parser.v2;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.IntSupplier;
@@ -11,7 +10,6 @@ import daomephsta.unpick.api.constantresolvers.IConstantResolver;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
-import daomephsta.unpick.constantmappers.datadriven.tree.GroupScope;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupType;
 import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
@@ -175,25 +173,20 @@ public final class V2Parser implements Visitor
 		DataType groupDataType = widenGroupType(dataType);
 
 		data.visitGroupDefinition(
-			new GroupDefinition(
-				GroupScope.Global.INSTANCE,
-				groupType,
-				false,
-				groupDataType,
-				groupId,
-				Collections.singletonList(
-					new GroupConstant(
-						objectToConstantKey(valueObj, lineNumber),
-						new FieldExpression(
-							owner.replace('/', '.'),
-							name,
-							dataType == groupDataType ? null : dataType,
-							true
-						)
+			GroupDefinition.Builder.named(groupDataType, groupId)
+					.type(groupType)
+					.constant(
+							new GroupConstant(
+									objectToConstantKey(valueObj, lineNumber),
+									new FieldExpression(
+											owner.replace('/', '.'),
+											name,
+											dataType == groupDataType ? null : dataType,
+											true
+									)
+							)
 					)
-				),
-				null
-			)
+					.build()
 		);
 	}
 

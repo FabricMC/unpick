@@ -90,7 +90,7 @@ public class UnpickV3Remapper extends UnpickV3Visitor
 
 		for (GroupScope scope : scopes)
 		{
-			downstream.visitGroupDefinition(new GroupDefinition(scope, groupDefinition.type, groupDefinition.strict, groupDefinition.dataType, groupDefinition.name, constants, groupDefinition.format));
+			downstream.visitGroupDefinition(GroupDefinition.Builder.from(groupDefinition).scoped(scope).constants(constants).build());
 		}
 	}
 

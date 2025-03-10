@@ -1,5 +1,9 @@
 package daomephsta.unpick.api;
 
+import daomephsta.unpick.api.constantresolvers.IConstantResolver;
+import daomephsta.unpick.api.inheritancecheckers.IInheritanceChecker;
+import daomephsta.unpick.impl.constantresolvers.BytecodeAnalysisConstantResolver;
+import daomephsta.unpick.impl.inheritancecheckers.BytecodeAnalysisInheritanceChecker;
 import org.objectweb.asm.ClassReader;
 
 /**
@@ -14,7 +18,17 @@ public interface IClassResolver
 	 * @throws ClassResolutionException if construction of the ClassReader throws an IOException
 	 * or no class can be found with the specified internal name.
 	 */
-	public ClassReader resolveClass(String internalName) throws ClassResolutionException;
+	ClassReader resolveClass(String internalName) throws ClassResolutionException;
+
+	default IConstantResolver asConstantResolver()
+	{
+		return new BytecodeAnalysisConstantResolver(this);
+	}
+
+	default IInheritanceChecker asInheritanceChecker()
+	{
+		return new BytecodeAnalysisInheritanceChecker(this);
+	}
 	
 	public static class ClassResolutionException extends RuntimeException
 	{

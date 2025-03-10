@@ -3,6 +3,7 @@ package daomephsta.unpick.api.constantgroupers;
 import daomephsta.unpick.api.IClassResolver;
 import daomephsta.unpick.api.constantresolvers.IConstantResolver;
 import daomephsta.unpick.api.inheritancecheckers.IInheritanceChecker;
+import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Type;
@@ -56,6 +57,7 @@ public interface IReplacementGenerator
 		Set<Integer> getParameterSources();
 		Set<IParameterUsage> getParameterUsages();
 		Set<AbstractInsnNode> getUsages();
+		Set<DataType> getNarrowTypeInterpretations();
 	}
 
 	@ApiStatus.NonExtendable

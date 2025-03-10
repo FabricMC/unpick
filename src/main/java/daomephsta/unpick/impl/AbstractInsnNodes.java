@@ -81,4 +81,17 @@ public class AbstractInsnNodes
 
 		return null;
 	}
+
+	public static AbstractInsnNode nextInstruction(AbstractInsnNode insn)
+	{
+		while ((insn = insn.getNext()) != null)
+		{
+			if (insn.getOpcode() >= 0)
+			{
+				return insn;
+			}
+		}
+
+		return null;
+	}
 }

@@ -67,23 +67,25 @@ allprojects {
         from javadoc.destinationDir
     }
 
-    publishing {
-        repositories {
-            if (ENV.MAVEN_URL) {
-                repositories.maven {
-                    name "fabric"
-                    url ENV.MAVEN_URL
-                    credentials {
-                        username ENV.MAVEN_USERNAME
-                        password ENV.MAVEN_PASSWORD
+    if (!project.name.startsWith('test-data')) {
+        publishing {
+            repositories {
+                if (ENV.MAVEN_URL) {
+                    repositories.maven {
+                        name "fabric"
+                        url ENV.MAVEN_URL
+                        credentials {
+                            username ENV.MAVEN_USERNAME
+                            password ENV.MAVEN_PASSWORD
+                        }
                     }
                 }
             }
-        }
-        publications {
-            mavenJava(MavenPublication) {
-                from components.java
-                artifact(javadocJar)
+            publications {
+                mavenJava(MavenPublication) {
+                    from components.java
+                    artifact(javadocJar)
+                }
             }
         }
     }
@@ -91,4 +93,11 @@ allprojects {
 
 dependencies {
     implementation project(':unpick-format-utils')
+}
+
+test {
+    dependsOn tasks.getByPath(':test-data:classes')
+    dependsOn tasks.getByPath(':test-data-expected:classes')
+    systemProperties testData: project(':test-data').sourceSets.main.java.destinationDirectory.get().asFile.absolutePath,
+        testDataExpected: project(':test-data-expected').sourceSets.main.java.destinationDirectory.get().asFile.absolutePath
 }

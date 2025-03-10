@@ -4,6 +4,8 @@ import static java.util.stream.Collectors.toSet;
 
 import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.objectweb.asm.*;
 
@@ -17,9 +19,9 @@ import daomephsta.unpick.impl.LiteralType;
  */
 public class BytecodeAnalysisConstantResolver implements IConstantResolver
 {
-	private static final Set<Type> VALID_CONSTANT_TYPES = Arrays.stream(LiteralType.values()).map(LiteralType::getType).collect(toSet());
+	static final Set<Type> VALID_CONSTANT_TYPES = Arrays.stream(LiteralType.values()).map(LiteralType::getType).collect(toSet());
 	
-	private final Map<String, ResolvedConstants> constantDataCache = new HashMap<>();
+	private final ConcurrentMap<String, ResolvedConstants> constantDataCache = new ConcurrentHashMap<>();
 	private final IClassResolver classResolver;
 	
 	public BytecodeAnalysisConstantResolver(IClassResolver classResolver)
@@ -30,12 +32,21 @@ public class BytecodeAnalysisConstantResolver implements IConstantResolver
 	@Override
 	public ResolvedConstant resolveConstant(String owner, String name)
 	{
-		return constantDataCache.computeIfAbsent(owner, this::extractConstants).get(name);
+		ResolvedConstants resolvedConstants = constantDataCache.computeIfAbsent(owner, this::extractConstants);
+		return resolvedConstants == null ? null : resolvedConstants.get(name);
 	}
 
 	private ResolvedConstants extractConstants(String owner)
 	{
-		ClassReader cr = classResolver.resolveClass(owner);
+		ClassReader cr;
+		try
+		{
+			cr = classResolver.resolveClass(owner);
+		}
+		catch (IClassResolver.ClassResolutionException e)
+		{
+			return null;
+		}
 		ResolvedConstants resolvedConstants = new ResolvedConstants(Opcodes.ASM9);
 		cr.accept(resolvedConstants, 0);
 		return resolvedConstants;
@@ -62,7 +73,7 @@ public class BytecodeAnalysisConstantResolver implements IConstantResolver
 			return super.visitField(access, name, descriptor, signature, value);
 		}
 		
-		public ResolvedConstant get(Object key)
+		public ResolvedConstant get(String key)
 		{
 			return resolvedConstants.get(key);
 		}

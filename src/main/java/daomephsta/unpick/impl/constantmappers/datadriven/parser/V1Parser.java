@@ -8,7 +8,6 @@ import daomephsta.unpick.api.constantresolvers.IConstantResolver;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
-import daomephsta.unpick.constantmappers.datadriven.tree.GroupScope;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupType;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
@@ -112,25 +111,20 @@ public final class V1Parser
 
 		DataType groupDataType = V2Parser.widenGroupType(dataType);
 
-		return new GroupDefinition(
-			GroupScope.Global.INSTANCE,
-			groupType,
-			false,
-			groupDataType,
-			group,
-			Collections.singletonList(
-				new GroupConstant(
-					V2Parser.objectToConstantKey(value, lineNumber),
-					new FieldExpression(
-						owner.replace('/', '.'),
-						name,
-						dataType == groupDataType ? null : dataType,
-						true
-					)
+		return GroupDefinition.Builder.named(groupDataType, group)
+				.type(groupType)
+				.constant(
+						new GroupConstant(
+								V2Parser.objectToConstantKey(value, lineNumber),
+								new FieldExpression(
+										owner.replace('/', '.'),
+										name,
+										dataType == groupDataType ? null : dataType,
+										true
+								)
+						)
 				)
-			),
-			null
-		);
+				.build();
 	}
 
 	private static TargetMethod parseTargetMethodDefinition(String[] tokens, int lineNumber)

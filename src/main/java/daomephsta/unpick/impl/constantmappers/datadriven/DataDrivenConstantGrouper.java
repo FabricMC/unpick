@@ -14,6 +14,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import daomephsta.unpick.api.IClassResolver;
@@ -50,6 +52,7 @@ import daomephsta.unpick.impl.constantmappers.datadriven.parser.V1Parser;
 import daomephsta.unpick.impl.constantmappers.datadriven.parser.v2.V2Parser;
 import daomephsta.unpick.impl.representations.ReplacementInstructionGenerator;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.VisibleForTesting;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
@@ -117,11 +120,17 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 		LOGGER.info(() -> String.format("Loaded %d constant groups, %d target fields and %d target methods", data.defaultGroups.size() + data.groups.size(), data.targetFields.size(), data.targetMethods.size()));
 	}
 
+	@VisibleForTesting
+	public DataDrivenConstantGrouper(Consumer<UnpickV3Visitor> dataProvider)
+	{
+		dataProvider.accept(data);
+	}
+
 	@Override
 	@Nullable
 	public ConstantGroup getFieldGroup(String fieldOwner, String fieldName, String fieldDescriptor)
 	{
-		TargetField targetField = data.targetFields.get(new MemberKey(fieldOwner, fieldName, fieldDescriptor));
+		TargetField targetField = data.targetFields.get(new MemberKey(fieldOwner.replace('/', '.'), fieldName, fieldDescriptor));
 		return targetField == null ? null : getGroupByName(targetField.groupName);
 	}
 
@@ -129,7 +138,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 	@Nullable
 	public ConstantGroup getMethodReturnGroup(String methodOwner, String methodName, String methodDescriptor)
 	{
-		TargetMethod targetMethod = data.targetMethods.get(new MemberKey(methodOwner, methodName, methodDescriptor));
+		TargetMethod targetMethod = data.targetMethods.get(new MemberKey(methodOwner.replace('/', '.'), methodName, methodDescriptor));
 		return targetMethod == null || targetMethod.returnGroup == null ? null : getGroupByName(targetMethod.returnGroup);
 	}
 
@@ -137,7 +146,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 	@Nullable
 	public ConstantGroup getMethodParameterGroup(String methodOwner, String methodName, String methodDescriptor, int parameterIndex)
 	{
-		TargetMethod targetMethod = data.targetMethods.get(new MemberKey(methodOwner, methodName, methodDescriptor));
+		TargetMethod targetMethod = data.targetMethods.get(new MemberKey(methodOwner.replace('/', '.'), methodName, methodDescriptor));
 		if (targetMethod == null)
 		{
 			return null;
@@ -223,7 +232,8 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 				ConstantReplacementInfo replacementInfo = scope.constantReplacementMap.get(castedLiteral);
 				if (!replacementInfo.strict || compatibleType == literalType)
 				{
-					replaceWithExpression(context, defaultGroup, replacementInfo.replacementExpression, literalType);
+					DataType narrowedLiteralType = getNarrowedLiteralType(context, target, literalType, literal);
+					replaceWithExpression(context, defaultGroup, replacementInfo.replacementExpression, narrowedLiteralType);
 					return;
 				}
 			}
@@ -293,7 +303,26 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 
 		if (groupInfo.groupType == GroupType.FLAG && !castedLiteral.equals(0L) && !castedLiteral.equals(-1L))
 		{
-			long mask = literalType == DataType.INT ? 0xffff_ffffL : 0xffff_ffff_ffff_ffffL;
+			DataType narrowedLiteralType = getNarrowedLiteralType(context, target, literalType, literal);
+			long mask;
+			switch (narrowedLiteralType)
+			{
+				case BYTE:
+					mask = 0xff;
+					break;
+				case SHORT:
+				case CHAR:
+					mask = 0xffff;
+					break;
+				case INT:
+					mask = 0xffff_ffffL;
+					break;
+				case LONG:
+					mask = 0xffff_ffff_ffff_ffffL;
+					break;
+				default:
+					throw new AssertionError("Invalid literal type for  flag: " + narrowedLiteralType);
+			}
 			long targetValue = (Long) castedLiteral & mask;
 
 			Map<Long, Expression> inScopeFlags = new LinkedHashMap<>();
@@ -316,7 +345,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 			for (Map.Entry<Long, Expression> flag : flagList)
 			{
 				// make sure we aren't setting any bits that aren't set in the original value
-				if ((targetValue & ~flag.getKey()) != 0)
+				if ((flag.getKey() & ~targetValue) != 0)
 				{
 					continue;
 				}
@@ -336,7 +365,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 			for (Map.Entry<Long, Expression> flag : flagList)
 			{
 				// make sure we aren't setting any bits that aren't set in the inverse value
-				if ((inverseTarget & ~flag.getKey()) != 0)
+				if ((flag.getKey() & ~inverseTarget) != 0)
 				{
 					continue;
 				}
@@ -356,33 +385,33 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 				Expression oredFlags = negativeSet.get(0);
 				if (literalType == DataType.INT && getExpressionType(groupInfo, oredFlags) == DataType.LONG)
 				{
-					oredFlags = new CastExpression(DataType.INT, oredFlags);
+					oredFlags = new CastExpression(narrowedLiteralType, oredFlags);
 				}
 				for (int i = 1; i < negativeSet.size(); i++)
 				{
 					Expression nextExpr = negativeSet.get(i);
 					if (literalType == DataType.INT && getExpressionType(groupInfo, nextExpr) == DataType.LONG)
 					{
-						nextExpr = new CastExpression(DataType.INT, nextExpr);
+						nextExpr = new CastExpression(narrowedLiteralType, nextExpr);
 					}
 					oredFlags = new BinaryExpression(oredFlags, nextExpr, BinaryExpression.Operator.BIT_OR);
 				}
 				oredFlags = new UnaryExpression(oredFlags, UnaryExpression.Operator.BIT_NOT);
-				replaceWithExpression(context, groupInfo, oredFlags, literalType);
+				replaceWithExpression(context, groupInfo, oredFlags, narrowedLiteralType);
 			}
 			else if (!positiveSet.isEmpty())
 			{
 				Expression oredFlags = positiveSet.get(0);
 				if (literalType == DataType.INT && getExpressionType(groupInfo, oredFlags) == DataType.LONG)
 				{
-					oredFlags = new CastExpression(DataType.INT, oredFlags);
+					oredFlags = new CastExpression(narrowedLiteralType, oredFlags);
 				}
 				for (int i = 1; i < positiveSet.size(); i++)
 				{
 					Expression nextExpr = positiveSet.get(i);
 					if (literalType == DataType.INT && getExpressionType(groupInfo, nextExpr) == DataType.LONG)
 					{
-						nextExpr = new CastExpression(DataType.INT, nextExpr);
+						nextExpr = new CastExpression(narrowedLiteralType, nextExpr);
 					}
 					oredFlags = new BinaryExpression(oredFlags, nextExpr, BinaryExpression.Operator.BIT_OR);
 				}
@@ -391,7 +420,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 					Literal residualLiteral  = literalType == DataType.INT ? new Literal.Integer((int) residual) : new Literal.Long(residual);
 					oredFlags = new BinaryExpression(oredFlags, new LiteralExpression(residualLiteral), BinaryExpression.Operator.BIT_OR);
 				}
-				replaceWithExpression(context, groupInfo, oredFlags, literalType);
+				replaceWithExpression(context, groupInfo, oredFlags, narrowedLiteralType);
 			}
 		}
 		else
@@ -401,10 +430,46 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 				ConstantReplacementInfo replacementInfo = scope.constantReplacementMap.get(castedLiteral);
 				if (replacementInfo != null && (!replacementInfo.strict || literalType == groupInfo.dataType))
 				{
-					replaceWithExpression(context, groupInfo, replacementInfo.replacementExpression, literalType);
+					DataType narrowedLiteralType = getNarrowedLiteralType(context, target, literalType, literal);
+					replaceWithExpression(context, groupInfo, replacementInfo.replacementExpression, narrowedLiteralType);
 					return;
 				}
 			}
+		}
+	}
+
+	private static DataType getNarrowedLiteralType(IReplacementGenerator.IContext context, AbstractInsnNode target, DataType literalType, Object literal)
+	{
+		if (literalType != DataType.INT)
+		{
+			return literalType;
+		}
+
+		int value = (Integer) literal;
+
+		AbstractInsnNode nextInsn = AbstractInsnNodes.nextInstruction(target);
+		if (nextInsn == null)
+			return  literalType;
+		Frame<IReplacementGenerator.IDataflowValue> dataflowFrame = context.getDataflowFrame(nextInsn);
+		if (dataflowFrame == null)
+			return literalType;
+		Set<DataType> narrowTypeInterpretations = dataflowFrame.getStack(dataflowFrame.getStackSize() - 1).getNarrowTypeInterpretations();
+
+		if (narrowTypeInterpretations.contains(DataType.BYTE) && value >= Byte.MIN_VALUE && value <= Byte.MAX_VALUE)
+		{
+			return DataType.BYTE;
+		}
+		else if (narrowTypeInterpretations.contains(DataType.SHORT) && value >= Short.MIN_VALUE && value <= Short.MAX_VALUE)
+		{
+			return DataType.SHORT;
+		}
+		else if (narrowTypeInterpretations.contains(DataType.CHAR) && value >= Character.MIN_VALUE && value <= Character.MAX_VALUE)
+		{
+			return DataType.CHAR;
+		}
+		else
+		{
+			return literalType;
 		}
 	}
 
@@ -528,19 +593,11 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 				}
 
 				binaryExpression.lhs.accept(this);
-				AbstractInsnNode leftCast = getCastInsn(leftType, overallType);
-				if (leftCast != null)
-				{
-					replacementInsns.add(leftCast);
-				}
+				addCastInsns(replacementInsns, leftType, overallType);
 
 				binaryExpression.rhs.accept(this);
 				boolean isShift = binaryExpression.operator == BinaryExpression.Operator.BIT_SHIFT_LEFT || binaryExpression.operator == BinaryExpression.Operator.BIT_SHIFT_RIGHT || binaryExpression.operator == BinaryExpression.Operator.BIT_SHIFT_RIGHT_UNSIGNED;
-				AbstractInsnNode rightCast = getCastInsn(rightType, isShift ? DataType.INT : overallType);
-				if (rightCast != null)
-				{
-					replacementInsns.add(rightCast);
-				}
+				addCastInsns(replacementInsns, rightType, isShift ? DataType.INT : overallType);
 
 				int opcode;
 				switch (binaryExpression.operator)
@@ -591,11 +648,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 				castExpression.operand.accept(this);
 
 				DataType operandType = getExpressionType(groupInfo, castExpression.operand);
-				AbstractInsnNode castInsn = getCastInsn(operandType, castExpression.castType);
-				if (castInsn != null)
-				{
-					replacementInsns.add(castInsn);
-				}
+				addCastInsns(replacementInsns, operandType, castExpression.castType);
 			}
 
 			@Override
@@ -756,6 +809,10 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 				}
 			}
 		});
+
+		addCastInsns(replacementInsns, getExpressionType(groupInfo, replacement), literalType);
+
+		context.getReplacementSet().addReplacement(targetInsn, replacementInsns);
 	}
 
 	private static Expression propagateExpectedTypeDown(GroupInfo groupInfo, Expression expression, DataType expectedType)
@@ -830,8 +887,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 		return type.getOpcode(intOpcode);
 	}
 
-	@Nullable
-	private static AbstractInsnNode getCastInsn(DataType fromType, DataType toType)
+	private static void addCastInsns(InsnList insns, DataType fromType, DataType toType)
 	{
 		int opcode;
 		switch (fromType)
@@ -842,6 +898,24 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 			case INT:
 				switch (toType)
 				{
+					case BYTE:
+						if (fromType != DataType.BYTE)
+						{
+							insns.add(new InsnNode(Opcodes.I2B));
+						}
+						return;
+					case SHORT:
+						if (fromType != DataType.BYTE && fromType != DataType.SHORT)
+						{
+							insns.add(new InsnNode(Opcodes.I2S));
+						}
+						return;
+					case CHAR:
+						if (fromType != DataType.CHAR)
+						{
+							insns.add(new InsnNode(Opcodes.I2C));
+						}
+						return;
 					case LONG:
 						opcode = Opcodes.I2L;
 						break;
@@ -852,7 +926,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 						opcode = Opcodes.I2D;
 						break;
 					default:
-						return null;
+						return;
 				}
 				break;
 			case LONG:
@@ -871,7 +945,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 						opcode = Opcodes.L2D;
 						break;
 					default:
-						return null;
+						return;
 				}
 				break;
 			case FLOAT:
@@ -890,7 +964,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 						opcode = Opcodes.F2D;
 						break;
 					default:
-						return null;
+						return;
 				}
 				break;
 			case DOUBLE:
@@ -909,14 +983,26 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 						opcode = Opcodes.D2F;
 						break;
 					default:
-						return null;
+						return;
 				}
 				break;
 			default:
-				return null;
+				return;
 		}
 
-		return new InsnNode(opcode);
+		insns.add(new InsnNode(opcode));
+		switch (toType)
+		{
+			case BYTE:
+				insns.add(new InsnNode(Opcodes.I2B));
+				break;
+			case SHORT:
+				insns.add(new InsnNode(Opcodes.I2S));
+				break;
+			case CHAR:
+				insns.add(new InsnNode(Opcodes.I2C));
+				break;
+		}
 	}
 
 	private static AbstractInsnNode findStartOfNullCheck(AbstractInsnNode insn, int classVersion)
@@ -1077,6 +1163,9 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 	{
 		switch (destType)
 		{
+			case BYTE:
+			case SHORT:
+			case CHAR:
 			case INT:
 			{
 				int result = ((Number) literal).intValue();
@@ -1104,7 +1193,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 			case STRING:
 				return literal;
 			default:
-				throw new AssertionError("Unsupported bytecode literal type " + destType);
+				throw new AssertionError("Unknown literal data type " + destType);
 		}
 	}
 
@@ -1444,7 +1533,8 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 
 			for (GroupConstant constant : groupDefinition.constants)
 			{
-				Object cst = extractConstantObject(constant.key);
+				Object cst = extractConstantObject(constant.key, groupDefinition.dataType);
+
 				if (existingScopedInfo.constantReplacementMap.put(cst, new ConstantReplacementInfo(groupDefinition.strict, constant.value)) != null)
 				{
 					throw new UnpickSyntaxException("Duplicate constant in group " + groupDisplayName + ": " + cst);
@@ -1505,23 +1595,45 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 			targetMethods.put(key, merged);
 		}
 
-		private static Object extractConstantObject(Literal.ConstantKey constant)
+		private static Object extractConstantObject(Literal.ConstantKey constant, DataType groupType)
 		{
+			Object uncastedObject;
 			if (constant instanceof Literal.Long)
 			{
-				return ((Literal.Long) constant).value;
+				uncastedObject = ((Literal.Long) constant).value;
 			}
 			else if (constant instanceof Literal.Double)
 			{
-				return ((Literal.Double) constant).value;
+				uncastedObject = ((Literal.Double) constant).value;
 			}
 			else if (constant instanceof Literal.String)
 			{
-				return ((Literal.String) constant).value;
+				uncastedObject = ((Literal.String) constant).value;
 			}
 			else
 			{
 				throw new AssertionError("Unknown constant type: " + constant.getClass().getName());
+			}
+
+			switch (groupType)
+			{
+				case INT:
+					assert uncastedObject instanceof Number;
+					return (long) ((Number) uncastedObject).intValue();
+				case LONG:
+					assert uncastedObject instanceof Number;
+					return ((Number) uncastedObject).longValue();
+				case FLOAT:
+					assert uncastedObject instanceof Number;
+					return (double) ((Number) uncastedObject).floatValue();
+				case DOUBLE:
+					assert uncastedObject instanceof Number;
+					return ((Number) uncastedObject).doubleValue();
+				case STRING:
+					assert uncastedObject instanceof String;
+					return uncastedObject;
+				default:
+					throw new AssertionError("Invalid group type: " + groupType);
 			}
 		}
 	}

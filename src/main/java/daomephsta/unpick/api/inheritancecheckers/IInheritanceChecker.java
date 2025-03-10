@@ -54,7 +54,7 @@ public interface IInheritanceChecker
 			this.isInterface = isInterface;
 		}
 
-		@Nullable("null for Object")
+		@Nullable("null in the case of java.lang.Object")
 		public String getSuperClass()
 		{
 			return superClass;

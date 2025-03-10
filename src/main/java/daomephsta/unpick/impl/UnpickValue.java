@@ -1,6 +1,7 @@
 package daomephsta.unpick.impl;
 
 import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
+import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.analysis.SourceValue;
@@ -16,6 +17,7 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 	private Set<Integer> parameterSources;
 	private Set<IReplacementGenerator.IParameterUsage> methodUsages;
 	private Set<AbstractInsnNode> usages;
+	private Set<DataType> narrowTypeInterpretations;
 
 	public UnpickValue(Type dataType, SourceValue sourceValue)
 	{
@@ -24,6 +26,9 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 		this.parameterSources = new HashSet<>();
 		this.methodUsages = new HashSet<>();
 		this.usages = new HashSet<>();
+		this.narrowTypeInterpretations = new HashSet<>();
+		if (dataType != null)
+			this.addNarrowTypeInterpretationFromDesc(dataType.getDescriptor());
 	}
 
 	public UnpickValue(Type dataType, SourceValue sourceValue, UnpickValue cloneOf)
@@ -33,6 +38,9 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 		this.parameterSources = cloneOf.getParameterSources();
 		this.methodUsages = cloneOf.getParameterUsages();
 		this.usages = cloneOf.getUsages();
+		this.narrowTypeInterpretations = cloneOf.getNarrowTypeInterpretations();
+		if (dataType != null)
+			this.addNarrowTypeInterpretationFromDesc(dataType.getDescriptor());
 	}
 
 	@Override
@@ -84,6 +92,12 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 		return usages;
 	}
 
+	@Override
+	public Set<DataType> getNarrowTypeInterpretations()
+	{
+		return narrowTypeInterpretations;
+	}
+
 	void setParameterSources(Set<Integer> parameterSources)
 	{
 		this.parameterSources = parameterSources;
@@ -97,6 +111,31 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 	void setUsages(Set<AbstractInsnNode> usages)
 	{
 		this.usages = usages;
+	}
+
+	void setNarrowTypeInterpretations(Set<DataType> narrowTypeInterpretations)
+	{
+		this.narrowTypeInterpretations = narrowTypeInterpretations;
+	}
+
+	void addNarrowTypeInterpretationFromDesc(String desc)
+	{
+		DataType dataType;
+		switch (desc)
+		{
+			case "C":
+				dataType = DataType.CHAR;
+				break;
+			case "B":
+				dataType = DataType.BYTE;
+				break;
+			case "S":
+				dataType = DataType.SHORT;
+				break;
+			default:
+				return;
+		}
+		getNarrowTypeInterpretations().add(dataType);
 	}
 
 	@Override
@@ -117,7 +156,9 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 			return false;
 		if (!methodUsages.equals(that.methodUsages))
 			return false;
-		return usages.equals(that.usages);
+		if (!usages.equals(that.usages))
+			return false;
+		return narrowTypeInterpretations.equals(that.narrowTypeInterpretations);
 	}
 
 	@Override
@@ -128,6 +169,7 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 		result = 31 * result + parameterSources.hashCode();
 		result = 31 * result + methodUsages.hashCode();
 		result = 31 * result + usages.hashCode();
+		result = 31 * result + narrowTypeInterpretations.hashCode();
 		return result;
 	}
 

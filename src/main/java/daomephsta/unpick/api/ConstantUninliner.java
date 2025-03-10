@@ -1,9 +1,9 @@
 package daomephsta.unpick.api;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -15,15 +15,12 @@ import daomephsta.unpick.api.inheritancecheckers.IInheritanceChecker;
 import daomephsta.unpick.impl.AbstractInsnNodes;
 import daomephsta.unpick.impl.UnpickInterpreter;
 import daomephsta.unpick.impl.UnpickValue;
-import daomephsta.unpick.impl.inheritancecheckers.ClasspathInheritanceChecker;
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.objectweb.asm.tree.analysis.*;
 
-import daomephsta.unpick.api.constantmappers.IConstantMapper;
 import daomephsta.unpick.api.constantresolvers.IConstantResolver;
 import daomephsta.unpick.impl.representations.ReplacementInstructionGenerator.Context;
 import daomephsta.unpick.impl.representations.ReplacementSet;
@@ -32,7 +29,7 @@ import daomephsta.unpick.impl.representations.ReplacementSet;
  * Uninlines inlined values 
  * @author Daomephsta
  */
-public class ConstantUninliner
+public final class ConstantUninliner
 {
 	private final Logger logger;
 	private final IConstantGrouper grouper;
@@ -40,59 +37,18 @@ public class ConstantUninliner
 	private final IConstantResolver constantResolver;
 	private final IInheritanceChecker inheritanceChecker;
 
-	/**
-	 * Constructs a new instance of ConstantUninliner that maps
-	 * values to constants with {@code mapper}.
-	 * @param mapper an instance of IConstantMapper.
-	 * @param constantResolver an instance of IConstantResolver for resolving constant types and 
-	 * values.
-	 *
-	 * @deprecated Use {@link #ConstantUninliner(IConstantGrouper, IClassResolver, IConstantResolver, IInheritanceChecker)} instead.
-	 */
-	@Deprecated
-	public ConstantUninliner(IConstantMapper mapper, IConstantResolver constantResolver)
-	{
-		this(mapper, constantResolver, Logger.getLogger("unpick"));
-	}
-	
-	/**
-	 * Constructs a new instance of ConstantUninliner that maps
-	 * values to constants with {@code mapper}.
-	 * @param mapper an instance of IConstantMapper.
-	 * @param constantResolver an instance of IConstantResolver for resolving constant types and 
-	 * values.
-	 * @param logger a logger for debug logging.
-	 *
-	 * @deprecated Use {@link #ConstantUninliner(IConstantGrouper, IClassResolver, IConstantResolver, IInheritanceChecker, Logger)} instead.
-	 */
-	@Deprecated
-	public ConstantUninliner(IConstantMapper mapper, IConstantResolver constantResolver, Logger logger)
-	{
-		this(mapper, internalName ->
-		{
-			try
-			{
-				return new ClassReader(internalName);
-			}
-			catch (IOException e)
-			{
-				throw new IClassResolver.ClassResolutionException(e);
-			}
-		}, constantResolver, new ClasspathInheritanceChecker(), logger);
-	}
-
-	public ConstantUninliner(IConstantGrouper grouper, IClassResolver classResolver, IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker)
-	{
-		this(grouper, classResolver, constantResolver, inheritanceChecker, Logger.getLogger("unpick"));
-	}
-
-	public ConstantUninliner(IConstantGrouper grouper, IClassResolver classResolver, IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker, Logger logger)
+	private ConstantUninliner(Logger logger, IConstantGrouper grouper, IClassResolver classResolver, IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker)
 	{
 		this.grouper = grouper;
 		this.classResolver = classResolver;
 		this.constantResolver = constantResolver;
 		this.inheritanceChecker = inheritanceChecker;
 		this.logger = logger;
+	}
+
+	public static Builder builder()
+	{
+		return new Builder();
 	}
 
 	/**
@@ -184,37 +140,51 @@ public class ConstantUninliner
 		for (int parameterSource : unpickValue.getParameterSources())
 		{
 			ConstantGroup g = grouper.getMethodParameterGroup(methodOwner, method.name, method.desc, parameterSource);
-			if (g != null && group != null && !g.getName().equals(group.getName()))
+			if (g != null)
 			{
-				ConstantGroup group_f = group;
-				logger.log(Level.WARNING, () -> String.format("Conflicting groups %s and %s competing for the same constant", g.getName(), group_f.getName()));
-				return null;
+				if (group != null && !g.getName().equals(group.getName()))
+				{
+					ConstantGroup group_f = group;
+					logger.log(Level.WARNING, () -> String.format("Conflicting groups %s and %s competing for the same constant", g.getName(), group_f.getName()));
+					return null;
+				}
+				group = g;
 			}
-			group = g;
 		}
 
 		for (IReplacementGenerator.IParameterUsage paramUsage : unpickValue.getParameterUsages())
 		{
 			ConstantGroup g = processParameterUsage(paramUsage);
-			if (g != null && group != null && !g.getName().equals(group.getName()))
+			if (g != null)
 			{
-				ConstantGroup group_f = group;
-				logger.log(Level.WARNING, () -> String.format("Conflicting groups %s and %s competing for the same constant", g.getName(), group_f.getName()));
-				return null;
+				if (group != null && !g.getName().equals(group.getName()))
+				{
+					ConstantGroup group_f = group;
+					logger.log(Level.WARNING, () -> String.format("Conflicting groups %s and %s competing for the same constant", g.getName(), group_f.getName()));
+					return null;
+				}
+				group = g;
 			}
-			group = g;
 		}
 
 		for (AbstractInsnNode usage : unpickValue.getUsages())
 		{
 			ConstantGroup g = processUsage(methodOwner, method, usage);
-			if (g != null && group != null && !g.getName().equals(group.getName()))
+			if (g != null)
 			{
-				ConstantGroup group_f = group;
-				logger.log(Level.WARNING, () -> String.format("Conflicting groups %s and %s competing for the same constant", g.getName(), group_f.getName()));
-				return null;
+				if (group != null && !g.getName().equals(group.getName()))
+				{
+					ConstantGroup group_f = group;
+					logger.log(Level.WARNING, () -> String.format("Conflicting groups %s and %s competing for the same constant", g.getName(), group_f.getName()));
+					return null;
+				}
+				group = g;
 			}
-			group = g;
+		}
+
+		if (group != null)
+		{
+			return group;
 		}
 
 		return grouper.getDefaultGroup();
@@ -267,5 +237,76 @@ public class ConstantUninliner
 		}
 
 		return null;
+	}
+
+	public static final class Builder
+	{
+		@Nullable
+		private Logger logger;
+		@Nullable
+		private IConstantGrouper grouper;
+		@Nullable
+		private IClassResolver classResolver;
+		@Nullable
+		private IConstantResolver constantResolver;
+		@Nullable
+		private IInheritanceChecker inheritanceChecker;
+
+		private Builder()
+		{
+		}
+
+		public Builder logger(Logger logger)
+		{
+			this.logger = logger;
+			return this;
+		}
+
+		public Builder grouper(IConstantGrouper grouper)
+		{
+			this.grouper = grouper;
+			return this;
+		}
+
+		public Builder classResolver(IClassResolver classResolver)
+		{
+			this.classResolver = classResolver;
+			return this;
+		}
+
+		public Builder constantResolver(IConstantResolver constantResolver)
+		{
+			this.constantResolver = constantResolver;
+			return this;
+		}
+
+		public Builder inheritanceChecker(IInheritanceChecker inheritanceChecker)
+		{
+			this.inheritanceChecker = inheritanceChecker;
+			return this;
+		}
+
+		public ConstantUninliner build()
+		{
+			Objects.requireNonNull(grouper, "Must add grouper to builder");
+			Objects.requireNonNull(classResolver, "Must add classResolver to builder");
+
+			if (logger == null)
+			{
+				logger = Logger.getLogger("unpick");
+			}
+
+			if (constantResolver == null)
+			{
+				constantResolver = classResolver.asConstantResolver();
+			}
+
+			if (inheritanceChecker == null)
+			{
+				inheritanceChecker = classResolver.asInheritanceChecker();
+			}
+
+			return new ConstantUninliner(logger, grouper, classResolver, constantResolver, inheritanceChecker);
+		}
 	}
 }

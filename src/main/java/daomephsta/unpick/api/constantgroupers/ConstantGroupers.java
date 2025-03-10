@@ -1,6 +1,7 @@
 package daomephsta.unpick.api.constantgroupers;
 
-import daomephsta.unpick.api.IClassResolver;
+import daomephsta.unpick.api.constantresolvers.IConstantResolver;
+import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
 
 import java.io.InputStream;
 
@@ -10,9 +11,8 @@ public final class ConstantGroupers
 	{
 	}
 
-	public static IConstantGrouper dataDriven(IClassResolver classResolver, InputStream... mappingSources)
+	public static IConstantGrouper dataDriven(IConstantResolver constantResolver, InputStream... mappingSources)
 	{
-		// FIXME
-		return null;
+		return new DataDrivenConstantGrouper(constantResolver, mappingSources);
 	}
 }

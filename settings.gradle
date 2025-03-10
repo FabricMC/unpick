@@ -1,4 +1,6 @@
+include 'test-data'
+include 'test-data-expected'
 include 'unpick-format-utils'
-include 'unpick-cli'
+//include 'unpick-cli'
 
 rootProject.name = 'unpick'

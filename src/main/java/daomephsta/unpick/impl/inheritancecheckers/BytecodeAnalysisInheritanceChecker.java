@@ -6,9 +6,13 @@ import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
 public class BytecodeAnalysisInheritanceChecker implements IInheritanceChecker
 {
 	private final IClassResolver classResolver;
+	private final ConcurrentMap<String, ClassInfo> classInfoCache = new ConcurrentHashMap<>();
 
 	public BytecodeAnalysisInheritanceChecker(IClassResolver classResolver)
 	{
@@ -19,16 +23,19 @@ public class BytecodeAnalysisInheritanceChecker implements IInheritanceChecker
 	@Nullable
 	public ClassInfo getClassInfo(String className)
 	{
-		ClassReader reader;
-		try
+		return classInfoCache.computeIfAbsent(className, name ->
 		{
-			reader = classResolver.resolveClass(className);
-		}
-		catch (IClassResolver.ClassResolutionException e)
-		{
-			return null;
-		}
+			ClassReader reader;
+			try
+			{
+				reader = classResolver.resolveClass(name);
+			}
+			catch (IClassResolver.ClassResolutionException e)
+			{
+				return null;
+			}
 
-		return new ClassInfo(reader.getSuperName(), reader.getInterfaces(), (reader.getAccess() & Opcodes.ACC_INTERFACE) != 0);
+			return new ClassInfo(reader.getSuperName(), reader.getInterfaces(), (reader.getAccess() & Opcodes.ACC_INTERFACE) != 0);
+		});
 	}
 }
