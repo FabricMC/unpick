@@ -27,7 +27,7 @@ public class TestUtils
 		ClassNode clazz = readClass(TEST_DATA, className);
 		ClassNode expectedClass = readClass(TEST_DATA_EXPECTED, className);
 
-        ConstantUninliner.builder()
+		ConstantUninliner.builder()
 			.grouper(new DataDrivenConstantGrouper(dataProvider))
 			.classResolver(new ChainClassResolver(new TestClassResolver(), new ClasspathClassResolver()))
 			.build()

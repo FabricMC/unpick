@@ -134,7 +134,8 @@ public class FlagUninliningTest
 
 	private static void testFlagsReturn(String className, DataType dataType, DataType groupDataType, String descriptor)
 	{
-		TestUtils.runTest(className.replace('.', '/'), data -> {
+		TestUtils.runTest(className.replace('.', '/'), data ->
+		{
 			data.visitGroupDefinition(createFlagsGroup("flags", dataType, groupDataType));
 			for (int i = 1; i <= 4; i++)
 			{
@@ -148,7 +149,8 @@ public class FlagUninliningTest
 
 	private static void testFlagsParameter(String className)
 	{
-		TestUtils.runTest(className.replace('.', '/'), data -> {
+		TestUtils.runTest(className.replace('.', '/'), data ->
+		{
 			data.visitGroupDefinition(createFlagsGroup("byteFlags", DataType.BYTE, DataType.INT));
 			data.visitGroupDefinition(createFlagsGroup("shortFlags", DataType.SHORT, DataType.INT));
 			data.visitGroupDefinition(createFlagsGroup("intFlags", DataType.INT, DataType.INT));

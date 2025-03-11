@@ -116,7 +116,8 @@ public class SimpleConstantUninliningTest
 
 	private static void testConstantReturn(String className, String groupName, String descriptor, int methodCount)
 	{
-		TestUtils.runTest(className.replace('.', '/'), data -> {
+		TestUtils.runTest(className.replace('.', '/'), data ->
+		{
 			visitGroups(data);
 			for (int i = 1; i <= methodCount; i++)
 			{
@@ -127,7 +128,8 @@ public class SimpleConstantUninliningTest
 
 	private static void testConstantParameter(String className)
 	{
-		TestUtils.runTest(className.replace('.', '/'), data -> {
+		TestUtils.runTest(className.replace('.', '/'), data ->
+		{
 			visitGroups(data);
 			data.visitTargetMethod(TargetMethod.Builder.builder("pkg.Constants", "consumeByte", "(B)V").paramGroup(0, "byteConsts").build());
 			data.visitTargetMethod(TargetMethod.Builder.builder("pkg.Constants", "consumeShort", "(S)V").paramGroup(0, "shortConsts").build());
