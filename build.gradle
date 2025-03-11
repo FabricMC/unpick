@@ -2,7 +2,10 @@ plugins {
     id 'java-library'
     id 'maven-publish'
     id 'eclipse'
-    id 'checkstyle'
+}
+
+if (JavaVersion.current().java11Compatible) {
+	apply plugin: 'checkstyle'
 }
 
 allprojects {
