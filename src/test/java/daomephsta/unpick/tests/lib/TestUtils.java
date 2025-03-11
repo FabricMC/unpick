@@ -9,10 +9,8 @@ import java.nio.file.Paths;
 import java.util.function.Consumer;
 
 import daomephsta.unpick.api.ConstantUninliner;
-import daomephsta.unpick.api.IClassResolver;
+import daomephsta.unpick.api.classresolvers.ClassResolvers;
 import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
-import daomephsta.unpick.impl.classresolvers.ChainClassResolver;
-import daomephsta.unpick.impl.classresolvers.ClasspathClassResolver;
 import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.ClassNode;
@@ -29,7 +27,7 @@ public class TestUtils
 
 		ConstantUninliner.builder()
 			.grouper(new DataDrivenConstantGrouper(dataProvider))
-			.classResolver(new ChainClassResolver(new TestClassResolver(), new ClasspathClassResolver()))
+			.classResolver(ClassResolvers.fromPath(TEST_DATA).chain(ClassResolvers.classpath()))
 			.build()
 			.transform(clazz);
 
@@ -48,22 +46,6 @@ public class TestUtils
 		catch (IOException e)
 		{
 			throw new UncheckedIOException(e);
-		}
-	}
-
-	private static final class TestClassResolver implements IClassResolver
-	{
-		@Override
-		public ClassReader resolveClass(String internalName) throws ClassResolutionException
-		{
-			try (InputStream in = Files.newInputStream(TEST_DATA.resolve(internalName + ".class")))
-			{
-				return new ClassReader(in);
-			}
-			catch (IOException e)
-			{
-				throw new ClassResolutionException(e);
-			}
 		}
 	}
 }

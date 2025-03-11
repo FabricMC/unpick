@@ -4,39 +4,34 @@ import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.analysis.SourceValue;
 
 import java.util.HashSet;
 import java.util.Set;
 
-@LegacyExposed
 public class UnpickValue implements IReplacementGenerator.IDataflowValue
 {
 	private final Type dataType;
-	private final SourceValue sourceValue;
 	private Set<Integer> parameterSources;
-	private Set<IReplacementGenerator.IParameterUsage> methodUsages;
+	private Set<IReplacementGenerator.IParameterUsage> parameterUsages;
 	private Set<AbstractInsnNode> usages;
 	private Set<DataType> narrowTypeInterpretations;
 
-	public UnpickValue(Type dataType, SourceValue sourceValue)
+	public UnpickValue(Type dataType)
 	{
 		this.dataType = dataType;
-		this.sourceValue = sourceValue;
 		this.parameterSources = new HashSet<>();
-		this.methodUsages = new HashSet<>();
+		this.parameterUsages = new HashSet<>();
 		this.usages = new HashSet<>();
 		this.narrowTypeInterpretations = new HashSet<>();
 		if (dataType != null)
 			this.addNarrowTypeInterpretationFromDesc(dataType.getDescriptor());
 	}
 
-	public UnpickValue(Type dataType, SourceValue sourceValue, UnpickValue cloneOf)
+	public UnpickValue(Type dataType, UnpickValue cloneOf)
 	{
 		this.dataType = dataType;
-		this.sourceValue = sourceValue;
 		this.parameterSources = cloneOf.getParameterSources();
-		this.methodUsages = cloneOf.getParameterUsages();
+		this.parameterUsages = cloneOf.getParameterUsages();
 		this.usages = cloneOf.getUsages();
 		this.narrowTypeInterpretations = cloneOf.getNarrowTypeInterpretations();
 		if (dataType != null)
@@ -46,7 +41,7 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 	@Override
 	public int getSize()
 	{
-		return sourceValue.getSize();
+		return dataType.getSize();
 	}
 
 	@Override
@@ -55,37 +50,18 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 		return dataType;
 	}
 
-	@LegacyExposed
-	public SourceValue getSourceValue()
-	{
-		return sourceValue;
-	}
-
-	@LegacyExposed
 	@Override
 	public Set<Integer> getParameterSources()
 	{
 		return parameterSources;
 	}
 
-	/**
-	 * @deprecated Use {@link #getParameterUsages} instead.
-	 */
-	@SuppressWarnings("unchecked")
-	@LegacyExposed
-	@Deprecated
-	public Set<MethodUsage> getMethodUsages()
-	{
-		return (Set<MethodUsage>) (Set<?>) methodUsages;
-	}
-
 	@Override
 	public Set<IReplacementGenerator.IParameterUsage> getParameterUsages()
 	{
-		return methodUsages;
+		return parameterUsages;
 	}
 
-	@LegacyExposed
 	@Override
 	public Set<AbstractInsnNode> getUsages()
 	{
@@ -103,9 +79,9 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 		this.parameterSources = parameterSources;
 	}
 
-	void setParameterUsages(Set<IReplacementGenerator.IParameterUsage> methodUsages)
+	void setParameterUsages(Set<IReplacementGenerator.IParameterUsage> parameterUsages)
 	{
-		this.methodUsages = methodUsages;
+		this.parameterUsages = parameterUsages;
 	}
 
 	void setUsages(Set<AbstractInsnNode> usages)
@@ -150,11 +126,9 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 
 		if (!dataType.equals(that.dataType))
 			return false;
-		if (!sourceValue.equals(that.sourceValue))
-			return false;
 		if (!parameterSources.equals(that.parameterSources))
 			return false;
-		if (!methodUsages.equals(that.methodUsages))
+		if (!parameterUsages.equals(that.parameterUsages))
 			return false;
 		if (!usages.equals(that.usages))
 			return false;
@@ -165,34 +139,30 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 	public int hashCode()
 	{
 		int result = dataType.hashCode();
-		result = 31 * result + sourceValue.hashCode();
 		result = 31 * result + parameterSources.hashCode();
-		result = 31 * result + methodUsages.hashCode();
+		result = 31 * result + parameterUsages.hashCode();
 		result = 31 * result + usages.hashCode();
 		result = 31 * result + narrowTypeInterpretations.hashCode();
 		return result;
 	}
 
-	@LegacyExposed
-	public static class MethodUsage implements IReplacementGenerator.IParameterUsage
+	public static class ParameterUsage implements IReplacementGenerator.IParameterUsage
 	{
 		private final AbstractInsnNode methodInvocation;
 		private final int paramIndex;
 
-		public MethodUsage(AbstractInsnNode methodInvocation, int paramIndex)
+		public ParameterUsage(AbstractInsnNode methodInvocation, int paramIndex)
 		{
 			this.methodInvocation = methodInvocation;
 			this.paramIndex = paramIndex;
 		}
 
-		@LegacyExposed
 		@Override
 		public AbstractInsnNode getMethodInvocation()
 		{
 			return methodInvocation;
 		}
 
-		@LegacyExposed
 		@Override
 		public int getParamIndex()
 		{
@@ -207,7 +177,7 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 			if (o == null || getClass() != o.getClass())
 				return false;
 
-			MethodUsage that = (MethodUsage) o;
+			ParameterUsage that = (ParameterUsage) o;
 
 			if (paramIndex != that.paramIndex)
 				return false;

@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.IntSupplier;
 
-import daomephsta.unpick.api.constantresolvers.IConstantResolver;
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;

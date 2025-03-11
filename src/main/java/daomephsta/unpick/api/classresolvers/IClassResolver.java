@@ -1,7 +1,7 @@
-package daomephsta.unpick.api;
+package daomephsta.unpick.api.classresolvers;
 
-import daomephsta.unpick.api.constantresolvers.IConstantResolver;
-import daomephsta.unpick.api.inheritancecheckers.IInheritanceChecker;
+import daomephsta.unpick.impl.Utils;
+import daomephsta.unpick.impl.classresolvers.ChainClassResolver;
 import daomephsta.unpick.impl.constantresolvers.BytecodeAnalysisConstantResolver;
 import daomephsta.unpick.impl.inheritancecheckers.BytecodeAnalysisInheritanceChecker;
 import org.objectweb.asm.ClassReader;
@@ -28,6 +28,11 @@ public interface IClassResolver
 	default IInheritanceChecker asInheritanceChecker()
 	{
 		return new BytecodeAnalysisInheritanceChecker(this);
+	}
+
+	default IClassResolver chain(IClassResolver... others)
+	{
+		return new ChainClassResolver(Utils.prepend(this, others));
 	}
 	
 	public static class ClassResolutionException extends RuntimeException

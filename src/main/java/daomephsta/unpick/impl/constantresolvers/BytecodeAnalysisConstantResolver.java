@@ -9,8 +9,8 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.objectweb.asm.*;
 
-import daomephsta.unpick.api.IClassResolver;
-import daomephsta.unpick.api.constantresolvers.IConstantResolver;
+import daomephsta.unpick.api.classresolvers.IClassResolver;
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.impl.LiteralType;
 
 /**

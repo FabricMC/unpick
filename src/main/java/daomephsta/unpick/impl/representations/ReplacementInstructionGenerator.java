@@ -2,10 +2,9 @@ package daomephsta.unpick.impl.representations;
 
 import java.util.logging.Logger;
 
-import daomephsta.unpick.api.IClassResolver;
+import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
-import daomephsta.unpick.api.inheritancecheckers.IInheritanceChecker;
-import daomephsta.unpick.impl.LegacyExposed;
+import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.impl.UnpickValue;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -13,12 +12,11 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Frame;
 
-import daomephsta.unpick.api.constantresolvers.IConstantResolver;
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
 
 /**
  * @author Daomephsta
  */
-@LegacyExposed
 public interface ReplacementInstructionGenerator extends IReplacementGenerator
 {
 	public abstract boolean canReplace(Context context);
@@ -42,7 +40,6 @@ public interface ReplacementInstructionGenerator extends IReplacementGenerator
 	/**
 	 * Internal, use {@link IReplacementGenerator.IContext} instead
 	 */
-	@LegacyExposed
 	public class Context implements IContext
 	{
 		private final IClassResolver classResolver;
@@ -77,8 +74,7 @@ public interface ReplacementInstructionGenerator extends IReplacementGenerator
 		}
 
 		@Override
-		@LegacyExposed
-		public IConstantResolver getConstantResolver()
+        public IConstantResolver getConstantResolver()
 		{
 			return constantResolver;
 		}
@@ -102,32 +98,15 @@ public interface ReplacementInstructionGenerator extends IReplacementGenerator
 		}
 
 		@Override
-		@LegacyExposed
-		public ReplacementSet getReplacementSet()
+        public ReplacementSet getReplacementSet()
 		{
 			return replacementSet;
-		}
-
-		/**
-		 * @deprecated Use {@link #getTarget} instead.
-		 */
-		@Deprecated
-		@LegacyExposed
-		public AbstractInsnNode getArgSeed()
-		{
-			return target;
 		}
 
 		@Override
 		public AbstractInsnNode getTarget()
 		{
 			return target;
-		}
-
-		@LegacyExposed
-		public Frame<UnpickValue> getFrameForInstruction(AbstractInsnNode insn)
-		{
-			return frames[containingMethod.instructions.indexOf(insn)];
 		}
 
 		@SuppressWarnings("unchecked")
@@ -139,8 +118,7 @@ public interface ReplacementInstructionGenerator extends IReplacementGenerator
 		}
 
 		@Override
-		@LegacyExposed
-		public Logger getLogger()
+        public Logger getLogger()
 		{
 			return logger;
 		}

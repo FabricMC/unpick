@@ -1,8 +1,8 @@
 package daomephsta.unpick.api.constantgroupers;
 
-import daomephsta.unpick.api.IClassResolver;
-import daomephsta.unpick.api.constantresolvers.IConstantResolver;
-import daomephsta.unpick.api.inheritancecheckers.IInheritanceChecker;
+import daomephsta.unpick.api.classresolvers.IClassResolver;
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
+import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;

@@ -8,10 +8,11 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.constantgroupers.ConstantGroup;
 import daomephsta.unpick.api.constantgroupers.IConstantGrouper;
 import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
-import daomephsta.unpick.api.inheritancecheckers.IInheritanceChecker;
+import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.impl.AbstractInsnNodes;
 import daomephsta.unpick.impl.UnpickInterpreter;
 import daomephsta.unpick.impl.UnpickValue;
@@ -21,7 +22,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 import org.objectweb.asm.tree.analysis.*;
 
-import daomephsta.unpick.api.constantresolvers.IConstantResolver;
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.impl.representations.ReplacementInstructionGenerator.Context;
 import daomephsta.unpick.impl.representations.ReplacementSet;
 
@@ -61,23 +62,6 @@ public final class ConstantUninliner
 		{
 			transformMethod(classNode, method);
 		}
-	}
-
-	/**
-	 * Unlines all inlined values in the specified method.
-	 * @param methodOwner the internal name of the class that owns {@code method}.
-	 * @param method the class to transform, as a MethodNode.
-	 *
-	 * @deprecated Use {@link #transformMethod(ClassNode, MethodNode)} instead.
-	 */
-	@Deprecated
-	public void transformMethod(String methodOwner, MethodNode method)
-	{
-		ClassNode fakeClassNode = new ClassNode();
-		fakeClassNode.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, methodOwner, null, "java/lang/Object", null);
-		method.accept(fakeClassNode);
-		fakeClassNode.visitEnd();
-		transformMethod(fakeClassNode, method);
 	}
 
 	public void transformMethod(ClassNode methodOwner, MethodNode method)

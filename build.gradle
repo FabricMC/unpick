@@ -12,7 +12,7 @@ allprojects {
     apply plugin: 'java-library'
     apply plugin: 'maven-publish'
 
-    if (project.name != 'unpick-cli' && JavaVersion.current().java11Compatible) {
+    if (JavaVersion.current().java11Compatible) {
         apply plugin: 'checkstyle'
 
         checkstyle {

@@ -1,5 +1,7 @@
-package daomephsta.unpick.api.inheritancecheckers;
+package daomephsta.unpick.api.classresolvers;
 
+import daomephsta.unpick.impl.Utils;
+import daomephsta.unpick.impl.inheritancecheckers.ChainInheritanceChecker;
 import org.jetbrains.annotations.Nullable;
 
 public interface IInheritanceChecker
@@ -39,6 +41,11 @@ public interface IInheritanceChecker
 		}
 
 		return false;
+	}
+
+	default IInheritanceChecker chain(IInheritanceChecker... others)
+	{
+		return new ChainInheritanceChecker(Utils.prepend(this, others));
 	}
 
 	public static final class ClassInfo

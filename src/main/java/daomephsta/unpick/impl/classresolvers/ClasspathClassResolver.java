@@ -1,8 +1,8 @@
 package daomephsta.unpick.impl.classresolvers;
 
-import daomephsta.unpick.api.IClassResolver;
-import daomephsta.unpick.api.constantresolvers.IConstantResolver;
-import daomephsta.unpick.api.inheritancecheckers.IInheritanceChecker;
+import daomephsta.unpick.api.classresolvers.IClassResolver;
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
+import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.impl.constantresolvers.ClasspathConstantResolver;
 import daomephsta.unpick.impl.inheritancecheckers.ClasspathInheritanceChecker;
 import org.objectweb.asm.ClassReader;

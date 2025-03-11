@@ -1,6 +1,6 @@
 package daomephsta.unpick.impl;
 
-import daomephsta.unpick.api.inheritancecheckers.IInheritanceChecker;
+import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Opcodes;
@@ -14,8 +14,6 @@ import org.objectweb.asm.tree.analysis.AnalyzerException;
 import org.objectweb.asm.tree.analysis.BasicInterpreter;
 import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Interpreter;
-import org.objectweb.asm.tree.analysis.SourceInterpreter;
-import org.objectweb.asm.tree.analysis.SourceValue;
 
 import java.util.List;
 import java.util.Objects;
@@ -248,7 +246,6 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 			}
 		}
 	};
-	private final SourceInterpreter delegate = new SourceInterpreter();
 
 	public UnpickInterpreter(MethodNode method, IInheritanceChecker inheritanceChecker)
 	{
@@ -279,15 +276,13 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	{
 		if (type == Type.VOID_TYPE)
 			return null;
-		return new UnpickValue(getType(typeTracker.newValue(type)), delegate.newValue(type));
+		return new UnpickValue(getType(typeTracker.newValue(type)));
 	}
 
 	@Override
 	public UnpickValue newOperation(AbstractInsnNode insn) throws AnalyzerException
 	{
-		Type type = getType(typeTracker.newOperation(insn));
-		SourceValue sourceValue = delegate.newOperation(insn);
-		UnpickValue value = new UnpickValue(type, sourceValue);
+		UnpickValue value = new UnpickValue(getType(typeTracker.newOperation(insn)));
 		value.getUsages().add(insn);
 		return value;
 	}
@@ -296,8 +291,7 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	public UnpickValue copyOperation(AbstractInsnNode insn, UnpickValue value) throws AnalyzerException
 	{
 		Type type = getType(typeTracker.copyOperation(insn, typeTracker.newValue(value.getDataType())));
-		SourceValue sourceValue = delegate.copyOperation(insn, value.getSourceValue());
-		return new UnpickValue(type, sourceValue, value);
+		return new UnpickValue(type, value);
 	}
 
 	@Override
@@ -314,8 +308,7 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 		}
 
 		Type type = getType(typeTracker.unaryOperation(insn, typeTracker.newValue(value.getDataType())));
-		SourceValue sourceValue = delegate.unaryOperation(insn, value.getSourceValue());
-		UnpickValue newValue = new UnpickValue(type, sourceValue, value);
+		UnpickValue newValue = new UnpickValue(type, value);
 		if (insn.getType() == AbstractInsnNode.FIELD_INSN || insn.getType() == AbstractInsnNode.JUMP_INSN || isReturn)
 		{
 			newValue.getUsages().add(insn);
@@ -327,7 +320,6 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	public UnpickValue binaryOperation(AbstractInsnNode insn, UnpickValue value1, UnpickValue value2) throws AnalyzerException
 	{
 		Type type = getType(typeTracker.binaryOperation(insn, typeTracker.newValue(value1.getDataType()), typeTracker.newValue(value2.getDataType())));
-		SourceValue sourceValue = delegate.binaryOperation(insn, value1.getSourceValue(), value2.getSourceValue());
 		switch (insn.getOpcode())
 		{
 			case IALOAD:
@@ -338,7 +330,7 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 			case SALOAD:
 			case LALOAD:
 			case DALOAD:
-				return new UnpickValue(type, sourceValue);
+				return new UnpickValue(type);
 			case IADD:
 			case LADD:
 			case FADD:
@@ -365,14 +357,14 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 			case LOR:
 			case IXOR:
 			case LXOR:
-				return new UnpickValue(type, sourceValue, merge(value1, value2));
+				return new UnpickValue(type, merge(value1, value2));
 			case ISHL:
 			case LSHL:
 			case ISHR:
 			case LSHR:
 			case IUSHR:
 			case LUSHR:
-				return new UnpickValue(type, sourceValue, value1);
+				return new UnpickValue(type, value1);
 			case LCMP:
 			case FCMPL:
 			case FCMPG:
@@ -387,11 +379,11 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 			case IF_ACMPEQ:
 			case IF_ACMPNE:
 				merge(value1, value2);
-				return new UnpickValue(type, sourceValue);
+				return new UnpickValue(type);
 			case PUTFIELD:
 				value2.getUsages().add(insn);
 				value2.addNarrowTypeInterpretationFromDesc(((FieldInsnNode) insn).desc);
-				return new UnpickValue(type, sourceValue);
+				return new UnpickValue(type);
 			default:
 				throw new IllegalArgumentException("Unrecognized insn: " + insn.getOpcode());
 		}
@@ -414,18 +406,16 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 		}
 
 		Type type = getType(typeTracker.ternaryOperation(insn, typeTracker.newValue(value1.getDataType()), typeTracker.newValue(value2.getDataType()), typeTracker.newValue(value3.getDataType())));
-		SourceValue sourceValue = delegate.ternaryOperation(insn, value1.getSourceValue(), value2.getSourceValue(), value3.getSourceValue());
-		return new UnpickValue(type, sourceValue);
+		return new UnpickValue(type);
 	}
 
 	@Override
 	public UnpickValue naryOperation(AbstractInsnNode insn, List<? extends UnpickValue> values) throws AnalyzerException
 	{
 		Type type = getType(typeTracker.naryOperation(insn, values.stream().map(value -> typeTracker.newValue(value.getDataType())).collect(Collectors.toList())));
-		SourceValue sourceValue = delegate.naryOperation(insn, values.stream().map(UnpickValue::getSourceValue).collect(Collectors.toList()));
 		if (insn.getOpcode() == MULTIANEWARRAY)
 		{
-			return new UnpickValue(type, sourceValue);
+			return new UnpickValue(type);
 		}
 		else
 		{
@@ -435,10 +425,10 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 			for (int i = hasThis ? 1 : 0; i < values.size(); i++)
 			{
 				int paramIndex = hasThis ? i - 1 : i;
-				values.get(i).getParameterUsages().add(new UnpickValue.MethodUsage(insn, paramIndex));
+				values.get(i).getParameterUsages().add(new UnpickValue.ParameterUsage(insn, paramIndex));
 				values.get(i).addNarrowTypeInterpretationFromDesc(argumentTypes[paramIndex].getDescriptor());
 			}
-			UnpickValue value = new UnpickValue(type, sourceValue);
+			UnpickValue value = new UnpickValue(type);
 			value.getUsages().add(insn);
 			return value;
 		}
@@ -462,8 +452,7 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 		value2.setUsages(value1.getUsages());
 		value2.setNarrowTypeInterpretations(value1.getNarrowTypeInterpretations());
 		Type type = typeTracker.merge(typeTracker.newValue(value1.getDataType()), typeTracker.newValue(value2.getDataType())).getType();
-		SourceValue sourceValue = delegate.merge(value1.getSourceValue(), value2.getSourceValue());
-		return new UnpickValue(type, sourceValue, value1);
+		return new UnpickValue(type, value1);
 	}
 
 	private static Type getType(BasicValue value)

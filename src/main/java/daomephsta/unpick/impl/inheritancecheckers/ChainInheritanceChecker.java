@@ -1,5 +1,7 @@
-package daomephsta.unpick.api.inheritancecheckers;
+package daomephsta.unpick.impl.inheritancecheckers;
 
+import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
+import daomephsta.unpick.impl.Utils;
 import org.jetbrains.annotations.Nullable;
 
 public class ChainInheritanceChecker implements IInheritanceChecker
@@ -25,5 +27,11 @@ public class ChainInheritanceChecker implements IInheritanceChecker
 		}
 
 		return null;
+	}
+
+	@Override
+	public IInheritanceChecker chain(IInheritanceChecker... others)
+	{
+		return new ChainInheritanceChecker(Utils.concat(checkers, others));
 	}
 }

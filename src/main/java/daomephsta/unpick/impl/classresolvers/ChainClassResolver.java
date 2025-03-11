@@ -1,9 +1,10 @@
 package daomephsta.unpick.impl.classresolvers;
 
-import daomephsta.unpick.api.IClassResolver;
-import daomephsta.unpick.api.constantresolvers.IConstantResolver;
-import daomephsta.unpick.api.inheritancecheckers.ChainInheritanceChecker;
-import daomephsta.unpick.api.inheritancecheckers.IInheritanceChecker;
+import daomephsta.unpick.api.classresolvers.IClassResolver;
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
+import daomephsta.unpick.impl.Utils;
+import daomephsta.unpick.impl.inheritancecheckers.ChainInheritanceChecker;
+import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.impl.constantresolvers.ChainConstantResolver;
 import org.objectweb.asm.ClassReader;
 
@@ -70,5 +71,11 @@ public class ChainClassResolver implements IClassResolver
 			inheritanceCheckers[i] = resolvers[i].asInheritanceChecker();
 		}
 		return new ChainInheritanceChecker(inheritanceCheckers);
+	}
+
+	@Override
+	public IClassResolver chain(IClassResolver... others)
+	{
+		return new ChainClassResolver(Utils.concat(resolvers, others));
 	}
 }

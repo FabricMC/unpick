@@ -1,7 +1,9 @@
-package daomephsta.unpick.api.constantresolvers;
+package daomephsta.unpick.api.classresolvers;
 
 import java.util.AbstractMap;
 
+import daomephsta.unpick.impl.Utils;
+import daomephsta.unpick.impl.constantresolvers.ChainConstantResolver;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Type;
 
@@ -49,4 +51,9 @@ public interface IConstantResolver
 	 */
 	@Nullable
 	public ResolvedConstant resolveConstant(String owner, String name);
+
+	default IConstantResolver chain(IConstantResolver... others)
+	{
+		return new ChainConstantResolver(Utils.prepend(this, others));
+	}
 }

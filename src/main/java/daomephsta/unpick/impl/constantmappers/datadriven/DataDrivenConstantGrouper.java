@@ -18,12 +18,11 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
-import daomephsta.unpick.api.IClassResolver;
+import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.constantgroupers.ConstantGroup;
 import daomephsta.unpick.api.constantgroupers.IConstantGrouper;
 import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
-import daomephsta.unpick.api.constantmappers.IConstantMapper;
-import daomephsta.unpick.api.constantresolvers.IConstantResolver;
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.constantmappers.datadriven.parser.MemberKey;
 import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
 import daomephsta.unpick.constantmappers.datadriven.parser.v3.UnpickV3Reader;
@@ -50,7 +49,6 @@ import daomephsta.unpick.impl.InstructionFactory;
 import daomephsta.unpick.impl.Utils;
 import daomephsta.unpick.impl.constantmappers.datadriven.parser.V1Parser;
 import daomephsta.unpick.impl.constantmappers.datadriven.parser.v2.V2Parser;
-import daomephsta.unpick.impl.representations.ReplacementInstructionGenerator;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
 import org.objectweb.asm.ClassReader;
@@ -1382,45 +1380,6 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 			thisReferenceChain.add(outerClassRef.outerThisReference);
 			clazz = outerClassRef.outerClass;
 		}
-	}
-
-	@Deprecated
-	public IConstantMapper asMapper()
-	{
-		return new IConstantMapper()
-		{
-			@Override
-			public boolean targets(String methodOwner, String methodName, String methodDescriptor)
-			{
-				return data.targetMethods.containsKey(new MemberKey(methodOwner, methodName, methodDescriptor));
-			}
-
-			@Override
-			public boolean targetsParameter(String methodOwner, String methodName, String methodDescriptor, int parameterIndex)
-			{
-				return data.targetMethods.get(new MemberKey(methodOwner, methodName, methodDescriptor)).paramGroups.containsKey(parameterIndex);
-			}
-
-			@Override
-			public void mapParameter(String methodOwner, String methodName, String methodDescriptor, int parameterIndex, ReplacementInstructionGenerator.Context context)
-			{
-				GroupInfo groupInfo = data.groups.get(data.targetMethods.get(new MemberKey(methodOwner, methodName, methodDescriptor)).paramGroups.get(parameterIndex));
-				replaceWithGroup(context, groupInfo);
-			}
-
-			@Override
-			public boolean targetsReturn(String methodOwner, String methodName, String methodDescriptor)
-			{
-				return data.targetMethods.get(new MemberKey(methodOwner, methodName, methodDescriptor)).returnGroup != null;
-			}
-
-			@Override
-			public void mapReturn(String methodOwner, String methodName, String methodDescriptor, ReplacementInstructionGenerator.Context context)
-			{
-				GroupInfo groupInfo = data.groups.get(data.targetMethods.get(new MemberKey(methodOwner, methodName, methodDescriptor)).returnGroup);
-				replaceWithGroup(context, groupInfo);
-			}
-		};
 	}
 
 	private static final class OuterClassReference

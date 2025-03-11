@@ -4,7 +4,7 @@ import java.io.*;
 import java.util.*;
 import java.util.regex.Pattern;
 
-import daomephsta.unpick.api.constantresolvers.IConstantResolver;
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
