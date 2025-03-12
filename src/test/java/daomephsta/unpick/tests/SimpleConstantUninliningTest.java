@@ -8,6 +8,7 @@ import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
 import daomephsta.unpick.tests.lib.TestUtils;
+
 import org.junit.jupiter.api.Test;
 
 public class SimpleConstantUninliningTest

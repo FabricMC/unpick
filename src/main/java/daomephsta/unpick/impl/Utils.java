@@ -1,12 +1,14 @@
 package daomephsta.unpick.impl;
 
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.util.Printer;
+import org.objectweb.asm.util.Textifier;
+import org.objectweb.asm.util.TraceMethodVisitor;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Array;
 import java.util.function.Consumer;
-
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.util.*;
 
 public final class Utils
 {
@@ -30,9 +32,9 @@ public final class Utils
 	public static boolean isIntegral(Object literal)
 	{
 		return literal instanceof Byte ||
-			   literal instanceof Short ||
-			   literal instanceof Integer ||
-			   literal instanceof Long;
+			literal instanceof Short ||
+			literal instanceof Integer ||
+			literal instanceof Long;
 	}
 
 	public static boolean isFloatingPoint(Object literal)

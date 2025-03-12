@@ -2,7 +2,9 @@ package daomephsta.unpick.impl;
 
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
+
 import org.jetbrains.annotations.Nullable;
+
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;

@@ -1,5 +1,31 @@
 package daomephsta.unpick.api;
 
+import daomephsta.unpick.api.classresolvers.IClassResolver;
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
+import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
+import daomephsta.unpick.api.constantgroupers.ConstantGroup;
+import daomephsta.unpick.api.constantgroupers.IConstantGrouper;
+import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
+import daomephsta.unpick.impl.AbstractInsnNodes;
+import daomephsta.unpick.impl.UnpickInterpreter;
+import daomephsta.unpick.impl.UnpickValue;
+import daomephsta.unpick.impl.representations.ReplacementInstructionGenerator.Context;
+import daomephsta.unpick.impl.representations.ReplacementSet;
+
+import org.jetbrains.annotations.Nullable;
+
+import org.objectweb.asm.Handle;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldInsnNode;
+import org.objectweb.asm.tree.InvokeDynamicInsnNode;
+import org.objectweb.asm.tree.MethodInsnNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.analysis.Analyzer;
+import org.objectweb.asm.tree.analysis.AnalyzerException;
+import org.objectweb.asm.tree.analysis.Frame;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -8,26 +34,8 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import daomephsta.unpick.api.classresolvers.IClassResolver;
-import daomephsta.unpick.api.constantgroupers.ConstantGroup;
-import daomephsta.unpick.api.constantgroupers.IConstantGrouper;
-import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
-import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
-import daomephsta.unpick.impl.AbstractInsnNodes;
-import daomephsta.unpick.impl.UnpickInterpreter;
-import daomephsta.unpick.impl.UnpickValue;
-import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.Handle;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.tree.*;
-import org.objectweb.asm.tree.analysis.*;
-
-import daomephsta.unpick.api.classresolvers.IConstantResolver;
-import daomephsta.unpick.impl.representations.ReplacementInstructionGenerator.Context;
-import daomephsta.unpick.impl.representations.ReplacementSet;
-
 /**
- * Uninlines inlined values 
+ * Uninlines inlined values
  * @author Daomephsta
  */
 public final class ConstantUninliner
@@ -68,7 +76,7 @@ public final class ConstantUninliner
 	{
 		logger.log(Level.INFO, String.format("Processing %s.%s%s", methodOwner.name, method.name, method.desc));
 		try
-		{ 
+		{
 			ReplacementSet replacementSet = new ReplacementSet(method.instructions);
 			Frame<UnpickValue>[] frames = new Analyzer<>(new UnpickInterpreter(method, inheritanceChecker)).analyze(methodOwner.name, method);
 

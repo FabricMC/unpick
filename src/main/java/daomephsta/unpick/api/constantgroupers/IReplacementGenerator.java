@@ -4,8 +4,10 @@ import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
+
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
+
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;

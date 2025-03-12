@@ -3,7 +3,7 @@ package daomephsta.unpick.constantmappers.datadriven.parser;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Thrown when a syntax error is found in a .unpick file   
+ * Thrown when a syntax error is found in a .unpick file
  * @author Daomephsta
  */
 public class UnpickSyntaxException extends RuntimeException

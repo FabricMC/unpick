@@ -1,10 +1,7 @@
 package daomephsta.unpick.impl.constantmappers.datadriven.parser;
 
-import java.io.*;
-import java.util.*;
-import java.util.regex.Pattern;
-
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
+import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
@@ -12,18 +9,25 @@ import daomephsta.unpick.constantmappers.datadriven.tree.GroupType;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
 import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
-
-import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
 import daomephsta.unpick.impl.constantmappers.datadriven.parser.v2.V2Parser;
+
+import java.io.IOException;
+import java.io.LineNumberReader;
+import java.io.Reader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
 
 public final class V1Parser
 {
 	private V1Parser()
 	{
 	}
-	
+
 	private static final Pattern WHITESPACE_SPLITTER = Pattern.compile("\\s");
-	
+
 	public static void parse(Reader mappingSource, IConstantResolver constantResolver, DataDrivenConstantGrouper.Data data) throws IOException
 	{
 		try(LineNumberReader reader = new LineNumberReader(mappingSource))
@@ -63,7 +67,7 @@ public final class V1Parser
 			}
 		}
 	}
-	
+
 	private static String stripComment(String in)
 	{
 		int c = in.indexOf('#');
@@ -131,7 +135,7 @@ public final class V1Parser
 	{
 		if (tokens.length < 4 || tokens.length % 2 != 0)
 			throw new UnpickSyntaxException(lineNumber, "Unexpected token count. Expected an even number greater than or equal to 4. Found " + tokens.length);
-		
+
 		String owner = tokens[1];
 		String name = tokens[2];
 		String desc = tokens[3];

@@ -1,18 +1,19 @@
 package daomephsta.unpick.impl.representations;
 
-import java.util.logging.Logger;
-
 import daomephsta.unpick.api.classresolvers.IClassResolver;
-import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
+import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
 import daomephsta.unpick.impl.UnpickValue;
+
 import org.jetbrains.annotations.Nullable;
+
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Frame;
 
-import daomephsta.unpick.api.classresolvers.IConstantResolver;
+import java.util.logging.Logger;
 
 /**
  * @author Daomephsta
@@ -20,7 +21,7 @@ import daomephsta.unpick.api.classresolvers.IConstantResolver;
 public interface ReplacementInstructionGenerator extends IReplacementGenerator
 {
 	public abstract boolean canReplace(Context context);
-	
+
 	/**
 	 * Generates replacement instructions for the provided value
 	 * @param context TODO
@@ -53,8 +54,8 @@ public interface ReplacementInstructionGenerator extends IReplacementGenerator
 		private final Logger logger;
 
 		public Context(IClassResolver classResolver, IConstantResolver constantResolver,
-					   IInheritanceChecker inheritanceChecker, ReplacementSet replacementSet, ClassNode containingClass,
-					   MethodNode containingMethod, AbstractInsnNode target, Frame<UnpickValue>[] frames, Logger logger)
+					IInheritanceChecker inheritanceChecker, ReplacementSet replacementSet, ClassNode containingClass,
+					MethodNode containingMethod, AbstractInsnNode target, Frame<UnpickValue>[] frames, Logger logger)
 		{
 			this.classResolver = classResolver;
 			this.constantResolver = constantResolver;
@@ -74,7 +75,7 @@ public interface ReplacementInstructionGenerator extends IReplacementGenerator
 		}
 
 		@Override
-        public IConstantResolver getConstantResolver()
+		public IConstantResolver getConstantResolver()
 		{
 			return constantResolver;
 		}
@@ -98,7 +99,7 @@ public interface ReplacementInstructionGenerator extends IReplacementGenerator
 		}
 
 		@Override
-        public ReplacementSet getReplacementSet()
+		public ReplacementSet getReplacementSet()
 		{
 			return replacementSet;
 		}
@@ -118,7 +119,7 @@ public interface ReplacementInstructionGenerator extends IReplacementGenerator
 		}
 
 		@Override
-        public Logger getLogger()
+		public Logger getLogger()
 		{
 			return logger;
 		}

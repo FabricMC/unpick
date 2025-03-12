@@ -2,6 +2,7 @@ package daomephsta.unpick.api.classresolvers;
 
 import daomephsta.unpick.impl.Utils;
 import daomephsta.unpick.impl.inheritancecheckers.ChainInheritanceChecker;
+
 import org.jetbrains.annotations.Nullable;
 
 public interface IInheritanceChecker

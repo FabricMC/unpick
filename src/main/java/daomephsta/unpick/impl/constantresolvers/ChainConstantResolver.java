@@ -2,6 +2,7 @@ package daomephsta.unpick.impl.constantresolvers;
 
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.impl.Utils;
+
 import org.jetbrains.annotations.Nullable;
 
 public class ChainConstantResolver implements IConstantResolver

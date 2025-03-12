@@ -5,6 +5,7 @@ import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.impl.constantresolvers.ClasspathConstantResolver;
 import daomephsta.unpick.impl.inheritancecheckers.ClasspathInheritanceChecker;
+
 import org.objectweb.asm.ClassReader;
 
 import java.io.IOException;

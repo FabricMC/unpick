@@ -2,10 +2,11 @@ package daomephsta.unpick.impl.classresolvers;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
-import daomephsta.unpick.impl.Utils;
-import daomephsta.unpick.impl.inheritancecheckers.ChainInheritanceChecker;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
+import daomephsta.unpick.impl.Utils;
 import daomephsta.unpick.impl.constantresolvers.ChainConstantResolver;
+import daomephsta.unpick.impl.inheritancecheckers.ChainInheritanceChecker;
+
 import org.objectweb.asm.ClassReader;
 
 import java.util.ArrayList;

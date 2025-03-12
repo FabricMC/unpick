@@ -4,6 +4,7 @@ import daomephsta.unpick.impl.Utils;
 import daomephsta.unpick.impl.classresolvers.ChainClassResolver;
 import daomephsta.unpick.impl.constantresolvers.BytecodeAnalysisConstantResolver;
 import daomephsta.unpick.impl.inheritancecheckers.BytecodeAnalysisInheritanceChecker;
+
 import org.objectweb.asm.ClassReader;
 
 /**
@@ -34,7 +35,7 @@ public interface IClassResolver
 	{
 		return new ChainClassResolver(Utils.prepend(this, others));
 	}
-	
+
 	public static class ClassResolutionException extends RuntimeException
 	{
 		private static final long serialVersionUID = 4617765695823272821L;

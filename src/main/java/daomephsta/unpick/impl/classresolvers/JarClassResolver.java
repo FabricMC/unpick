@@ -1,6 +1,7 @@
 package daomephsta.unpick.impl.classresolvers;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
+
 import org.objectweb.asm.ClassReader;
 
 import java.io.IOException;

@@ -1,12 +1,10 @@
 package daomephsta.unpick.impl.constantmappers.datadriven.parser.v2;
 
-import java.io.IOException;
-import java.io.Reader;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.IntSupplier;
-
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
+import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
+import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader;
+import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.TargetMethodDefinitionVisitor;
+import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.Visitor;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
@@ -15,12 +13,14 @@ import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
 import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
+
 import org.jetbrains.annotations.Nullable;
 
-import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
-import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader;
-import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.TargetMethodDefinitionVisitor;
-import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.Visitor;
+import java.io.IOException;
+import java.io.Reader;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.IntSupplier;
 
 public final class V2Parser implements Visitor
 {
@@ -130,13 +130,13 @@ public final class V2Parser implements Visitor
 			throw new UnpickSyntaxException(lineNumber, "Invalid constant type " + object.getClass().getName());
 		}
 	}
-	
+
 	@Override
 	public void visitLineNumber(int lineNumber)
 	{
 		this.lineNumber = lineNumber;
 	}
-	
+
 	@Override
 	public void visitSimpleConstantDefinition(String groupId, String owner, String name, String value, String descriptor)
 	{
@@ -195,7 +195,7 @@ public final class V2Parser implements Visitor
 	{
 		return new TargetMethodParser(data, owner.replace('/', '.'), name, descriptor, () -> lineNumber);
 	}
-	
+
 	private static class TargetMethodParser implements TargetMethodDefinitionVisitor
 	{
 		private final DataDrivenConstantGrouper.Data data;
@@ -206,7 +206,7 @@ public final class V2Parser implements Visitor
 		@Nullable
 		private String returnGroup;
 		private final IntSupplier lineNumber;
-		
+
 		public TargetMethodParser(DataDrivenConstantGrouper.Data data, String owner, String name, String descriptor, IntSupplier lineNumber)
 		{
 			this.data = data;
@@ -235,7 +235,7 @@ public final class V2Parser implements Visitor
 
 			returnGroup = group;
 		}
-		
+
 		@Override
 		public void endVisit()
 		{

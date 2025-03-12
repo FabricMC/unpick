@@ -1,11 +1,11 @@
 package daomephsta.unpick.impl.constantresolvers;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
-
 import daomephsta.unpick.impl.classresolvers.ClasspathClassResolver;
 
 import org.objectweb.asm.Type;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 
 /**
  * Resolves constants by looking for them on the classpath.

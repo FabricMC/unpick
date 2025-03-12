@@ -1,12 +1,12 @@
 package daomephsta.unpick.constantmappers.datadriven.parser.v2;
 
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import daomephsta.unpick.constantmappers.datadriven.parser.MemberKey;
 import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.TargetMethodDefinitionVisitor;
 import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.Visitor;
+
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Remaps names and descriptors of target method definitions, then makes a delegate visitor visit the remapped target methods.
@@ -79,8 +79,8 @@ public class UnpickV2Remapper implements Visitor
 	{
 		//Reassigning the parameters tends to cause bugs
 		String remappedOwner = remapClass(owner),
-		       remappedName = remapMethod(owner, name, descriptor),
-		       remappedDescriptor = remapDescriptor(descriptor);
+			remappedName = remapMethod(owner, name, descriptor),
+			remappedDescriptor = remapDescriptor(descriptor);
 
 		return delegate.visitTargetMethodDefinition(remappedOwner, remappedName, remappedDescriptor);
 	}
@@ -99,8 +99,8 @@ public class UnpickV2Remapper implements Visitor
 	{
 		//Reassigning the parameters tends to cause bugs
 		String remappedOwner = remapClass(owner),
-		       remappedName = remapField(owner, name, descriptor),
-		       remappedDescriptor = remapDescriptor(descriptor);
+			remappedName = remapField(owner, name, descriptor),
+			remappedDescriptor = remapDescriptor(descriptor);
 
 		delegate.visitSimpleConstantDefinition(group, remappedOwner, remappedName, value, remappedDescriptor);
 	}
@@ -109,8 +109,8 @@ public class UnpickV2Remapper implements Visitor
 	{
 		//Reassigning the parameters tends to cause bugs
 		String remappedOwner = remapClass(owner),
-		       remappedName = remapField(owner, name, descriptor),
-		       remappedDescriptor = remapDescriptor(descriptor);
+			remappedName = remapField(owner, name, descriptor),
+			remappedDescriptor = remapDescriptor(descriptor);
 
 		delegate.visitFlagConstantDefinition(group, remappedOwner, remappedName, value, remappedDescriptor);
 	}

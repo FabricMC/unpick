@@ -1,28 +1,10 @@
 package daomephsta.unpick.impl.constantmappers.datadriven;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Consumer;
-import java.util.logging.Logger;
-
 import daomephsta.unpick.api.classresolvers.IClassResolver;
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.api.constantgroupers.ConstantGroup;
 import daomephsta.unpick.api.constantgroupers.IConstantGrouper;
 import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
-import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.constantmappers.datadriven.parser.MemberKey;
 import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
 import daomephsta.unpick.constantmappers.datadriven.parser.v3.UnpickV3Reader;
@@ -49,8 +31,10 @@ import daomephsta.unpick.impl.InstructionFactory;
 import daomephsta.unpick.impl.Utils;
 import daomephsta.unpick.impl.constantmappers.datadriven.parser.V1Parser;
 import daomephsta.unpick.impl.constantmappers.datadriven.parser.v2.V2Parser;
+
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
+
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
@@ -69,12 +53,30 @@ import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 import org.objectweb.asm.tree.analysis.Frame;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.logging.Logger;
+
 /**
  * Maps inlined values to constants using mappings defined in a file
  * @author Daomephsta
  */
 public class DataDrivenConstantGrouper implements IConstantGrouper
-{	
+{
 	private static final Logger LOGGER = Logger.getLogger("unpick");
 
 	private final Data data = new Data();

@@ -1,6 +1,7 @@
 package daomephsta.unpick.constantmappers.datadriven.tree.expr;
 
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
+
 import org.jetbrains.annotations.Nullable;
 
 public final class FieldExpression extends Expression

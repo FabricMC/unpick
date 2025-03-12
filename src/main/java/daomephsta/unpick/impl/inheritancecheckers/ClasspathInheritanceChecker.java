@@ -1,6 +1,7 @@
 package daomephsta.unpick.impl.inheritancecheckers;
 
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
+
 import org.jetbrains.annotations.Nullable;
 
 public class ClasspathInheritanceChecker implements IInheritanceChecker

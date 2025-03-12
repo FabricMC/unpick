@@ -2,16 +2,23 @@ package daomephsta.unpick.impl.constantresolvers;
 
 import static java.util.stream.Collectors.toSet;
 
-import java.lang.reflect.Modifier;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
-import org.objectweb.asm.*;
-
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.impl.LiteralType;
+
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.FieldVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
+
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Resolves constants by analysing the bytecode of their owners.
@@ -20,10 +27,10 @@ import daomephsta.unpick.impl.LiteralType;
 public class BytecodeAnalysisConstantResolver implements IConstantResolver
 {
 	static final Set<Type> VALID_CONSTANT_TYPES = Arrays.stream(LiteralType.values()).map(LiteralType::getType).collect(toSet());
-	
+
 	private final ConcurrentMap<String, ResolvedConstants> constantDataCache = new ConcurrentHashMap<>();
 	private final IClassResolver classResolver;
-	
+
 	public BytecodeAnalysisConstantResolver(IClassResolver classResolver)
 	{
 		this.classResolver = classResolver;
@@ -51,7 +58,7 @@ public class BytecodeAnalysisConstantResolver implements IConstantResolver
 		cr.accept(resolvedConstants, 0);
 		return resolvedConstants;
 	}
-	
+
 	private static class ResolvedConstants extends ClassVisitor
 	{
 		public ResolvedConstants(int api)
@@ -72,7 +79,7 @@ public class BytecodeAnalysisConstantResolver implements IConstantResolver
 			}
 			return super.visitField(access, name, descriptor, signature, value);
 		}
-		
+
 		public ResolvedConstant get(String key)
 		{
 			return resolvedConstants.get(key);

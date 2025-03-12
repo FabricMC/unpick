@@ -2,6 +2,7 @@ package daomephsta.unpick.impl;
 
 import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
+
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 

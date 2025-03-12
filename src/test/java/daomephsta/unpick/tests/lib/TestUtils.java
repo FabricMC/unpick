@@ -1,5 +1,13 @@
 package daomephsta.unpick.tests.lib;
 
+import daomephsta.unpick.api.ConstantUninliner;
+import daomephsta.unpick.api.classresolvers.ClassResolvers;
+import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
+import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
+
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.tree.ClassNode;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -7,13 +15,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.function.Consumer;
-
-import daomephsta.unpick.api.ConstantUninliner;
-import daomephsta.unpick.api.classresolvers.ClassResolvers;
-import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
-import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.tree.ClassNode;
 
 public class TestUtils
 {

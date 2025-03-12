@@ -2,7 +2,9 @@ package daomephsta.unpick.impl.inheritancecheckers;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
+
 import org.jetbrains.annotations.Nullable;
+
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 
