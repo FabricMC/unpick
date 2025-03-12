@@ -1328,15 +1328,9 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 			return null;
 		}
 
-		ClassReader reader;
-		try
-		{
-			reader = context.getClassResolver().resolveClass(outerClassName);
-		}
-		catch (IClassResolver.ClassResolutionException e)
-		{
+		ClassReader reader = context.getClassResolver().resolveClass(outerClassName);
+		if (reader == null)
 			return null;
-		}
 
 		ClassNode outerClass = new ClassNode();
 		reader.accept(outerClass, ClassReader.SKIP_CODE);

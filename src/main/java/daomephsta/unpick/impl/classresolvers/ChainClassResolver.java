@@ -7,10 +7,9 @@ import daomephsta.unpick.impl.Utils;
 import daomephsta.unpick.impl.constantresolvers.ChainConstantResolver;
 import daomephsta.unpick.impl.inheritancecheckers.ChainInheritanceChecker;
 
-import org.objectweb.asm.ClassReader;
+import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
+import org.objectweb.asm.ClassReader;
 
 public class ChainClassResolver implements IClassResolver
 {
@@ -22,34 +21,19 @@ public class ChainClassResolver implements IClassResolver
 	}
 
 	@Override
-	public ClassReader resolveClass(String internalName) throws ClassResolutionException
+	@Nullable
+	public ClassReader resolveClass(String internalName)
 	{
-		List<ClassResolutionException> exceptions = new ArrayList<>();
 		for (IClassResolver resolver : resolvers)
 		{
-			try
+			ClassReader cr = resolver.resolveClass(internalName);
+			if (cr != null)
 			{
-				return resolver.resolveClass(internalName);
-			}
-			catch (ClassResolutionException e)
-			{
-				exceptions.add(e);
+				return cr;
 			}
 		}
 
-		if (exceptions.isEmpty())
-		{
-			throw new ClassResolutionException("No resolvers");
-		}
-		else
-		{
-			ClassResolutionException exception = exceptions.get(exceptions.size() - 1);
-			for (int i = 0; i < exceptions.size() - 1; i++)
-			{
-				exception.addSuppressed(exceptions.get(i));
-			}
-			throw exception;
-		}
+		return null;
 	}
 
 	@Override

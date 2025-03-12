@@ -5,6 +5,8 @@ import daomephsta.unpick.impl.classresolvers.ChainClassResolver;
 import daomephsta.unpick.impl.constantresolvers.BytecodeAnalysisConstantResolver;
 import daomephsta.unpick.impl.inheritancecheckers.BytecodeAnalysisInheritanceChecker;
 
+import org.jetbrains.annotations.Nullable;
+
 import org.objectweb.asm.ClassReader;
 
 /**
@@ -15,11 +17,10 @@ public interface IClassResolver
 {
 	/**
 	 * @param internalName the internal name of the class to resolve
-	 * @return a {@link ClassReader} for the resolved class
-	 * @throws ClassResolutionException if construction of the ClassReader throws an IOException
-	 * or no class can be found with the specified internal name.
+	 * @return a {@link ClassReader} for the resolved class, or {@code null} if not found
 	 */
-	ClassReader resolveClass(String internalName) throws ClassResolutionException;
+	@Nullable
+	ClassReader resolveClass(String internalName);
 
 	default IConstantResolver asConstantResolver()
 	{
@@ -34,25 +35,5 @@ public interface IClassResolver
 	default IClassResolver chain(IClassResolver... others)
 	{
 		return new ChainClassResolver(Utils.prepend(this, others));
-	}
-
-	public static class ClassResolutionException extends RuntimeException
-	{
-		private static final long serialVersionUID = 4617765695823272821L;
-
-		public ClassResolutionException(String message, Throwable cause)
-		{
-			super(message, cause);
-		}
-
-		public ClassResolutionException(String message)
-		{
-			super(message);
-		}
-
-		public ClassResolutionException(Throwable cause)
-		{
-			super(cause);
-		}
 	}
 }

@@ -2,6 +2,8 @@ package daomephsta.unpick.impl.classresolvers;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 
+import org.jetbrains.annotations.Nullable;
+
 import org.objectweb.asm.ClassReader;
 
 import java.io.IOException;
@@ -19,7 +21,8 @@ public class PathClassResolver implements IClassResolver
 	}
 
 	@Override
-	public ClassReader resolveClass(String internalName) throws ClassResolutionException
+	@Nullable
+	public ClassReader resolveClass(String internalName)
 	{
 		try (InputStream is = Files.newInputStream(root.resolve(internalName + ".class")))
 		{
@@ -27,7 +30,7 @@ public class PathClassResolver implements IClassResolver
 		}
 		catch (IOException e)
 		{
-			throw new ClassResolutionException(e);
+			return null;
 		}
 	}
 }

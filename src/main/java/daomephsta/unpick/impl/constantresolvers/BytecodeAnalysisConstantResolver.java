@@ -1,10 +1,7 @@
 package daomephsta.unpick.impl.constantresolvers;
 
-import static java.util.stream.Collectors.toSet;
-
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
-import daomephsta.unpick.impl.LiteralType;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -13,8 +10,8 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
 import java.lang.reflect.Modifier;
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,7 +23,19 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class BytecodeAnalysisConstantResolver implements IConstantResolver
 {
-	static final Set<Type> VALID_CONSTANT_TYPES = Arrays.stream(LiteralType.values()).map(LiteralType::getType).collect(toSet());
+	static final Set<Type> VALID_CONSTANT_TYPES = new HashSet<>();
+	static
+	{
+		VALID_CONSTANT_TYPES.add(Type.BYTE_TYPE);
+		VALID_CONSTANT_TYPES.add(Type.SHORT_TYPE);
+		VALID_CONSTANT_TYPES.add(Type.CHAR_TYPE);
+		VALID_CONSTANT_TYPES.add(Type.INT_TYPE);
+		VALID_CONSTANT_TYPES.add(Type.LONG_TYPE);
+		VALID_CONSTANT_TYPES.add(Type.FLOAT_TYPE);
+		VALID_CONSTANT_TYPES.add(Type.DOUBLE_TYPE);
+		VALID_CONSTANT_TYPES.add(Type.getObjectType("java/lang/String"));
+		VALID_CONSTANT_TYPES.add(Type.getObjectType("java/lang/Class"));
+	}
 
 	private final ConcurrentMap<String, ResolvedConstants> constantDataCache = new ConcurrentHashMap<>();
 	private final IClassResolver classResolver;
@@ -45,15 +54,9 @@ public class BytecodeAnalysisConstantResolver implements IConstantResolver
 
 	private ResolvedConstants extractConstants(String owner)
 	{
-		ClassReader cr;
-		try
-		{
-			cr = classResolver.resolveClass(owner);
-		}
-		catch (IClassResolver.ClassResolutionException e)
-		{
+		ClassReader cr = classResolver.resolveClass(owner);
+		if (cr == null)
 			return null;
-		}
 		ResolvedConstants resolvedConstants = new ResolvedConstants(Opcodes.ASM9);
 		cr.accept(resolvedConstants, 0);
 		return resolvedConstants;
@@ -74,7 +77,7 @@ public class BytecodeAnalysisConstantResolver implements IConstantResolver
 			if (Modifier.isStatic(access) && Modifier.isFinal(access))
 			{
 				Type fieldType = Type.getType(descriptor);
-				if (VALID_CONSTANT_TYPES.stream().anyMatch(t -> t.equals(fieldType)))
+				if (VALID_CONSTANT_TYPES.contains(fieldType))
 					resolvedConstants.put(name, new ResolvedConstant(fieldType, value));
 			}
 			return super.visitField(access, name, descriptor, signature, value);

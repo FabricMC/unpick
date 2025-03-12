@@ -2,6 +2,8 @@ package daomephsta.unpick.impl.classresolvers;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 
+import org.jetbrains.annotations.Nullable;
+
 import org.objectweb.asm.ClassReader;
 
 import java.io.IOException;
@@ -19,12 +21,13 @@ public class JarClassResolver implements IClassResolver
 	}
 
 	@Override
-	public ClassReader resolveClass(String internalName) throws ClassResolutionException
+	@Nullable
+	public ClassReader resolveClass(String internalName)
 	{
 		ZipEntry entry = zipFile.getEntry(internalName + ".class");
 		if (entry == null)
 		{
-			throw new ClassResolutionException(internalName);
+			return null;
 		}
 
 		try (InputStream is = zipFile.getInputStream(entry))
@@ -33,7 +36,7 @@ public class JarClassResolver implements IClassResolver
 		}
 		catch (IOException e)
 		{
-			throw new ClassResolutionException(e);
+			return null;
 		}
 	}
 }

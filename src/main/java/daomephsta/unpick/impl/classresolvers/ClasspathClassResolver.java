@@ -6,6 +6,8 @@ import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.impl.constantresolvers.ClasspathConstantResolver;
 import daomephsta.unpick.impl.inheritancecheckers.ClasspathInheritanceChecker;
 
+import org.jetbrains.annotations.Nullable;
+
 import org.objectweb.asm.ClassReader;
 
 import java.io.IOException;
@@ -13,7 +15,8 @@ import java.io.IOException;
 public class ClasspathClassResolver implements IClassResolver
 {
 	@Override
-	public ClassReader resolveClass(String internalName) throws ClassResolutionException
+	@Nullable
+	public ClassReader resolveClass(String internalName)
 	{
 		try
 		{
@@ -21,7 +24,7 @@ public class ClasspathClassResolver implements IClassResolver
 		}
 		catch (IOException e)
 		{
-			throw new ClassResolutionException(e);
+			return null;
 		}
 	}
 

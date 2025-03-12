@@ -27,15 +27,9 @@ public class BytecodeAnalysisInheritanceChecker implements IInheritanceChecker
 	{
 		return classInfoCache.computeIfAbsent(className, name ->
 		{
-			ClassReader reader;
-			try
-			{
-				reader = classResolver.resolveClass(name);
-			}
-			catch (IClassResolver.ClassResolutionException e)
-			{
+			ClassReader reader = classResolver.resolveClass(name);
+			if (reader == null)
 				return null;
-			}
 
 			return new ClassInfo(reader.getSuperName(), reader.getInterfaces(), (reader.getAccess() & Opcodes.ACC_INTERFACE) != 0);
 		});
