@@ -1,22 +1,9 @@
-buildscript {
-	repositories {
-		gradlePluginPortal()
-	}
-
-	dependencies {
-		classpath 'com.diffplug.spotless:com.diffplug.spotless.gradle.plugin:7.0.2'
-	}
-}
-
 plugins {
     id 'java-library'
     id 'maven-publish'
     id 'eclipse'
-}
-
-if (JavaVersion.current().java11Compatible) {
-	apply plugin: 'checkstyle'
-	apply plugin: 'com.diffplug.spotless'
+	id 'checkstyle'
+	id 'com.diffplug.spotless'
 }
 
 repositories {
@@ -26,29 +13,8 @@ repositories {
 allprojects {
     apply plugin: 'java-library'
     apply plugin: 'maven-publish'
-
-    if (JavaVersion.current().java11Compatible) {
-        apply plugin: 'checkstyle'
-		apply plugin: 'com.diffplug.spotless'
-
-        checkstyle {
-            toolVersion = '10.21.1'
-            configFile = rootProject.file("checkstyle.xml")
-            ignoreFailures = false
-        }
-
-		spotless {
-			lineEndings = com.diffplug.spotless.LineEnding.UNIX
-
-			java {
-				removeUnusedImports()
-				importOrder('daomephsta.unpick', 'org.jetbrains.annotations', 'org.objectweb.asm', '', 'java', 'javax')
-				leadingSpacesToTabs()
-				trimTrailingWhitespace()
-				endWithNewline()
-			}
-		}
-    }
+	apply plugin: 'checkstyle'
+	apply plugin: 'com.diffplug.spotless'
 
     group = 'net.fabricmc.unpick'
 
@@ -97,6 +63,24 @@ allprojects {
         archiveClassifier = 'javadoc'
         from javadoc.destinationDir
     }
+
+	checkstyle {
+		toolVersion = '10.21.1'
+		configFile = rootProject.file("checkstyle.xml")
+		ignoreFailures = false
+	}
+
+	spotless {
+		lineEndings = com.diffplug.spotless.LineEnding.UNIX
+
+		java {
+			removeUnusedImports()
+			importOrder('daomephsta.unpick', 'org.jetbrains.annotations', 'org.objectweb.asm', '', 'java', 'javax')
+			leadingSpacesToTabs()
+			trimTrailingWhitespace()
+			endWithNewline()
+		}
+	}
 
     if (!project.name.startsWith('test-data')) {
         publishing {
