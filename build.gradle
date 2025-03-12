@@ -3,7 +3,7 @@ plugins {
     id 'maven-publish'
     id 'eclipse'
 	id 'checkstyle'
-	id 'com.diffplug.spotless'
+	id 'com.diffplug.spotless' version '7.0.2'
 }
 
 repositories {
