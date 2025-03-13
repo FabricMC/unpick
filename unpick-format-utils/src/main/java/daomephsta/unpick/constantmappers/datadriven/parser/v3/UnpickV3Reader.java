@@ -851,6 +851,10 @@ public final class UnpickV3Reader implements AutoCloseable
 		try
 		{
 			float result = Float.parseFloat(string);
+			if (!Float.isFinite(result))
+			{
+				throw parseError("Float out of bounds");
+			}
 			return negative ? -result : result;
 		}
 		catch (NumberFormatException e)
@@ -864,6 +868,10 @@ public final class UnpickV3Reader implements AutoCloseable
 		try
 		{
 			double result = Double.parseDouble(string);
+			if (!Double.isFinite(result))
+			{
+				throw parseError("Double out of bounds");
+			}
 			return negative ? -result : result;
 		}
 		catch (NumberFormatException e)
