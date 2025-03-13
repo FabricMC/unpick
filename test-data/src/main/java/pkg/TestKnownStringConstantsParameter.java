@@ -11,4 +11,9 @@ public class TestKnownStringConstantsParameter
 	{
 		Constants.consumeString("bar");
 	}
+
+	public void test3()
+	{
+		Constants.consumeString(null);
+	}
 }

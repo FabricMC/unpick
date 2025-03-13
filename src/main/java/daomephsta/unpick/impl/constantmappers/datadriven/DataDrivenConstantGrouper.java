@@ -1,6 +1,5 @@
 package daomephsta.unpick.impl.constantmappers.datadriven;
 
-import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.api.constantgroupers.ConstantGroup;
 import daomephsta.unpick.api.constantgroupers.IConstantGrouper;
@@ -82,7 +81,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 	private final Data data = new Data();
 	private final ConstantGroup defaultGroup = new ConstantGroup("<default>", this::replaceDefault);
 
-	public DataDrivenConstantGrouper(IConstantResolver constantResolver, InputStream... mappingSources)
+	public DataDrivenConstantGrouper(@Nullable IConstantResolver constantResolver, InputStream... mappingSources)
 	{
 		for (InputStream mappingSource : mappingSources)
 		{
@@ -96,10 +95,18 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 				switch (versionHeader)
 				{
 				case "v1":
+					if (constantResolver == null)
+					{
+						throw new UnpickSyntaxException(1, "Unpick V1 format is no longer supported");
+					}
 					V1Parser.parse(reader, constantResolver, data);
 					break;
 
 				case "v2":
+					if (constantResolver == null)
+					{
+						throw new UnpickSyntaxException(1, "Unpick V2 format is no longer supported");
+					}
 					V2Parser.parse(reader, constantResolver, data);
 					break;
 
@@ -208,6 +215,40 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 			literalType = DataType.STRING;
 			compatibleTypes = Collections.singletonList(DataType.STRING);
 		}
+		else if (literal instanceof Type)
+		{
+			literalType = DataType.CLASS;
+			compatibleTypes = Collections.singletonList(DataType.CLASS);
+		}
+		else if (literal == null)
+		{
+			// use dataflow to figure out whether this is a null string constant, class constant or neither
+			AbstractInsnNode nextInsn = AbstractInsnNodes.nextInstruction(target);
+			if (nextInsn == null)
+			{
+				return;
+			}
+			Frame<IReplacementGenerator.IDataflowValue> frame = context.getDataflowFrame(nextInsn);
+			if (frame == null)
+			{
+				return;
+			}
+			Set<DataType> typeInterpretations = frame.getStack(frame.getStackSize() - 1).getTypeInterpretations();
+			if (typeInterpretations.contains(DataType.STRING))
+			{
+				literalType = DataType.STRING;
+				compatibleTypes = Collections.singletonList(DataType.STRING);
+			}
+			else if (typeInterpretations.contains(DataType.CLASS))
+			{
+				literalType = DataType.CLASS;
+				compatibleTypes = Collections.singletonList(DataType.CLASS);
+			}
+			else
+			{
+				return;
+			}
+		}
 		else
 		{
 			return;
@@ -216,7 +257,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 		for (DataType compatibleType : compatibleTypes)
 		{
 			Object castedLiteral = castLiteral(literal, toConstantKeyType(compatibleType));
-			if (castedLiteral == null)
+			if (castedLiteral == null && literal != null)
 			{
 				continue;
 			}
@@ -290,18 +331,34 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 				return;
 			}
 		}
+		else if (literal instanceof Type)
+		{
+			literalType = DataType.CLASS;
+			if (groupInfo.dataType != DataType.CLASS)
+			{
+				return;
+			}
+		}
+		else if (literal == null)
+		{
+			literalType = groupInfo.dataType;
+			if (groupInfo.dataType != DataType.STRING && groupInfo.dataType != DataType.CLASS)
+			{
+				return;
+			}
+		}
 		else
 		{
 			return;
 		}
 
 		Object castedLiteral = castLiteral(literal, toConstantKeyType(literalType));
-		if (castedLiteral == null)
+		if (castedLiteral == null && literal != null)
 		{
 			return;
 		}
 
-		if (groupInfo.groupType == GroupType.FLAG && !castedLiteral.equals(0L) && !castedLiteral.equals(-1L))
+		if (groupInfo.groupType == GroupType.FLAG && castedLiteral != null && !castedLiteral.equals(0L) && !castedLiteral.equals(-1L))
 		{
 			DataType narrowedLiteralType = getNarrowedLiteralType(context, target, literalType, literal);
 			long mask;
@@ -453,7 +510,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 		Frame<IReplacementGenerator.IDataflowValue> dataflowFrame = context.getDataflowFrame(nextInsn);
 		if (dataflowFrame == null)
 			return literalType;
-		Set<DataType> narrowTypeInterpretations = dataflowFrame.getStack(dataflowFrame.getStackSize() - 1).getNarrowTypeInterpretations();
+		Set<DataType> narrowTypeInterpretations = dataflowFrame.getStack(dataflowFrame.getStackSize() - 1).getTypeInterpretations();
 
 		if (narrowTypeInterpretations.contains(DataType.BYTE) && value >= Byte.MIN_VALUE && value <= Byte.MAX_VALUE)
 		{
@@ -880,6 +937,9 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 			case STRING:
 				type = Type.getObjectType("java/lang/String");
 				break;
+			case CLASS:
+				type = Type.getObjectType("java/lang/Class");
+				break;
 			default:
 				throw new AssertionError("Unexpected type: " + dataType);
 		}
@@ -1191,6 +1251,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 				return exactCast ? result : null;
 			}
 			case STRING:
+			case CLASS:
 				return literal;
 			default:
 				throw new AssertionError("Unknown literal data type " + destType);
@@ -1275,7 +1336,8 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 			case DOUBLE:
 				return DataType.DOUBLE;
 			case STRING:
-				return DataType.STRING;
+			case CLASS:
+				return dataType;
 			default:
 				throw new AssertionError("Unsupported data type " + dataType);
 		}
@@ -1301,6 +1363,8 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 				return "C";
 			case STRING:
 				return "Ljava/lang/String;";
+			case CLASS:
+				return "Ljava/lang/Class;";
 			default:
 				throw new AssertionError("Unsupported data type " + dataType);
 		}
@@ -1565,6 +1629,14 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 			{
 				uncastedObject = ((Literal.String) constant).value;
 			}
+			else if (constant instanceof Literal.Class)
+			{
+				uncastedObject = Type.getType(((Literal.Class) constant).descriptor);
+			}
+			else if (constant instanceof Literal.Null)
+			{
+				uncastedObject = null;
+			}
 			else
 			{
 				throw new AssertionError("Unknown constant type: " + constant.getClass().getName());
@@ -1585,7 +1657,10 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 					assert uncastedObject instanceof Number;
 					return ((Number) uncastedObject).doubleValue();
 				case STRING:
-					assert uncastedObject instanceof String;
+					assert uncastedObject == null || uncastedObject instanceof String;
+					return uncastedObject;
+				case CLASS:
+					assert uncastedObject == null || uncastedObject instanceof Type;
 					return uncastedObject;
 				default:
 					throw new AssertionError("Invalid group type: " + groupType);

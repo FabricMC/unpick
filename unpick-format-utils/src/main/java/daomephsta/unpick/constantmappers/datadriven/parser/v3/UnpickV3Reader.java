@@ -205,17 +205,17 @@ public final class UnpickV3Reader implements AutoCloseable
 			switch (lastTokenType)
 			{
 				case IDENTIFIER:
-					if (!"format".equals(token))
+					if ("format".equals(token))
 					{
-						throw expectedTokenError("constant", token);
+						if (format != null)
+						{
+							throw parseError("Duplicate format declaration");
+						}
+						expectToken("=");
+						format = parseGroupFormat();
+						break;
 					}
-					if (format != null)
-					{
-						throw parseError("Duplicate format declaration");
-					}
-					expectToken("=");
-					format = parseGroupFormat();
-					break;
+					// fallthrough
 				case OPERATOR: case INTEGER: case DOUBLE: case CHAR: case STRING:
 					int constantLine = lastTokenLine;
 					int constantColumn = lastTokenColumn;
@@ -240,14 +240,14 @@ public final class UnpickV3Reader implements AutoCloseable
 
 	private static boolean isDataTypeValidInGroup(DataType type)
 	{
-		return type == DataType.INT || type == DataType.LONG || type == DataType.FLOAT || type == DataType.DOUBLE || type == DataType.STRING;
+		return type == DataType.INT || type == DataType.LONG || type == DataType.FLOAT || type == DataType.DOUBLE || type == DataType.STRING || type == DataType.CLASS;
 	}
 
 	private static boolean isMatchingConstantType(DataType type, Literal.ConstantKey constantKey)
 	{
 		if (constantKey instanceof Literal.Long)
 		{
-			return type != DataType.STRING;
+			return type != DataType.STRING && type != DataType.CLASS;
 		}
 		else if (constantKey instanceof Literal.Double)
 		{
@@ -256,6 +256,14 @@ public final class UnpickV3Reader implements AutoCloseable
 		else if (constantKey instanceof Literal.String)
 		{
 			return type == DataType.STRING;
+		}
+		else if (constantKey instanceof Literal.Class)
+		{
+			return type == DataType.CLASS;
+		}
+		else if (constantKey instanceof Literal.Null)
+		{
+			return type == DataType.STRING || type == DataType.CLASS;
 		}
 		else
 		{
@@ -301,6 +309,27 @@ public final class UnpickV3Reader implements AutoCloseable
 			for (GroupConstant constant : constants)
 			{
 				if (constant.key instanceof Literal.String && ((Literal.String) constant.key).value.equals(newValue))
+				{
+					return true;
+				}
+			}
+		}
+		else if (newConstant.key instanceof Literal.Class)
+		{
+			String newValue = ((Literal.Class) newConstant.key).descriptor;
+			for (GroupConstant constant : constants)
+			{
+				if (constant.key instanceof Literal.Class && ((Literal.Class) constant.key).descriptor.equals(newValue))
+				{
+					return true;
+				}
+			}
+		}
+		else if (newConstant.key instanceof Literal.Null)
+		{
+			for (GroupConstant constant : constants)
+			{
+				if (constant.key instanceof Literal.Null)
 				{
 					return true;
 				}
@@ -355,11 +384,46 @@ public final class UnpickV3Reader implements AutoCloseable
 			case DOUBLE:
 				return new Literal.Double(parseDouble(token, negative));
 			case CHAR:
+				if (negative)
+				{
+					throw expectedTokenError("number", token);
+				}
 				return new Literal.Long(unquoteChar(token));
 			case STRING:
+				if (negative)
+				{
+					throw expectedTokenError("number", token);
+				}
 				return new Literal.String(unquoteString(token));
+			case IDENTIFIER:
+				switch (token)
+				{
+					case "NaN":
+						if (negative)
+						{
+							throw expectedTokenError("number", token);
+						}
+						return new Literal.Double(Double.NaN);
+					case "Infinity":
+						return new Literal.Double(negative ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
+					case "null":
+						if (negative)
+						{
+							throw expectedTokenError("number", token);
+						}
+						return Literal.Null.INSTANCE;
+					case "class":
+						if (negative)
+						{
+							throw expectedTokenError("number", token);
+						}
+						String desc = nextToken(TokenType.CLASS_DESCRIPTOR);
+						return new Literal.Class(desc);
+					default:
+						throw expectedTokenError(negative ? "number" : "constant", token);
+				}
 			default:
-				throw expectedTokenError("number", token);
+				throw expectedTokenError(negative ? "number" : "constant", token);
 		}
 	}
 
@@ -530,7 +594,7 @@ public final class UnpickV3Reader implements AutoCloseable
 	{
 		String className = parseClassName();
 		String fieldName = nextToken(TokenType.IDENTIFIER);
-		String fieldDesc = nextToken(TokenType.FIELD_DESCRIPTOR);
+		String fieldDesc = nextToken(TokenType.CLASS_DESCRIPTOR);
 		String groupName = nextToken(TokenType.IDENTIFIER);
 		String token = nextToken();
 		if (lastTokenType != TokenType.NEWLINE && lastTokenType != TokenType.EOF)
@@ -614,6 +678,8 @@ public final class UnpickV3Reader implements AutoCloseable
 				return DataType.CHAR;
 			case "String":
 				return DataType.STRING;
+			case "Class":
+				return DataType.CLASS;
 			default:
 				throw expectedTokenError("data type", token);
 		}
@@ -1014,7 +1080,7 @@ public final class UnpickV3Reader implements AutoCloseable
 		lastTokenColumn = column;
 		lastTokenLine = reader.getLineNumber();
 
-		if (typeHint == TokenType.FIELD_DESCRIPTOR)
+		if (typeHint == TokenType.CLASS_DESCRIPTOR)
 		{
 			if (skipFieldDescriptor(true))
 			{
@@ -1131,7 +1197,7 @@ public final class UnpickV3Reader implements AutoCloseable
 				return false;
 		}
 
-		lastTokenType = TokenType.FIELD_DESCRIPTOR;
+		lastTokenType = TokenType.CLASS_DESCRIPTOR;
 		return true;
 	}
 
@@ -1475,7 +1541,7 @@ public final class UnpickV3Reader implements AutoCloseable
 		STRING("string"),
 		INDENT("indent"),
 		NEWLINE("newline"),
-		FIELD_DESCRIPTOR("field descriptor"),
+		CLASS_DESCRIPTOR("classF descriptor"),
 		METHOD_DESCRIPTOR("method descriptor"),
 		OPERATOR("operator"),
 		EOF("eof");

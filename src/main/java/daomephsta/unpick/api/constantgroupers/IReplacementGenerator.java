@@ -59,7 +59,7 @@ public interface IReplacementGenerator
 		Set<Integer> getParameterSources();
 		Set<IParameterUsage> getParameterUsages();
 		Set<AbstractInsnNode> getUsages();
-		Set<DataType> getNarrowTypeInterpretations();
+		Set<DataType> getTypeInterpretations();
 	}
 
 	@ApiStatus.NonExtendable

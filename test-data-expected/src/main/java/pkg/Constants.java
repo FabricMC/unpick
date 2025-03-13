@@ -79,7 +79,12 @@ public class Constants
 			DOUBLE_CONST = blackBoxDouble(5.3D);
 
 	public static final String STRING_CONST_FOO = blackBoxString("foo"),
-			STRING_CONST_BAR = blackBoxString("bar");
+			STRING_CONST_BAR = blackBoxString("bar"),
+			STRING_CONST_NULL = blackBoxString(null);
+
+	public static final Class<?> CLASS_CONST_STRING = blackBoxClass(String.class),
+			CLASS_CONST_INTEGER = blackBoxClass(Integer.class),
+			CLASS_CONST_NULL = blackBoxClass(null);
 
 	// Some black box methods to prevent javac from inlining these expected result constants
 	private static byte blackBoxByte(int b)
@@ -122,6 +127,11 @@ public class Constants
 		return s;
 	}
 
+	private static Class<?> blackBoxClass(Class<?> c)
+	{
+		return c;
+	}
+
 	public static void consumeByte(byte b)
 	{
 	}
@@ -155,6 +165,10 @@ public class Constants
 	}
 
 	public static void consumeString(String s)
+	{
+	}
+
+	public static void consumeClass(Class<?> c)
 	{
 	}
 }

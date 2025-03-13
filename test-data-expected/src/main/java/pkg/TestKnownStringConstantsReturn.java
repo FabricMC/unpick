@@ -11,4 +11,9 @@ public class TestKnownStringConstantsReturn
 	{
 		return Constants.STRING_CONST_BAR;
 	}
+
+	public String test3()
+	{
+		return Constants.STRING_CONST_NULL;
+	}
 }

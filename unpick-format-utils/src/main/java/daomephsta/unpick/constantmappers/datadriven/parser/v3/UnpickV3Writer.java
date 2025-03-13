@@ -142,6 +142,14 @@ public final class UnpickV3Writer extends UnpickV3Visitor
 		{
 			output.append(quoteString(((Literal.String) constantKey).value, '"'));
 		}
+		else if (constantKey instanceof Literal.Class)
+		{
+			output.append("class ").append(((Literal.Class) constantKey).descriptor);
+		}
+		else if (constantKey instanceof Literal.Null)
+		{
+			output.append("null");
+		}
 		else
 		{
 			throw new AssertionError("Unknown group constant key type: " + constantKey.getClass().getName());
@@ -218,13 +226,17 @@ public final class UnpickV3Writer extends UnpickV3Visitor
 
 	private void writeDataType(DataType dataType)
 	{
-		if (dataType == DataType.STRING)
+		switch (dataType)
 		{
-			output.append("String");
-		}
-		else
-		{
-			writeLowerCaseEnum(dataType);
+			case STRING:
+				output.append("String");
+				break;
+			case CLASS:
+				output.append("Class");
+				break;
+			default:
+				writeLowerCaseEnum(dataType);
+				break;
 		}
 	}
 

@@ -15,7 +15,7 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 	private Set<Integer> parameterSources;
 	private Set<IReplacementGenerator.IParameterUsage> parameterUsages;
 	private Set<AbstractInsnNode> usages;
-	private Set<DataType> narrowTypeInterpretations;
+	private Set<DataType> typeInterpretations;
 
 	public UnpickValue(Type dataType)
 	{
@@ -23,9 +23,9 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 		this.parameterSources = new HashSet<>();
 		this.parameterUsages = new HashSet<>();
 		this.usages = new HashSet<>();
-		this.narrowTypeInterpretations = new HashSet<>();
+		this.typeInterpretations = new HashSet<>();
 		if (dataType != null)
-			this.addNarrowTypeInterpretationFromDesc(dataType.getDescriptor());
+			this.addTypeInterpretationFromDesc(dataType.getDescriptor());
 	}
 
 	public UnpickValue(Type dataType, UnpickValue cloneOf)
@@ -34,9 +34,9 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 		this.parameterSources = cloneOf.getParameterSources();
 		this.parameterUsages = cloneOf.getParameterUsages();
 		this.usages = cloneOf.getUsages();
-		this.narrowTypeInterpretations = cloneOf.getNarrowTypeInterpretations();
+		this.typeInterpretations = cloneOf.getTypeInterpretations();
 		if (dataType != null)
-			this.addNarrowTypeInterpretationFromDesc(dataType.getDescriptor());
+			this.addTypeInterpretationFromDesc(dataType.getDescriptor());
 	}
 
 	@Override
@@ -70,9 +70,9 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 	}
 
 	@Override
-	public Set<DataType> getNarrowTypeInterpretations()
+	public Set<DataType> getTypeInterpretations()
 	{
-		return narrowTypeInterpretations;
+		return typeInterpretations;
 	}
 
 	void setParameterSources(Set<Integer> parameterSources)
@@ -90,12 +90,12 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 		this.usages = usages;
 	}
 
-	void setNarrowTypeInterpretations(Set<DataType> narrowTypeInterpretations)
+	void setTypeInterpretations(Set<DataType> typeInterpretations)
 	{
-		this.narrowTypeInterpretations = narrowTypeInterpretations;
+		this.typeInterpretations = typeInterpretations;
 	}
 
-	void addNarrowTypeInterpretationFromDesc(String desc)
+	void addTypeInterpretationFromDesc(String desc)
 	{
 		DataType dataType;
 		switch (desc)
@@ -109,10 +109,28 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 			case "S":
 				dataType = DataType.SHORT;
 				break;
+			case "I":
+				dataType = DataType.INT;
+				break;
+			case "J":
+				dataType = DataType.LONG;
+				break;
+			case "F":
+				dataType = DataType.FLOAT;
+				break;
+			case "D":
+				dataType = DataType.DOUBLE;
+				break;
+			case "Ljava/lang/String;":
+				dataType = DataType.STRING;
+				break;
+			case "Ljava/lang/Class;":
+				dataType = DataType.CLASS;
+				break;
 			default:
 				return;
 		}
-		getNarrowTypeInterpretations().add(dataType);
+		typeInterpretations.add(dataType);
 	}
 
 	@Override
@@ -133,7 +151,7 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 			return false;
 		if (!usages.equals(that.usages))
 			return false;
-		return narrowTypeInterpretations.equals(that.narrowTypeInterpretations);
+		return typeInterpretations.equals(that.typeInterpretations);
 	}
 
 	@Override
@@ -143,7 +161,7 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 		result = 31 * result + parameterSources.hashCode();
 		result = 31 * result + parameterUsages.hashCode();
 		result = 31 * result + usages.hashCode();
-		result = 31 * result + narrowTypeInterpretations.hashCode();
+		result = 31 * result + typeInterpretations.hashCode();
 		return result;
 	}
 

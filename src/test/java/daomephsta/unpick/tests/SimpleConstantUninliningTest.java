@@ -100,13 +100,25 @@ public class SimpleConstantUninliningTest
 	@Test
 	public void testKnownStringConstantsReturn()
 	{
-		testConstantReturn("pkg.TestKnownStringConstantsReturn", "stringConsts", "Ljava/lang/String;", 2);
+		testConstantReturn("pkg.TestKnownStringConstantsReturn", "stringConsts", "Ljava/lang/String;", 3);
 	}
 
 	@Test
 	public void testKnownStringConstantsParameter()
 	{
 		testConstantParameter("pkg.TestKnownStringConstantsParameter");
+	}
+
+	@Test
+	public void testKnownClassConstantsReturn()
+	{
+		testConstantReturn("pkg.TestKnownClassConstantsReturn", "classConsts", "Ljava/lang/Class;", 3);
+	}
+
+	@Test
+	public void testKnownClassConstantsParameter()
+	{
+		testConstantParameter("pkg.TestKnownClassConstantsParameter");
 	}
 
 	@Test
@@ -140,6 +152,7 @@ public class SimpleConstantUninliningTest
 			data.visitTargetMethod(TargetMethod.Builder.builder("pkg.Constants", "consumeFloat", "(F)V").paramGroup(0, "floatConsts").build());
 			data.visitTargetMethod(TargetMethod.Builder.builder("pkg.Constants", "consumeDouble", "(D)V").paramGroup(0, "doubleConsts").build());
 			data.visitTargetMethod(TargetMethod.Builder.builder("pkg.Constants", "consumeString", "(Ljava/lang/String;)V").paramGroup(0, "stringConsts").build());
+			data.visitTargetMethod(TargetMethod.Builder.builder("pkg.Constants", "consumeClass", "(Ljava/lang/Class;)V").paramGroup(0, "classConsts").build());
 		});
 	}
 
@@ -203,6 +216,12 @@ public class SimpleConstantUninliningTest
 		data.visitGroupDefinition(GroupDefinition.Builder.named(DataType.STRING, "stringConsts")
 				.constant(new GroupConstant(new Literal.String("foo"), new FieldExpression("pkg.Constants", "STRING_CONST_FOO", null, true)))
 				.constant(new GroupConstant(new Literal.String("bar"), new FieldExpression("pkg.Constants", "STRING_CONST_BAR", null, true)))
+				.constant(new GroupConstant(Literal.Null.INSTANCE, new FieldExpression("pkg.Constants", "STRING_CONST_NULL", null, true)))
+				.build());
+		data.visitGroupDefinition(GroupDefinition.Builder.named(DataType.CLASS, "classConsts")
+				.constant(new GroupConstant(new Literal.Class("Ljava/lang/String;"), new FieldExpression("pkg.Constants", "CLASS_CONST_STRING", null, true)))
+				.constant(new GroupConstant(new Literal.Class("Ljava/lang/Integer;"), new FieldExpression("pkg.Constants", "CLASS_CONST_INTEGER", null, true)))
+				.constant(new GroupConstant(Literal.Null.INSTANCE, new FieldExpression("pkg.Constants", "CLASS_CONST_NULL", null, true)))
 				.build());
 	}
 }

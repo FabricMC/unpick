@@ -86,4 +86,23 @@ public abstract class Literal
 			this.value = value;
 		}
 	}
+
+	public static final class Class extends ConstantKey
+	{
+		public final java.lang.String descriptor;
+
+		public Class(java.lang.String descriptor)
+		{
+			this.descriptor = descriptor;
+		}
+	}
+
+	public static final class Null extends ConstantKey
+	{
+		public static final Null INSTANCE = new Null();
+
+		private Null()
+		{
+		}
+	}
 }

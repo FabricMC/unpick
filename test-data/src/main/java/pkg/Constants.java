@@ -79,7 +79,12 @@ public class Constants
 			DOUBLE_CONST = 5.3D;
 
 	public static final String STRING_CONST_FOO = "foo",
-			STRING_CONST_BAR = "bar";
+			STRING_CONST_BAR = "bar",
+			STRING_CONST_NULL = null;
+
+	public static final Class<?> CLASS_CONST_STRING = String.class,
+			CLASS_CONST_INTEGER = Integer.class,
+			CLASS_CONST_NULL = null;
 
 	public static void consumeByte(byte b)
 	{
@@ -114,6 +119,10 @@ public class Constants
 	}
 
 	public static void consumeString(String s)
+	{
+	}
+
+	public static void consumeClass(Class<?> c)
 	{
 	}
 }

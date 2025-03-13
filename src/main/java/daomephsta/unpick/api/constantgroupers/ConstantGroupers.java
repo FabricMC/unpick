@@ -11,6 +11,11 @@ public final class ConstantGroupers
 	{
 	}
 
+	public static IConstantGrouper dataDriven(InputStream... mappingSources)
+	{
+		return new DataDrivenConstantGrouper(null, mappingSources);
+	}
+
 	public static IConstantGrouper dataDriven(IConstantResolver constantResolver, InputStream... mappingSources)
 	{
 		return new DataDrivenConstantGrouper(constantResolver, mappingSources);

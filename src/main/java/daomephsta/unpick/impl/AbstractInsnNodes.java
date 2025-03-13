@@ -11,13 +11,16 @@ public class AbstractInsnNodes implements Opcodes
 {
 	public static boolean hasLiteralValue(AbstractInsnNode insn)
 	{
-		return insn.getOpcode() >= ICONST_M1 && insn.getOpcode() <= LDC;
+		return insn.getOpcode() >= ACONST_NULL && insn.getOpcode() <= LDC;
 	}
 
+	@Nullable
 	public static Object getLiteralValue(AbstractInsnNode insn)
 	{
 		switch (insn.getOpcode())
 		{
+		case ACONST_NULL:
+			return null;
 		case ICONST_M1:
 		case ICONST_0:
 		case ICONST_1:
@@ -50,24 +53,6 @@ public class AbstractInsnNodes implements Opcodes
 		default :
 			throw new UnsupportedOperationException("No value retrieval method programmed for " + Utils.visitableToString(insn::accept).trim());
 		}
-	}
-
-	public static boolean isLiteral(AbstractInsnNode insn, Object literal)
-	{
-		Object literalValue = getLiteralValue(insn);
-		// Chars are stored as ints, so conversion is necessary
-		if (literal instanceof Character && literalValue instanceof Integer)
-		{
-			Character charLiteral = (char) (int) literalValue;
-			return literal.equals(charLiteral);
-		}
-		// Compare integers by long value, to support widening comparisons
-		if (Utils.isIntegral(literalValue) && Utils.isIntegral(literal))
-			return ((Number) literalValue).longValue() == ((Number) literal).longValue();
-		// Compare floating point numbers by double value, to support widening comparisons
-		if (Utils.isFloatingPoint(literalValue) && Utils.isFloatingPoint(literal))
-			return ((Number) literalValue).doubleValue() == ((Number) literal).doubleValue();
-		return literalValue.equals(literal);
 	}
 
 	@Nullable
