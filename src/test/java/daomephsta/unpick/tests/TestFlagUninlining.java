@@ -11,7 +11,7 @@ import daomephsta.unpick.tests.lib.TestUtils;
 
 import org.junit.jupiter.api.Test;
 
-public class FlagUninliningTest
+public class TestFlagUninlining
 {
 	@Test
 	public void testKnownByteFlagsReturn()

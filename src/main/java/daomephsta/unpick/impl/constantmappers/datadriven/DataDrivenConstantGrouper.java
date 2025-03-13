@@ -271,7 +271,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 			for (ScopedGroupInfo scope : findMatchingScopes(context, defaultGroup))
 			{
 				ConstantReplacementInfo replacementInfo = scope.constantReplacementMap.get(castedLiteral);
-				if (!replacementInfo.strict || compatibleType == literalType)
+				if (replacementInfo != null && (!replacementInfo.strict || compatibleType == literalType))
 				{
 					DataType narrowedLiteralType = getNarrowedLiteralType(context, target, literalType, literal);
 					replaceWithExpression(context, defaultGroup, replacementInfo.replacementExpression, narrowedLiteralType);

@@ -69,6 +69,7 @@ public class AbstractInsnNodes implements Opcodes
 		return null;
 	}
 
+	@Nullable
 	public static AbstractInsnNode nextInstruction(AbstractInsnNode insn)
 	{
 		while ((insn = insn.getNext()) != null)

@@ -11,7 +11,7 @@ import daomephsta.unpick.tests.lib.TestUtils;
 
 import org.junit.jupiter.api.Test;
 
-public class SimpleConstantUninliningTest
+public class TestSimpleConstantUninlining
 {
 	@Test
 	public void testKnownByteConstantsReturn()
