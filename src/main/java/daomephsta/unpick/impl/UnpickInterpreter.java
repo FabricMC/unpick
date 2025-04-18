@@ -35,6 +35,10 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 		@Override
 		public BasicValue newValue(Type type)
 		{
+			if (type == null)
+			{
+				return super.newValue(null);
+			}
 			switch (type.getSort())
 			{
 				case Type.OBJECT:

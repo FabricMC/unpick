@@ -7,6 +7,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 public class UnpickValue implements IReplacementGenerator.IDataflowValue
@@ -143,7 +144,7 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 
 		UnpickValue that = (UnpickValue) o;
 
-		if (!dataType.equals(that.dataType))
+		if (!Objects.equals(dataType, that.dataType))
 			return false;
 		if (!parameterSources.equals(that.parameterSources))
 			return false;
@@ -157,7 +158,7 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue
 	@Override
 	public int hashCode()
 	{
-		int result = dataType.hashCode();
+		int result = Objects.hashCode(dataType);
 		result = 31 * result + parameterSources.hashCode();
 		result = 31 * result + parameterUsages.hashCode();
 		result = 31 * result + usages.hashCode();

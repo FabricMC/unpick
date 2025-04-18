@@ -1,6 +1,7 @@
 package daomephsta.unpick.impl.constantmappers.datadriven;
 
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
+import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.api.constantgroupers.ConstantGroup;
 import daomephsta.unpick.api.constantgroupers.IConstantGrouper;
 import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
@@ -67,6 +68,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
@@ -79,10 +81,14 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 	private static final Logger LOGGER = Logger.getLogger("unpick");
 
 	private final Data data = new Data();
+	private final IInheritanceChecker inheritanceChecker;
+	private final Map<MemberKey, TargetMethod> targetMethodCache = new ConcurrentHashMap<>();
+	private final Set<MemberKey> noTargetMethodCache = ConcurrentHashMap.newKeySet();
 	private final ConstantGroup defaultGroup = new ConstantGroup("<default>", this::replaceDefault);
 
-	public DataDrivenConstantGrouper(@Nullable IConstantResolver constantResolver, InputStream... mappingSources)
+	public DataDrivenConstantGrouper(@Nullable IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker, InputStream... mappingSources)
 	{
+		this.inheritanceChecker = inheritanceChecker;
 		for (InputStream mappingSource : mappingSources)
 		{
 			BufferedReader reader = new BufferedReader(new InputStreamReader(mappingSource, StandardCharsets.UTF_8));
@@ -128,8 +134,9 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 	}
 
 	@VisibleForTesting
-	public DataDrivenConstantGrouper(Consumer<UnpickV3Visitor> dataProvider)
+	public DataDrivenConstantGrouper(IInheritanceChecker inheritanceChecker, Consumer<UnpickV3Visitor> dataProvider)
 	{
+		this.inheritanceChecker = inheritanceChecker;
 		dataProvider.accept(data);
 	}
 
@@ -145,7 +152,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 	@Nullable
 	public ConstantGroup getMethodReturnGroup(String methodOwner, String methodName, String methodDescriptor)
 	{
-		TargetMethod targetMethod = data.targetMethods.get(new MemberKey(methodOwner.replace('/', '.'), methodName, methodDescriptor));
+		TargetMethod targetMethod = findTargetMethod(methodOwner, methodName, methodDescriptor);
 		return targetMethod == null || targetMethod.returnGroup == null ? null : getGroupByName(targetMethod.returnGroup);
 	}
 
@@ -153,13 +160,64 @@ public class DataDrivenConstantGrouper implements IConstantGrouper
 	@Nullable
 	public ConstantGroup getMethodParameterGroup(String methodOwner, String methodName, String methodDescriptor, int parameterIndex)
 	{
-		TargetMethod targetMethod = data.targetMethods.get(new MemberKey(methodOwner.replace('/', '.'), methodName, methodDescriptor));
+		TargetMethod targetMethod = findTargetMethod(methodOwner, methodName, methodDescriptor);
 		if (targetMethod == null)
 		{
 			return null;
 		}
 		String groupName = targetMethod.paramGroups.get(parameterIndex);
 		return groupName == null ? null : getGroupByName(groupName);
+	}
+
+	private TargetMethod findTargetMethod(String methodOwner, String methodName, String methodDescriptor)
+	{
+		MemberKey memberKey = new MemberKey(methodOwner.replace('/', '.'), methodName, methodDescriptor);
+		if (noTargetMethodCache.contains(memberKey))
+		{
+			return null;
+		}
+
+		TargetMethod targetMethod = targetMethodCache.get(memberKey);
+		if (targetMethod != null)
+		{
+			return targetMethod;
+		}
+
+		targetMethod = data.targetMethods.get(memberKey);
+		if (targetMethod == null)
+		{
+			IInheritanceChecker.ClassInfo classInfo = inheritanceChecker.getClassInfo(methodOwner);
+			if (classInfo != null)
+			{
+				if (classInfo.getSuperClass() != null)
+				{
+					targetMethod = findTargetMethod(classInfo.getSuperClass(), methodName, methodDescriptor);
+				}
+
+				if (targetMethod == null)
+				{
+					for (String itf : classInfo.getInterfaces())
+					{
+						targetMethod = findTargetMethod(itf, methodName, methodDescriptor);
+						if (targetMethod != null)
+						{
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		if (targetMethod == null)
+		{
+			noTargetMethodCache.add(memberKey);
+		}
+		else
+		{
+			targetMethodCache.put(memberKey, targetMethod);
+		}
+
+		return targetMethod;
 	}
 
 	@Override

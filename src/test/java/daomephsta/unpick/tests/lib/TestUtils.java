@@ -2,6 +2,7 @@ package daomephsta.unpick.tests.lib;
 
 import daomephsta.unpick.api.ConstantUninliner;
 import daomephsta.unpick.api.classresolvers.ClassResolvers;
+import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
 import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
 
@@ -26,9 +27,10 @@ public class TestUtils
 		ClassNode clazz = readClass(TEST_DATA, className);
 		ClassNode expectedClass = readClass(TEST_DATA_EXPECTED, className);
 
+		IClassResolver classResolver = ClassResolvers.fromPath(TEST_DATA).chain(ClassResolvers.classpath());
 		ConstantUninliner.builder()
-			.grouper(new DataDrivenConstantGrouper(dataProvider))
-			.classResolver(ClassResolvers.fromPath(TEST_DATA).chain(ClassResolvers.classpath()))
+			.grouper(new DataDrivenConstantGrouper(classResolver.asInheritanceChecker(), dataProvider))
+			.classResolver(classResolver)
 			.build()
 			.transform(clazz);
 
