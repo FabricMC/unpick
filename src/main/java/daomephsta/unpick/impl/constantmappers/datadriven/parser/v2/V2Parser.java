@@ -11,57 +11,52 @@ import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException
 import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader;
 import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.TargetMethodDefinitionVisitor;
 import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.Visitor;
-import daomephsta.unpick.impl.representations.*;
+import daomephsta.unpick.impl.representations.FlagConstantGroup;
+import daomephsta.unpick.impl.representations.FlagDefinition;
+import daomephsta.unpick.impl.representations.ReplacementInstructionGenerator;
+import daomephsta.unpick.impl.representations.SimpleConstantDefinition;
+import daomephsta.unpick.impl.representations.SimpleConstantGroup;
+import daomephsta.unpick.impl.representations.TargetMethods;
 import daomephsta.unpick.impl.representations.TargetMethods.DuplicateMappingException;
 import daomephsta.unpick.impl.representations.TargetMethods.TargetMethodBuilder;
 
-public class V2Parser implements Visitor
-{
+public class V2Parser implements Visitor {
 	private final Map<String, ReplacementInstructionGenerator> constantGroups;
 	private final TargetMethods.Builder targetMethodsBuilder;
 	private int lineNumber;
 
-	public V2Parser(Map<String, ReplacementInstructionGenerator> constantGroups, TargetMethods.Builder targetMethodsBuilder)
-	{
+	public V2Parser(Map<String, ReplacementInstructionGenerator> constantGroups, TargetMethods.Builder targetMethodsBuilder) {
 		this.constantGroups = constantGroups;
 		this.targetMethodsBuilder = targetMethodsBuilder;
 	}
 
-	public static void parse(InputStream mappingSource, Map<String, ReplacementInstructionGenerator> constantGroups, TargetMethods.Builder targetMethodsBuilder) throws IOException
-	{
-		try (UnpickV2Reader unpickDefinitions = new UnpickV2Reader(mappingSource))
-		{
+	public static void parse(InputStream mappingSource, Map<String, ReplacementInstructionGenerator> constantGroups, TargetMethods.Builder targetMethodsBuilder) throws IOException {
+		try (UnpickV2Reader unpickDefinitions = new UnpickV2Reader(mappingSource)) {
 			unpickDefinitions.accept(new V2Parser(constantGroups, targetMethodsBuilder));
 		}
 	}
-	
+
 	@Override
-	public void visitLineNumber(int lineNumber)
-	{
+	public void visitLineNumber(int lineNumber) {
 		this.lineNumber = lineNumber;
 	}
-	
+
 	@Override
-	public void visitSimpleConstantDefinition(String groupId, String owner, String name, String value, String descriptor)
-	{
+	public void visitSimpleConstantDefinition(String groupId, String owner, String name, String value, String descriptor) {
 		ReplacementInstructionGenerator group = constantGroups.computeIfAbsent(groupId, k -> new SimpleConstantGroup(k));
 		SimpleConstantDefinition constant = createSimpleConstantDefinition(owner, name, value, descriptor);
-		if (group instanceof SimpleConstantGroup)
+		if (group instanceof SimpleConstantGroup) {
 			((SimpleConstantGroup) group).add(constant);
-		else
+		} else {
 			throw new UnpickSyntaxException(lineNumber, String.format("Cannot add simple constant to %s '%s'", group.getClass().getSimpleName(), groupId));
+		}
 	}
 
-	private SimpleConstantDefinition createSimpleConstantDefinition(String owner, String name, String value, String descriptor)
-	{
-		if (value != null && descriptor != null)
-		{
-			try 
-			{
+	private SimpleConstantDefinition createSimpleConstantDefinition(String owner, String name, String value, String descriptor) {
+		if (value != null && descriptor != null) {
+			try {
 				return new SimpleConstantDefinition(owner, name, Type.getType(descriptor), value);
-			}
-			catch (IllegalArgumentException e)
-			{
+			} catch (IllegalArgumentException e) {
 				throw new UnpickSyntaxException(lineNumber, "Unable to parse descriptor " + descriptor);
 			}
 		}
@@ -69,26 +64,21 @@ public class V2Parser implements Visitor
 	}
 
 	@Override
-	public void visitFlagConstantDefinition(String groupId, String owner, String name, String value, String descriptor)
-	{
+	public void visitFlagConstantDefinition(String groupId, String owner, String name, String value, String descriptor) {
 		ReplacementInstructionGenerator group = constantGroups.computeIfAbsent(groupId, k -> new FlagConstantGroup(k));
 		FlagDefinition constant = createFlagDefinition(owner, name, value, descriptor);
-		if (group instanceof FlagConstantGroup)
+		if (group instanceof FlagConstantGroup) {
 			((FlagConstantGroup) group).add(constant);
-		else
+		} else {
 			throw new UnpickSyntaxException(lineNumber, String.format("Cannot add flag constant to %s '%s'", group.getClass().getSimpleName(), groupId));
+		}
 	}
 
-	private FlagDefinition createFlagDefinition(String owner, String name, String value, String descriptor)
-	{
-		if (value != null && descriptor != null)
-		{
-			try 
-			{
+	private FlagDefinition createFlagDefinition(String owner, String name, String value, String descriptor) {
+		if (value != null && descriptor != null) {
+			try {
 				return new FlagDefinition(owner, name, Type.getType(descriptor), value);
-			}
-			catch (IllegalArgumentException e)
-			{
+			} catch (IllegalArgumentException e) {
 				throw new UnpickSyntaxException(lineNumber, "Unable to parse descriptor " + descriptor);
 			}
 		}
@@ -96,51 +86,39 @@ public class V2Parser implements Visitor
 	}
 
 	@Override
-	public TargetMethodDefinitionVisitor visitTargetMethodDefinition(String owner, String name, String descriptor)
-	{
+	public TargetMethodDefinitionVisitor visitTargetMethodDefinition(String owner, String name, String descriptor) {
 		return new TargetMethodParser(targetMethodsBuilder.targetMethod(owner, name, Type.getType(descriptor)), () -> lineNumber);
 	}
-	
-	private static class TargetMethodParser implements TargetMethodDefinitionVisitor
-	{
+
+	private static class TargetMethodParser implements TargetMethodDefinitionVisitor {
 		private final TargetMethods.TargetMethodBuilder targetMethodBuilder;
 		private final IntSupplier lineNumber;
-		
-		public TargetMethodParser(TargetMethodBuilder targetMethodBuilder, IntSupplier lineNumber)
-		{
+
+		TargetMethodParser(TargetMethodBuilder targetMethodBuilder, IntSupplier lineNumber) {
 			this.targetMethodBuilder = targetMethodBuilder;
 			this.lineNumber = lineNumber;
 		}
 
 		@Override
-		public void visitParameterGroupDefinition(int parameterIndex, String group)
-		{
-			try 
-			{
+		public void visitParameterGroupDefinition(int parameterIndex, String group) {
+			try {
 				targetMethodBuilder.parameterGroup(parameterIndex, group);
-			}
-			catch (DuplicateMappingException e)
-			{
+			} catch (DuplicateMappingException e) {
 				throw new UnpickSyntaxException(lineNumber.getAsInt(), e.getMessage());
 			}
 		}
 
 		@Override
-		public void visitReturnGroupDefinition(String group)
-		{
-			try
-			{
+		public void visitReturnGroupDefinition(String group) {
+			try {
 				targetMethodBuilder.returnGroup(group);
-			}
-			catch (DuplicateMappingException e)
-			{
+			} catch (DuplicateMappingException e) {
 				throw new UnpickSyntaxException(lineNumber.getAsInt(), e.getMessage());
 			}
 		}
-		
+
 		@Override
-		public void endVisit()
-		{
+		public void endVisit() {
 			targetMethodBuilder.add();
 		}
 	}

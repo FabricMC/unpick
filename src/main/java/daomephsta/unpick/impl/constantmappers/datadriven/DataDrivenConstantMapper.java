@@ -13,46 +13,38 @@ import daomephsta.unpick.impl.constantmappers.datadriven.parser.v2.V2Parser;
 import daomephsta.unpick.impl.representations.TargetMethods;
 
 /**
- * Maps inlined values to constants using mappings defined in a file
+ * Maps inlined values to constants using mappings defined in a file.
  * @author Daomephsta
  */
-public class DataDrivenConstantMapper extends SimpleAbstractConstantMapper
-{	
+public class DataDrivenConstantMapper extends SimpleAbstractConstantMapper {
 	private static final Logger LOGGER = Logger.getLogger("unpick");
 	private final TargetMethods targetMethods;
 
-	public DataDrivenConstantMapper(IClassResolver classResolver, InputStream... mappingSources)
-	{
+	public DataDrivenConstantMapper(IClassResolver classResolver, InputStream... mappingSources) {
 		super(new HashMap<>());
 		TargetMethods.Builder targetMethodsBuilder = TargetMethods.builder(classResolver);
-		for (InputStream mappingSource : mappingSources)
-		{
-			try
-			{
-				//Avoid buffering, so that only the version specifier bytes are consumed 
-				byte[] version = new byte [2];
+		for (InputStream mappingSource : mappingSources) {
+			try {
+				//Avoid buffering, so that only the version specifier bytes are consumed
+				byte[] version = new byte[2];
 				mappingSource.read(version);
-				if (version[0] == 'v')
-				{
-					switch (version[1])
-					{
-					case '1':
-						V1Parser.INSTANCE.parse(mappingSource, constantGroups, targetMethodsBuilder);
-						break;
-						
-					case '2':
-						V2Parser.parse(mappingSource, constantGroups, targetMethodsBuilder);
-						break;
+				if (version[0] == 'v') {
+					switch (version[1]) {
+						case '1':
+							V1Parser.INSTANCE.parse(mappingSource, constantGroups, targetMethodsBuilder);
+							break;
 
-					default :
-						throw new UnpickSyntaxException(1, "Unknown version " + (char) version[1]);
+						case '2':
+							V2Parser.parse(mappingSource, constantGroups, targetMethodsBuilder);
+							break;
+
+						default :
+							throw new UnpickSyntaxException(1, "Unknown version " + (char) version[1]);
 					}
-				}
-				else
+				} else {
 					throw new UnpickSyntaxException(1, "Missing version");
-			} 
-			catch (IOException e)
-			{
+				}
+			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
@@ -61,8 +53,7 @@ public class DataDrivenConstantMapper extends SimpleAbstractConstantMapper
 	}
 
 	@Override
-	protected TargetMethods getTargetMethods()
-	{
+	protected TargetMethods getTargetMethods() {
 		return targetMethods;
 	}
 }

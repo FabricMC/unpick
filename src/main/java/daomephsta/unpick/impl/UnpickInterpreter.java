@@ -1,5 +1,8 @@
 package daomephsta.unpick.impl;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -8,30 +11,24 @@ import org.objectweb.asm.tree.analysis.Interpreter;
 import org.objectweb.asm.tree.analysis.SourceInterpreter;
 import org.objectweb.asm.tree.analysis.SourceValue;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
-public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcodes
-{
+public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcodes {
 	private final MethodNode method;
 	private final SourceInterpreter delegate = new SourceInterpreter();
 
-	public UnpickInterpreter(MethodNode method)
-	{
+	public UnpickInterpreter(MethodNode method) {
 		super(ASM9);
 		this.method = method;
 	}
 
 	@Override
-	public UnpickValue newParameterValue(boolean isInstanceMethod, int local, Type type)
-	{
+	public UnpickValue newParameterValue(boolean isInstanceMethod, int local, Type type) {
 		UnpickValue value = newValue(type);
 		int localIndex = isInstanceMethod ? 1 : 0;
 		int paramIndex = 0;
-		for (Type argument : Type.getArgumentTypes(method.desc))
-		{
-			if (localIndex == local)
+		for (Type argument : Type.getArgumentTypes(method.desc)) {
+			if (localIndex == local) {
 				break;
+			}
 			localIndex += argument.getSize();
 			paramIndex++;
 		}
@@ -40,44 +37,38 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	}
 
 	@Override
-	public UnpickValue newValue(Type type)
-	{
-		if (type == Type.VOID_TYPE)
+	public UnpickValue newValue(Type type) {
+		if (type == Type.VOID_TYPE) {
 			return null;
+		}
 		return new UnpickValue(delegate.newValue(type));
 	}
 
 	@Override
-	public UnpickValue newOperation(AbstractInsnNode insn)
-	{
+	public UnpickValue newOperation(AbstractInsnNode insn) {
 		UnpickValue value = new UnpickValue(delegate.newOperation(insn));
 		value.getUsages().add(insn);
 		return value;
 	}
 
 	@Override
-	public UnpickValue copyOperation(AbstractInsnNode insn, UnpickValue value)
-	{
+	public UnpickValue copyOperation(AbstractInsnNode insn, UnpickValue value) {
 		return new UnpickValue(delegate.copyOperation(insn, value.getSourceValue()), value);
 	}
 
 	@Override
-	public UnpickValue unaryOperation(AbstractInsnNode insn, UnpickValue value)
-	{
+	public UnpickValue unaryOperation(AbstractInsnNode insn, UnpickValue value) {
 		UnpickValue newValue = new UnpickValue(delegate.unaryOperation(insn, value.getSourceValue()), value);
-		if (insn.getType() == AbstractInsnNode.FIELD_INSN || insn.getType() == AbstractInsnNode.JUMP_INSN || (insn.getOpcode() >= IRETURN && insn.getOpcode() <= RETURN))
-		{
+		if (insn.getType() == AbstractInsnNode.FIELD_INSN || insn.getType() == AbstractInsnNode.JUMP_INSN || (insn.getOpcode() >= IRETURN && insn.getOpcode() <= RETURN)) {
 			newValue.getUsages().add(insn);
 		}
 		return newValue;
 	}
 
 	@Override
-	public UnpickValue binaryOperation(AbstractInsnNode insn, UnpickValue value1, UnpickValue value2)
-	{
+	public UnpickValue binaryOperation(AbstractInsnNode insn, UnpickValue value1, UnpickValue value2) {
 		SourceValue sourceValue = delegate.binaryOperation(insn, value1.getSourceValue(), value2.getSourceValue());
-		switch (insn.getOpcode())
-		{
+		switch (insn.getOpcode()) {
 			case IALOAD:
 			case FALOAD:
 			case AALOAD:
@@ -145,24 +136,18 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	}
 
 	@Override
-	public UnpickValue ternaryOperation(AbstractInsnNode insn, UnpickValue value1, UnpickValue value2, UnpickValue value3)
-	{
+	public UnpickValue ternaryOperation(AbstractInsnNode insn, UnpickValue value1, UnpickValue value2, UnpickValue value3) {
 		return new UnpickValue(delegate.ternaryOperation(insn, value1.getSourceValue(), value2.getSourceValue(), value3.getSourceValue()));
 	}
 
 	@Override
-	public UnpickValue naryOperation(AbstractInsnNode insn, List<? extends UnpickValue> values)
-	{
+	public UnpickValue naryOperation(AbstractInsnNode insn, List<? extends UnpickValue> values) {
 		SourceValue sourceValue = delegate.naryOperation(insn, values.stream().map(UnpickValue::getSourceValue).collect(Collectors.toList()));
-		if (insn.getOpcode() == MULTIANEWARRAY)
-		{
+		if (insn.getOpcode() == MULTIANEWARRAY) {
 			return new UnpickValue(sourceValue);
-		}
-		else
-		{
+		} else {
 			boolean hasThis = insn.getOpcode() != INVOKESTATIC && insn.getOpcode() != INVOKEDYNAMIC;
-			for (int i = hasThis ? 1 : 0; i < values.size(); i++)
-			{
+			for (int i = hasThis ? 1 : 0; i < values.size(); i++) {
 				values.get(i).getMethodUsages().add(new UnpickValue.MethodUsage(insn, hasThis ? i - 1 : i));
 			}
 			UnpickValue value = new UnpickValue(sourceValue);
@@ -172,14 +157,12 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	}
 
 	@Override
-	public void returnOperation(AbstractInsnNode insn, UnpickValue value, UnpickValue expected)
-	{
+	public void returnOperation(AbstractInsnNode insn, UnpickValue value, UnpickValue expected) {
 		// Already handled in unaryOperation
 	}
 
 	@Override
-	public UnpickValue merge(UnpickValue value1, UnpickValue value2)
-	{
+	public UnpickValue merge(UnpickValue value1, UnpickValue value2) {
 		value1.getParameterSources().addAll(value2.getParameterSources());
 		value1.getMethodUsages().addAll(value2.getMethodUsages());
 		value1.getUsages().addAll(value2.getUsages());
