@@ -7,32 +7,33 @@ import java.util.Objects;
  * so that they can be used as a map key.
  * @author Daomephsta
  */
-public class MethodKey
-{
-	private final String owner, name, descriptor;
+public class MethodKey {
+	private final String owner;
+	private final String name;
+	private final String descriptor;
 
-	public MethodKey(String owner, String name, String descriptor)
-	{
+	public MethodKey(String owner, String name, String descriptor) {
 		this.owner = owner;
 		this.name = name;
 		this.descriptor = descriptor;
 	}
 
 	@Override
-	public int hashCode()
-	{
+	public int hashCode() {
 		return Objects.hash(descriptor, name, owner);
 	}
 
 	@Override
-	public boolean equals(Object obj)
-	{
-		if (this == obj)
+	public boolean equals(Object obj) {
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		}
+		if (obj == null) {
 			return false;
-		if (getClass() != obj.getClass())
+		}
+		if (getClass() != obj.getClass()) {
 			return false;
+		}
 		MethodKey other = (MethodKey) obj;
 		return Objects.equals(descriptor, other.descriptor)
 				&& Objects.equals(name, other.name)
@@ -40,8 +41,7 @@ public class MethodKey
 	}
 
 	@Override
-	public String toString()
-	{
+	public String toString() {
 		return String.format("MethodKey (%s.%s descriptor=%s)", owner, name, descriptor);
 	}
 }

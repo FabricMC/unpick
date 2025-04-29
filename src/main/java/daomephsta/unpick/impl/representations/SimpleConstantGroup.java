@@ -13,59 +13,53 @@ import daomephsta.unpick.impl.AbstractInsnNodes;
  * A group of constants represented by {@link SimpleConstantDefinition}s.
  * @author Daomephsta
  */
-public class SimpleConstantGroup extends AbstractConstantGroup<SimpleConstantDefinition>
-{
+public class SimpleConstantGroup extends AbstractConstantGroup<SimpleConstantDefinition> {
 	private static final Logger LOGGER = Logger.getLogger("unpick");
 	private final Map<Object, SimpleConstantDefinition> resolvedConstantDefinitions = new HashMap<>();
-	
-	public SimpleConstantGroup(String id)
-	{
+
+	public SimpleConstantGroup(String id) {
 		super(id);
 	}
-	
+
 	/**
 	 * Adds a constant definition to this group.
 	 * @param constantDefinition a constant definition.
 	 */
 	@Override
-	public void add(SimpleConstantDefinition constantDefinition)
-	{
+	public void add(SimpleConstantDefinition constantDefinition) {
 		LOGGER.info("Loaded " + constantDefinition + " into '" + getId() + "'");
-		if (constantDefinition.isResolved())
+		if (constantDefinition.isResolved()) {
 			acceptResolved(constantDefinition);
-		else 
+		} else {
 			unresolvedConstantDefinitions.add(constantDefinition);
+		}
 	}
 
 	@Override
-	public boolean canReplace(Context context)
-	{
+	public boolean canReplace(Context context) {
 		resolveAllConstants(context.getConstantResolver());
-		return AbstractInsnNodes.hasLiteralValue(context.getArgSeed()) 
+		return AbstractInsnNodes.hasLiteralValue(context.getArgSeed())
 				&& resolvedConstantDefinitions.containsKey(AbstractInsnNodes.getLiteralValue(context.getArgSeed()));
 	}
-	
+
 	@Override
-	public void generateReplacements(Context context)
-	{
+	public void generateReplacements(Context context) {
 		resolveAllConstants(context.getConstantResolver());
-		
+
 		Object literalValue = AbstractInsnNodes.getLiteralValue(context.getArgSeed());
 		SimpleConstantDefinition constantDefinition = resolvedConstantDefinitions.get(literalValue);
-		context.getReplacementSet().addReplacement(context.getArgSeed(), 
-				new FieldInsnNode(Opcodes.GETSTATIC, constantDefinition.getOwner(), 
+		context.getReplacementSet().addReplacement(context.getArgSeed(),
+				new FieldInsnNode(Opcodes.GETSTATIC, constantDefinition.getOwner(),
 						constantDefinition.getName(), constantDefinition.getDescriptorString()));
 	}
-	
+
 	@Override
-	protected void acceptResolved(SimpleConstantDefinition definition)
-	{
+	protected void acceptResolved(SimpleConstantDefinition definition) {
 		resolvedConstantDefinitions.put(definition.getValue(), definition);
 	}
 
 	@Override
-	public String toString()
-	{
+	public String toString() {
 		return String.format("ConstantGroup [Resolved Constant Definitions: %s, Unresolved Constant Definitions: %s]",
 			resolvedConstantDefinitions, unresolvedConstantDefinitions);
 	}

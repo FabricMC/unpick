@@ -4,241 +4,245 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
-import org.objectweb.asm.*;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InsnNode;
 
-public enum IntegerType
-{
-	BYTE(Byte.class, byte.class, Type.BYTE_TYPE, Opcodes.IAND, Opcodes.IRETURN) 
-	{
+public enum IntegerType {
+	BYTE(Byte.class, byte.class, Type.BYTE_TYPE, Opcodes.IAND, Opcodes.IRETURN) {
 		@Override
-		public AbstractInsnNode createLiteralPushInsn(long literal)
-			{ return InstructionFactory.pushesInt((byte) literal); }
+		public AbstractInsnNode createLiteralPushInsn(long literal) {
+			return InstructionFactory.pushesInt((byte) literal);
+		}
 
 		@Override
-		public void appendLiteralPushInsn(MethodVisitor mv, long literal)
-			{ InstructionFactory.pushesInt(mv, (byte) literal); }
-		
-		@Override
-		public Number box(long value)
-			{ return Byte.valueOf((byte) value); }
+		public void appendLiteralPushInsn(MethodVisitor mv, long literal) {
+			InstructionFactory.pushesInt(mv, (byte) literal);
+		}
 
 		@Override
-		public Number binaryNegate(Number value)
-			{ return (byte) ~value.byteValue(); }
+		public Number box(long value) {
+			return Byte.valueOf((byte) value);
+		}
 
 		@Override
-		public long toUnsignedLong(Number value)
-			{ return Byte.toUnsignedLong(value.byteValue()); }
+		public Number binaryNegate(Number value) {
+			return (byte) ~value.byteValue();
+		}
 
 		@Override
-		public Number parse(String valueString)
-			{ return Byte.parseByte(valueString); }
+		public long toUnsignedLong(Number value) {
+			return Byte.toUnsignedLong(value.byteValue());
+		}
+
+		@Override
+		public Number parse(String valueString) {
+			return Byte.parseByte(valueString);
+		}
 	},
-	SHORT(Short.class, short.class, Type.SHORT_TYPE, Opcodes.IAND, Opcodes.IRETURN) 
-	{
+	SHORT(Short.class, short.class, Type.SHORT_TYPE, Opcodes.IAND, Opcodes.IRETURN) {
 		@Override
-		public AbstractInsnNode createLiteralPushInsn(long literal)
-			{ return InstructionFactory.pushesInt((short) literal); }
+		public AbstractInsnNode createLiteralPushInsn(long literal) {
+			return InstructionFactory.pushesInt((short) literal);
+		}
 
 		@Override
-		public void appendLiteralPushInsn(MethodVisitor mv, long literal)
-			{ InstructionFactory.pushesInt(mv, (short) literal); }
-		
-		@Override
-		public Number box(long value)
-			{ return Short.valueOf((short) value); }
+		public void appendLiteralPushInsn(MethodVisitor mv, long literal) {
+			InstructionFactory.pushesInt(mv, (short) literal);
+		}
 
 		@Override
-		public Number binaryNegate(Number value)
-			{ return (short) ~value.shortValue(); }
+		public Number box(long value) {
+			return Short.valueOf((short) value);
+		}
 
 		@Override
-		public long toUnsignedLong(Number value)
-			{ return Short.toUnsignedLong(value.shortValue()); }
+		public Number binaryNegate(Number value) {
+			return (short) ~value.shortValue();
+		}
 
 		@Override
-		public Number parse(String valueString)
-			{ return Short.parseShort(valueString); }
+		public long toUnsignedLong(Number value) {
+			return Short.toUnsignedLong(value.shortValue());
+		}
+
+		@Override
+		public Number parse(String valueString) {
+			return Short.parseShort(valueString);
+		}
 	},
-	INT(Integer.class, int.class, Type.INT_TYPE, Opcodes.IAND, Opcodes.IRETURN) 
-	{
+	INT(Integer.class, int.class, Type.INT_TYPE, Opcodes.IAND, Opcodes.IRETURN) {
 		@Override
-		public AbstractInsnNode createLiteralPushInsn(long literal)
-			{ return InstructionFactory.pushesInt((int) literal); }
+		public AbstractInsnNode createLiteralPushInsn(long literal) {
+			return InstructionFactory.pushesInt((int) literal);
+		}
 
 		@Override
-		public void appendLiteralPushInsn(MethodVisitor mv, long literal)
-			{ InstructionFactory.pushesInt(mv, (int) literal); }
-		
-		@Override
-		public Number box(long value)
-			{ return Integer.valueOf((int) value); }
+		public void appendLiteralPushInsn(MethodVisitor mv, long literal) {
+			InstructionFactory.pushesInt(mv, (int) literal);
+		}
 
 		@Override
-		public Number binaryNegate(Number value)
-			{ return ~value.intValue(); }
+		public Number box(long value) {
+			return Integer.valueOf((int) value);
+		}
 
 		@Override
-		public long toUnsignedLong(Number value)
-			{ return Integer.toUnsignedLong(value.intValue()); }
-		
+		public Number binaryNegate(Number value) {
+			return ~value.intValue();
+		}
+
 		@Override
-		public Number parse(String valueString)
-			{ return Integer.parseInt(valueString); }
+		public long toUnsignedLong(Number value) {
+			return Integer.toUnsignedLong(value.intValue());
+		}
+
+		@Override
+		public Number parse(String valueString) {
+			return Integer.parseInt(valueString);
+		}
 	},
-	LONG(Long.class, long.class, Type.LONG_TYPE, Opcodes.LAND, Opcodes.LRETURN) 
-	{
+	LONG(Long.class, long.class, Type.LONG_TYPE, Opcodes.LAND, Opcodes.LRETURN) {
 		@Override
-		public AbstractInsnNode createLiteralPushInsn(long literal)
-			{ return InstructionFactory.pushesLong(literal); }
+		public AbstractInsnNode createLiteralPushInsn(long literal) {
+			return InstructionFactory.pushesLong(literal);
+		}
 
 		@Override
-		public void appendLiteralPushInsn(MethodVisitor mv, long literal)
-			{ InstructionFactory.pushesLong(mv, literal); }
-		
-		@Override
-		public Number box(long value)
-			{ return Long.valueOf(value); }
+		public void appendLiteralPushInsn(MethodVisitor mv, long literal) {
+			InstructionFactory.pushesLong(mv, literal);
+		}
 
 		@Override
-		public Number binaryNegate(Number value)
-			{ return ~value.longValue(); }
+		public Number box(long value) {
+			return Long.valueOf(value);
+		}
 
 		@Override
-		public long toUnsignedLong(Number value)
-			{ return value.longValue(); }
-		
+		public Number binaryNegate(Number value) {
+			return ~value.longValue();
+		}
+
 		@Override
-		public Number parse(String valueString)
-			{ return Long.parseLong(valueString); }
+		public long toUnsignedLong(Number value) {
+			return value.longValue();
+		}
+
+		@Override
+		public Number parse(String valueString) {
+			return Long.parseLong(valueString);
+		}
 	};
-	
-	private final Class<? extends Number> boxed, primitive;
+
+	private final Class<? extends Number> boxed;
+	private final Class<? extends Number> primitive;
 	private final Type type;
-	private final int logicalOpcodesStart, returnOpcode;
-	
-	private IntegerType(Class<? extends Number> boxed, Class<? extends Number> primitive, Type type, int logicalOpcodesStart, int returnOpcode)
-	{
+	private final int logicalOpcodesStart;
+	private final int returnOpcode;
+
+	IntegerType(Class<? extends Number> boxed, Class<? extends Number> primitive, Type type, int logicalOpcodesStart, int returnOpcode) {
 		this.boxed = boxed;
 		this.primitive = primitive;
 		this.type = type;
 		this.logicalOpcodesStart = logicalOpcodesStart;
 		this.returnOpcode = returnOpcode;
 	}
-	
-	public static IntegerType from(Type type)
-	{ 
-		for (IntegerType intType : values())
-		{
-			if (intType.type == type)
+
+	public static IntegerType from(Type type) {
+		for (IntegerType intType : values()) {
+			if (intType.type == type) {
 				return intType;
+			}
 		}
 		throw new IllegalArgumentException(type + " is not one of: " + describeValidTypes());
 	}
-	
-	public static IntegerType from(Object literal)
-	{ 
-		for (IntegerType type : values())
-		{
-			if (literal.getClass() == type.getBoxClass() || literal.getClass() == type.getPrimitiveClass())
+
+	public static IntegerType from(Object literal) {
+		for (IntegerType type : values()) {
+			if (literal.getClass() == type.getBoxClass() || literal.getClass() == type.getPrimitiveClass()) {
 				return type;
+			}
 		}
 		throw new IllegalArgumentException(literal + " is not one of: " + describeValidTypes());
 	}
 
-	private static String describeValidTypes()
-	{
+	private static String describeValidTypes() {
 		return Arrays.stream(values())
 			.map(t -> t.name().toLowerCase(Locale.ROOT))
 			.collect(Collectors.joining(", "));
 	}
-	
-	public AbstractInsnNode createAndInsn()
-	{
+
+	public AbstractInsnNode createAndInsn() {
 		return new InsnNode(getAndOpcode());
 	}
-	
-	public void appendAndInsn(MethodVisitor mv)
-	{
+
+	public void appendAndInsn(MethodVisitor mv) {
 		mv.visitInsn(getAndOpcode());
 	}
 
-	public int getAndOpcode()
-	{
+	public int getAndOpcode() {
 		return logicalOpcodesStart + 0;
 	}
-	
-	public AbstractInsnNode createOrInsn()
-	{
+
+	public AbstractInsnNode createOrInsn() {
 		return new InsnNode(getOrOpcode());
 	}
-	
-	public void appendOrInsn(MethodVisitor mv)
-	{
+
+	public void appendOrInsn(MethodVisitor mv) {
 		mv.visitInsn(getOrOpcode());
 	}
 
-	public int getOrOpcode()
-	{
+	public int getOrOpcode() {
 		return logicalOpcodesStart + 2;
 	}
-	
-	public AbstractInsnNode createXorInsn()
-	{
+
+	public AbstractInsnNode createXorInsn() {
 		return new InsnNode(getXorOpcode());
 	}
-	
-	public void appendXorInsn(MethodVisitor mv)
-	{
+
+	public void appendXorInsn(MethodVisitor mv) {
 		mv.visitInsn(getXorOpcode());
 	}
 
-	public int getXorOpcode()
-	{
+	public int getXorOpcode() {
 		return logicalOpcodesStart + 4;
 	}
-	
-	public AbstractInsnNode createReturnInsn()
-	{
+
+	public AbstractInsnNode createReturnInsn() {
 		return new InsnNode(getReturnOpcode());
 	}
-	
-	public void appendReturnInsn(MethodVisitor mv)
-	{
+
+	public void appendReturnInsn(MethodVisitor mv) {
 		mv.visitInsn(getReturnOpcode());
 	}
-	
-	public int getReturnOpcode()
-	{
+
+	public int getReturnOpcode() {
 		return returnOpcode;
 	}
 
 	public abstract AbstractInsnNode createLiteralPushInsn(long literal);
-	
+
 	public abstract void appendLiteralPushInsn(MethodVisitor mv, long literal);
-	
-	public String getTypeDescriptor()
-	{
+
+	public String getTypeDescriptor() {
 		return type.getDescriptor();
 	}
-	
-	public Class<? extends Number> getBoxClass()
-	{
+
+	public Class<? extends Number> getBoxClass() {
 		return boxed;
 	}
-	
-	public Class<? extends Number> getPrimitiveClass()
-	{
+
+	public Class<? extends Number> getPrimitiveClass() {
 		return primitive;
 	}
 
 	public abstract Number box(long value);
-	
+
 	public abstract Number binaryNegate(Number value);
 
 	public abstract long toUnsignedLong(Number value);
-	
+
 	public abstract Number parse(String valueString);
 }
