@@ -1,24 +1,19 @@
 package pkg;
 
-public class TestNegatedLongFlagsParameter
-{
-	public void test1()
-	{
+public class TestNegatedLongFlagsParameter {
+	public void test1() {
 		Constants.consumeLong(~0b0100L);
 	}
 
-	public void test2()
-	{
+	public void test2() {
 		Constants.consumeLong(~0b1100L);
 	}
 
-	public void test3()
-	{
+	public void test3() {
 		Constants.consumeLong(~0b1010L);
 	}
 
-	public void test4()
-	{
+	public void test4() {
 		Constants.consumeLong(~0b0111L);
 	}
 }

@@ -1,28 +1,23 @@
 package daomephsta.unpick.impl.inheritancecheckers;
 
+import org.jetbrains.annotations.Nullable;
+
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.impl.Utils;
 
-import org.jetbrains.annotations.Nullable;
-
-public class ChainInheritanceChecker implements IInheritanceChecker
-{
+public class ChainInheritanceChecker implements IInheritanceChecker {
 	private final IInheritanceChecker[] checkers;
 
-	public ChainInheritanceChecker(IInheritanceChecker[] checkers)
-	{
+	public ChainInheritanceChecker(IInheritanceChecker[] checkers) {
 		this.checkers = checkers;
 	}
 
 	@Override
 	@Nullable
-	public ClassInfo getClassInfo(String className)
-	{
-		for (IInheritanceChecker checker : checkers)
-		{
+	public ClassInfo getClassInfo(String className) {
+		for (IInheritanceChecker checker : checkers) {
 			ClassInfo classInfo = checker.getClassInfo(className);
-			if (classInfo != null)
-			{
+			if (classInfo != null) {
 				return classInfo;
 			}
 		}
@@ -31,8 +26,7 @@ public class ChainInheritanceChecker implements IInheritanceChecker
 	}
 
 	@Override
-	public IInheritanceChecker chain(IInheritanceChecker... others)
-	{
+	public IInheritanceChecker chain(IInheritanceChecker... others) {
 		return new ChainInheritanceChecker(Utils.concat(checkers, others));
 	}
 }

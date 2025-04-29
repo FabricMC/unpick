@@ -1,32 +1,27 @@
 package daomephsta.unpick.constantmappers.datadriven.tree.expr;
 
-public final class BinaryExpression extends Expression
-{
+public final class BinaryExpression extends Expression {
 	public final Expression lhs;
 	public final Expression rhs;
 	public final Operator operator;
 
-	public BinaryExpression(Expression lhs, Expression rhs, Operator operator)
-	{
+	public BinaryExpression(Expression lhs, Expression rhs, Operator operator) {
 		this.lhs = lhs;
 		this.rhs = rhs;
 		this.operator = operator;
 	}
 
 	@Override
-	public void accept(ExpressionVisitor visitor)
-	{
+	public void accept(ExpressionVisitor visitor) {
 		visitor.visitBinaryExpression(this);
 	}
 
 	@Override
-	public Expression transform(ExpressionTransformer transformer)
-	{
+	public Expression transform(ExpressionTransformer transformer) {
 		return transformer.transformBinaryExpression(this);
 	}
 
-	public enum Operator
-	{
+	public enum Operator {
 		BIT_OR,
 		BIT_XOR,
 		BIT_AND,

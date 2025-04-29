@@ -1,16 +1,12 @@
 package daomephsta.unpick.constantmappers.datadriven.tree;
 
-public abstract class UnpickV3Visitor
-{
-	public void visitGroupDefinition(GroupDefinition groupDefinition)
-	{
+public abstract class UnpickV3Visitor {
+	public void visitGroupDefinition(GroupDefinition groupDefinition) {
 	}
 
-	public void visitTargetField(TargetField targetField)
-	{
+	public void visitTargetField(TargetField targetField) {
 	}
 
-	public void visitTargetMethod(TargetMethod targetMethod)
-	{
+	public void visitTargetMethod(TargetMethod targetMethod) {
 	}
 }

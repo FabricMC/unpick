@@ -1,10 +1,10 @@
 package daomephsta.unpick.impl;
 
-import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
-import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.jetbrains.annotations.Nullable;
-
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -18,29 +18,23 @@ import org.objectweb.asm.tree.analysis.BasicInterpreter;
 import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.Interpreter;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
+import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
+import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 
-public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcodes
-{
+public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcodes {
 	private static final BasicValue BYTE_VALUE = new BasicValue(Type.BYTE_TYPE);
 	private static final BasicValue SHORT_VALUE = new BasicValue(Type.SHORT_TYPE);
 	private static final BasicValue CHAR_VALUE = new BasicValue(Type.CHAR_TYPE);
 
 	private final MethodNode method;
 	private final IInheritanceChecker inheritanceChecker;
-	private final BasicInterpreter typeTracker = new BasicInterpreter(Opcodes.ASM9)
-	{
+	private final BasicInterpreter typeTracker = new BasicInterpreter(Opcodes.ASM9) {
 		@Override
-		public BasicValue newValue(Type type)
-		{
-			if (type == null)
-			{
+		public BasicValue newValue(Type type) {
+			if (type == null) {
 				return super.newValue(null);
 			}
-			switch (type.getSort())
-			{
+			switch (type.getSort()) {
 				case Type.OBJECT:
 				case Type.ARRAY:
 					return new BasicValue(type);
@@ -56,10 +50,8 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 		}
 
 		@Override
-		public BasicValue unaryOperation(AbstractInsnNode insn, BasicValue value) throws AnalyzerException
-		{
-			switch (insn.getOpcode())
-			{
+		public BasicValue unaryOperation(AbstractInsnNode insn, BasicValue value) throws AnalyzerException {
+			switch (insn.getOpcode()) {
 				case I2B:
 					return BYTE_VALUE;
 				case I2S:
@@ -72,17 +64,12 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 		}
 
 		@Override
-		public BasicValue binaryOperation(AbstractInsnNode insn, BasicValue value1, BasicValue value2) throws AnalyzerException
-		{
-			switch (insn.getOpcode())
-			{
+		public BasicValue binaryOperation(AbstractInsnNode insn, BasicValue value1, BasicValue value2) throws AnalyzerException {
+			switch (insn.getOpcode()) {
 				case BALOAD:
-					if (value1.getType().getDescriptor().equals("[Z"))
-					{
+					if (value1.getType().getDescriptor().equals("[Z")) {
 						return super.binaryOperation(insn, value1, value2);
-					}
-					else
-					{
+					} else {
 						return BYTE_VALUE;
 					}
 				case SALOAD:
@@ -95,26 +82,21 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 		}
 
 		@Override
-		public BasicValue merge(BasicValue value1, BasicValue value2)
-		{
-			if (value1.equals(value2))
-			{
+		public BasicValue merge(BasicValue value1, BasicValue value2) {
+			if (value1.equals(value2)) {
 				return value1;
 			}
 
 			Type type1 = value1.getType();
 			Type type2 = value2.getType();
-			if (type1 == null || type2 == null)
-			{
+			if (type1 == null || type2 == null) {
 				return BasicValue.UNINITIALIZED_VALUE;
 			}
 
 			boolean isIntegral1 = type1.getSort() >= Type.CHAR && type1.getSort() <= Type.INT;
 			boolean isIntegral2 = type2.getSort() >= Type.CHAR && type2.getSort() <= Type.INT;
-			if (isIntegral1 && isIntegral2)
-			{
-				if (type1 == Type.CHAR_TYPE || type2 == Type.CHAR_TYPE)
-				{
+			if (isIntegral1 && isIntegral2) {
+				if (type1 == Type.CHAR_TYPE || type2 == Type.CHAR_TYPE) {
 					return BasicValue.INT_VALUE;
 				}
 
@@ -123,34 +105,35 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 
 			boolean isReference1 = type1.getSort() == Type.OBJECT || type1.getSort() == Type.ARRAY;
 			boolean isReference2 = type2.getSort() == Type.OBJECT || type2.getSort() == Type.ARRAY;
-			if (isReference1 && isReference2)
-			{
-				if (type1.equals(NULL_TYPE))
+			if (isReference1 && isReference2) {
+				if (type1.equals(NULL_TYPE)) {
 					return value2;
-				if (type2.equals(NULL_TYPE))
+				}
+				if (type2.equals(NULL_TYPE)) {
 					return value1;
-				if (isAssignableFrom(type1, type2))
+				}
+				if (isAssignableFrom(type1, type2)) {
 					return value1;
-				if (isAssignableFrom(type2, type1))
+				}
+				if (isAssignableFrom(type2, type1)) {
 					return value2;
+				}
 				int numDimensions = 0;
 				if (type1.getSort() == Type.ARRAY
 						&& type2.getSort() == Type.ARRAY
 						&& type1.getDimensions() == type2.getDimensions()
 						&& type1.getElementType().getSort() == Type.OBJECT
-						&& type2.getElementType().getSort() == Type.OBJECT)
-				{
+						&& type2.getElementType().getSort() == Type.OBJECT) {
 					numDimensions = type1.getDimensions();
 					type1 = type1.getElementType();
 					type2 = type2.getElementType();
 				}
-				while (true)
-				{
-					if (type1 == null || isInterface(type1))
+				while (true) {
+					if (type1 == null || isInterface(type1)) {
 						return newArrayValue(Type.getObjectType("java/lang/Object"), numDimensions);
+					}
 					type1 = getSuperClass(type1);
-					if (type1 != null && isAssignableFrom(type1, type2))
-					{
+					if (type1 != null && isAssignableFrom(type1, type2)) {
 						return newArrayValue(type1, numDimensions);
 					}
 				}
@@ -159,82 +142,57 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 			return BasicValue.UNINITIALIZED_VALUE;
 		}
 
-		private boolean isAssignableFrom(Type type1, Type type2)
-		{
-			if (type1.equals(type2))
-			{
+		private boolean isAssignableFrom(Type type1, Type type2) {
+			if (type1.equals(type2)) {
 				return true;
 			}
-			if ((type1.getSort() != Type.OBJECT && type1.getSort() != Type.ARRAY) || (type2.getSort() != Type.OBJECT && type2.getSort() != Type.ARRAY))
-			{
+			if ((type1.getSort() != Type.OBJECT && type1.getSort() != Type.ARRAY) || (type2.getSort() != Type.OBJECT && type2.getSort() != Type.ARRAY)) {
 				return false;
 			}
-			if (type1.getInternalName().equals("java/lang/Object"))
-			{
+			if (type1.getInternalName().equals("java/lang/Object")) {
 				return true;
 			}
 
-			if (type2.getSort() == Type.ARRAY)
-			{
-				if (type1.getSort() == Type.OBJECT)
-				{
+			if (type2.getSort() == Type.ARRAY) {
+				if (type1.getSort() == Type.OBJECT) {
 					return type1.getInternalName().equals("java/lang/Object");
 				}
 				int dimensions1 = type1.getDimensions();
 				int dimensions2 = type2.getDimensions();
-				if (dimensions1 < dimensions2)
-				{
+				if (dimensions1 < dimensions2) {
 					return type1.getElementType().getDescriptor().equals("Ljava/lang/Object;");
-				}
-				else if (dimensions1 > dimensions2)
-				{
+				} else if (dimensions1 > dimensions2) {
 					return false;
-				}
-				else
-				{
+				} else {
 					return isAssignableFrom(type1.getElementType(), type2.getElementType());
 				}
-			}
-			else if (type1.getSort() == Type.ARRAY)
-			{
+			} else if (type1.getSort() == Type.ARRAY) {
 				return false;
-			}
-			else
-			{
+			} else {
 				return inheritanceChecker.isAssignableFrom(type1.getInternalName(), type2.getInternalName());
 			}
 		}
 
 		@Nullable
-		private Type getSuperClass(Type type)
-		{
-			if (type.getSort() == Type.ARRAY)
-			{
+		private Type getSuperClass(Type type) {
+			if (type.getSort() == Type.ARRAY) {
 				return Type.getObjectType("java/lang/Object");
-			}
-			else
-			{
-				if ("java/lang/Object".equals(type.getInternalName()))
-				{
+			} else {
+				if ("java/lang/Object".equals(type.getInternalName())) {
 					return null;
 				}
 
 				IInheritanceChecker.ClassInfo classInfo = inheritanceChecker.getClassInfo(type.getInternalName());
-				if (classInfo == null)
-				{
+				if (classInfo == null) {
 					return Type.getObjectType("java/lang/Object");
-				}
-				else
-				{
+				} else {
 					return Type.getObjectType(Objects.requireNonNull(classInfo.getSuperClass(), "returned null for non-Object superclass"));
 				}
 			}
 		}
 
-		private boolean isInterface(Type type)
-		{
-			if (type.getSort() == Type.OBJECT)
-			{
+		private boolean isInterface(Type type) {
+			if (type.getSort() == Type.OBJECT) {
 				return false;
 			}
 
@@ -242,17 +200,12 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 			return classInfo != null && classInfo.isInterface();
 		}
 
-		private BasicValue newArrayValue(Type type, int dimensions)
-		{
-			if (dimensions == 0)
-			{
+		private BasicValue newArrayValue(Type type, int dimensions) {
+			if (dimensions == 0) {
 				return newValue(type);
-			}
-			else
-			{
+			} else {
 				StringBuilder desc = new StringBuilder(type.getDescriptor().length() + dimensions);
-				for (int i = 0; i < dimensions; i++)
-				{
+				for (int i = 0; i < dimensions; i++) {
 					desc.append('[');
 				}
 				desc.append(type.getDescriptor());
@@ -261,23 +214,21 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 		}
 	};
 
-	public UnpickInterpreter(MethodNode method, IInheritanceChecker inheritanceChecker)
-	{
+	public UnpickInterpreter(MethodNode method, IInheritanceChecker inheritanceChecker) {
 		super(ASM9);
 		this.method = method;
 		this.inheritanceChecker = inheritanceChecker;
 	}
 
 	@Override
-	public UnpickValue newParameterValue(boolean isInstanceMethod, int local, Type type)
-	{
+	public UnpickValue newParameterValue(boolean isInstanceMethod, int local, Type type) {
 		UnpickValue value = newValue(type);
 		int localIndex = isInstanceMethod ? 1 : 0;
 		int paramIndex = 0;
-		for (Type argument : Type.getArgumentTypes(method.desc))
-		{
-			if (localIndex == local)
+		for (Type argument : Type.getArgumentTypes(method.desc)) {
+			if (localIndex == local) {
 				break;
+			}
 			localIndex += argument.getSize();
 			paramIndex++;
 		}
@@ -286,33 +237,29 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	}
 
 	@Override
-	public UnpickValue newValue(Type type)
-	{
-		if (type == Type.VOID_TYPE)
+	public UnpickValue newValue(Type type) {
+		if (type == Type.VOID_TYPE) {
 			return null;
+		}
 		return new UnpickValue(getType(typeTracker.newValue(type)));
 	}
 
 	@Override
-	public UnpickValue newOperation(AbstractInsnNode insn) throws AnalyzerException
-	{
+	public UnpickValue newOperation(AbstractInsnNode insn) throws AnalyzerException {
 		UnpickValue value = new UnpickValue(getType(typeTracker.newOperation(insn)));
 		value.getUsages().add(insn);
 		return value;
 	}
 
 	@Override
-	public UnpickValue copyOperation(AbstractInsnNode insn, UnpickValue value) throws AnalyzerException
-	{
+	public UnpickValue copyOperation(AbstractInsnNode insn, UnpickValue value) throws AnalyzerException {
 		Type type = getType(typeTracker.copyOperation(insn, typeTracker.newValue(value.getDataType())));
 		return new UnpickValue(type, value);
 	}
 
 	@Override
-	public UnpickValue unaryOperation(AbstractInsnNode insn, UnpickValue value) throws AnalyzerException
-	{
-		switch (insn.getOpcode())
-		{
+	public UnpickValue unaryOperation(AbstractInsnNode insn, UnpickValue value) throws AnalyzerException {
+		switch (insn.getOpcode()) {
 			case INEG:
 			case IINC:
 			case I2L:
@@ -368,19 +315,16 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 
 		Type type = getType(typeTracker.unaryOperation(insn, typeTracker.newValue(value.getDataType())));
 		UnpickValue newValue = new UnpickValue(type, value);
-		if (insn.getType() == AbstractInsnNode.FIELD_INSN || insn.getType() == AbstractInsnNode.JUMP_INSN || (insn.getOpcode() >= IRETURN && insn.getOpcode() <= RETURN))
-		{
+		if (insn.getType() == AbstractInsnNode.FIELD_INSN || insn.getType() == AbstractInsnNode.JUMP_INSN || (insn.getOpcode() >= IRETURN && insn.getOpcode() <= RETURN)) {
 			newValue.getUsages().add(insn);
 		}
 		return newValue;
 	}
 
 	@Override
-	public UnpickValue binaryOperation(AbstractInsnNode insn, UnpickValue value1, UnpickValue value2) throws AnalyzerException
-	{
+	public UnpickValue binaryOperation(AbstractInsnNode insn, UnpickValue value1, UnpickValue value2) throws AnalyzerException {
 		Type type = getType(typeTracker.binaryOperation(insn, typeTracker.newValue(value1.getDataType()), typeTracker.newValue(value2.getDataType())));
-		switch (insn.getOpcode())
-		{
+		switch (insn.getOpcode()) {
 			case IALOAD:
 			case FALOAD:
 			case AALOAD:
@@ -451,16 +395,13 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	}
 
 	@Override
-	public UnpickValue ternaryOperation(AbstractInsnNode insn, UnpickValue value1, UnpickValue value2, UnpickValue value3) throws AnalyzerException
-	{
+	public UnpickValue ternaryOperation(AbstractInsnNode insn, UnpickValue value1, UnpickValue value2, UnpickValue value3) throws AnalyzerException {
 		// only used for arrays
 		value2.getTypeInterpretations().add(DataType.INT);
 
-		switch (insn.getOpcode())
-		{
+		switch (insn.getOpcode()) {
 			case BASTORE:
-				if (!value1.getDataType().getDescriptor().equals("[Z"))
-				{
+				if (!value1.getDataType().getDescriptor().equals("[Z")) {
 					value3.getTypeInterpretations().add(DataType.BYTE);
 				}
 				break;
@@ -483,8 +424,7 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 				value3.getTypeInterpretations().add(DataType.DOUBLE);
 				break;
 			case AASTORE:
-				if (value1.getDataType().getSort() == Type.ARRAY)
-				{
+				if (value1.getDataType().getSort() == Type.ARRAY) {
 					value3.addTypeInterpretationFromDesc(value1.getDataType().getDescriptor().substring(1));
 				}
 				break;
@@ -495,20 +435,15 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	}
 
 	@Override
-	public UnpickValue naryOperation(AbstractInsnNode insn, List<? extends UnpickValue> values) throws AnalyzerException
-	{
+	public UnpickValue naryOperation(AbstractInsnNode insn, List<? extends UnpickValue> values) throws AnalyzerException {
 		Type type = getType(typeTracker.naryOperation(insn, values.stream().map(value -> typeTracker.newValue(value.getDataType())).collect(Collectors.toList())));
-		if (insn.getOpcode() == MULTIANEWARRAY)
-		{
+		if (insn.getOpcode() == MULTIANEWARRAY) {
 			return new UnpickValue(type);
-		}
-		else
-		{
+		} else {
 			boolean hasThis = insn.getOpcode() != INVOKESTATIC && insn.getOpcode() != INVOKEDYNAMIC;
 			String desc = insn.getOpcode() == INVOKEDYNAMIC ? ((InvokeDynamicInsnNode) insn).desc : ((MethodInsnNode) insn).desc;
 			Type[] argumentTypes = Type.getArgumentTypes(desc);
-			for (int i = hasThis ? 1 : 0; i < values.size(); i++)
-			{
+			for (int i = hasThis ? 1 : 0; i < values.size(); i++) {
 				int paramIndex = hasThis ? i - 1 : i;
 				values.get(i).getParameterUsages().add(new UnpickValue.ParameterUsage(insn, paramIndex));
 				values.get(i).addTypeInterpretationFromDesc(argumentTypes[paramIndex].getDescriptor());
@@ -520,14 +455,12 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	}
 
 	@Override
-	public void returnOperation(AbstractInsnNode insn, UnpickValue value, UnpickValue expected)
-	{
+	public void returnOperation(AbstractInsnNode insn, UnpickValue value, UnpickValue expected) {
 		// Already handled in unaryOperation
 	}
 
 	@Override
-	public UnpickValue merge(UnpickValue value1, UnpickValue value2)
-	{
+	public UnpickValue merge(UnpickValue value1, UnpickValue value2) {
 		value1.getParameterSources().addAll(value2.getParameterSources());
 		value1.getParameterUsages().addAll(value2.getParameterUsages());
 		value1.getUsages().addAll(value2.getUsages());
@@ -540,8 +473,7 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 		return new UnpickValue(type, value1);
 	}
 
-	private static Type getType(BasicValue value)
-	{
+	private static Type getType(BasicValue value) {
 		return value == null ? null : value.getType();
 	}
 }

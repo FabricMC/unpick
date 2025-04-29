@@ -1,22 +1,17 @@
 package daomephsta.unpick.impl.inheritancecheckers;
 
-import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
-
 import org.jetbrains.annotations.Nullable;
 
-public class ClasspathInheritanceChecker implements IInheritanceChecker
-{
+import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
+
+public class ClasspathInheritanceChecker implements IInheritanceChecker {
 	@Override
 	@Nullable
-	public ClassInfo getClassInfo(String className)
-	{
+	public ClassInfo getClassInfo(String className) {
 		Class<?> clazz;
-		try
-		{
+		try {
 			clazz = Class.forName(className.replace('/', '.'), false, ClasspathInheritanceChecker.class.getClassLoader());
-		}
-		catch (ClassNotFoundException e)
-		{
+		} catch (ClassNotFoundException e) {
 			return null;
 		}
 
@@ -25,8 +20,7 @@ public class ClasspathInheritanceChecker implements IInheritanceChecker
 
 		Class<?>[] interfaces = clazz.getInterfaces();
 		String[] interfaceNames = new String[interfaces.length];
-		for (int i = 0; i < interfaces.length; i++)
-		{
+		for (int i = 0; i < interfaces.length; i++) {
 			interfaceNames[i] = interfaces[i].getName().replace('.', '/');
 		}
 

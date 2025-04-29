@@ -1,6 +1,5 @@
 package daomephsta.unpick.constantmappers.datadriven.tree;
 
-public enum GroupType
-{
+public enum GroupType {
 	CONST, FLAG
 }

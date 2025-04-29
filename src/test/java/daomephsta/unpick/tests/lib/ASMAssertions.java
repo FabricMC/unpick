@@ -1,7 +1,13 @@
 package daomephsta.unpick.tests.lib;
 
-import static org.junit.jupiter.api.AssertionFailureBuilder.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.objectweb.asm.ConstantDynamic;
 import org.objectweb.asm.Handle;
@@ -25,45 +31,31 @@ import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 import org.objectweb.asm.util.Printer;
 import org.objectweb.asm.util.TraceClassVisitor;
-
 import org.opentest4j.AssertionFailedError;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.util.HashMap;
-import java.util.Map;
-
-public class ASMAssertions
-{
-	public static void assertClassEquals(ClassNode expectedClassNode, ClassNode actualClassNode)
-	{
-		try
-		{
+public class ASMAssertions {
+	public static void assertClassEquals(ClassNode expectedClassNode, ClassNode actualClassNode) {
+		try {
 			assertClassEqualsInner(expectedClassNode, actualClassNode);
-		}
-		catch (AssertionFailedError e)
-		{
+		} catch (AssertionFailedError e) {
 			assertionFailure()
-				.expected(classToString(expectedClassNode))
-				.actual(classToString(actualClassNode))
-				.cause(e)
-				.buildAndThrow();
+					.expected(classToString(expectedClassNode))
+					.actual(classToString(actualClassNode))
+					.cause(e)
+					.buildAndThrow();
 		}
 	}
 
-	private static String classToString(ClassNode classNode)
-	{
+	private static String classToString(ClassNode classNode) {
 		StringWriter sw = new StringWriter();
-		try (PrintWriter pw = new PrintWriter(sw))
-		{
+		try (PrintWriter pw = new PrintWriter(sw)) {
 			TraceClassVisitor cv = new TraceClassVisitor(pw);
 			classNode.accept(cv);
 		}
 		return sw.toString();
 	}
 
-	private static void assertClassEqualsInner(ClassNode expectedClassNode, ClassNode actualClassNode)
-	{
+	private static void assertClassEqualsInner(ClassNode expectedClassNode, ClassNode actualClassNode) {
 		assertEquals(expectedClassNode.version, actualClassNode.version);
 		assertEquals(expectedClassNode.access, actualClassNode.access);
 		assertEquals(expectedClassNode.name, actualClassNode.name);
@@ -74,22 +66,19 @@ public class ASMAssertions
 		int expectedNumFields = expectedClassNode.fields == null ? 0 : expectedClassNode.fields.size();
 		int actualNumFields = actualClassNode.fields == null ? 0 : actualClassNode.fields.size();
 		assertEquals(expectedNumFields, actualNumFields, "Number of fields");
-		for (int i = 0; i < expectedNumFields; i++)
-		{
+		for (int i = 0; i < expectedNumFields; i++) {
 			assertFieldEqualsInner(expectedClassNode.fields.get(i), actualClassNode.fields.get(i));
 		}
 
 		int expectedNumMethods = expectedClassNode.methods == null ? 0 : expectedClassNode.methods.size();
 		int actualNumMethods = actualClassNode.methods == null ? 0 : actualClassNode.methods.size();
 		assertEquals(expectedNumMethods, actualNumMethods, "Number of methods");
-		for (int i = 0; i < expectedNumMethods; i++)
-		{
+		for (int i = 0; i < expectedNumMethods; i++) {
 			assertMethodEqualsInner(expectedClassNode.methods.get(i), actualClassNode.methods.get(i));
 		}
 	}
 
-	private static void assertFieldEqualsInner(FieldNode expectedFieldNode, FieldNode actualFieldNode)
-	{
+	private static void assertFieldEqualsInner(FieldNode expectedFieldNode, FieldNode actualFieldNode) {
 		assertEquals(expectedFieldNode.access, actualFieldNode.access);
 		assertEquals(expectedFieldNode.name, actualFieldNode.name);
 		assertEquals(expectedFieldNode.desc, actualFieldNode.desc);
@@ -97,8 +86,7 @@ public class ASMAssertions
 		assertEquals(expectedFieldNode.value, actualFieldNode.value);
 	}
 
-	private static void assertMethodEqualsInner(MethodNode expectedMethodNode, MethodNode actualMethodNode)
-	{
+	private static void assertMethodEqualsInner(MethodNode expectedMethodNode, MethodNode actualMethodNode) {
 		assertEquals(expectedMethodNode.access, actualMethodNode.access);
 		assertEquals(expectedMethodNode.name, actualMethodNode.name);
 		assertEquals(expectedMethodNode.desc, actualMethodNode.desc);
@@ -110,49 +98,37 @@ public class ASMAssertions
 		Map<LabelNode, Integer> actualInsnIndexByLabel = new HashMap<>();
 
 		int insnIndex = 0;
-		for (AbstractInsnNode insn : expectedMethodNode.instructions)
-		{
-			if (insn.getOpcode() >= 0)
-			{
+		for (AbstractInsnNode insn : expectedMethodNode.instructions) {
+			if (insn.getOpcode() >= 0) {
 				insnIndex++;
-			}
-			else if (insn.getType() == AbstractInsnNode.LABEL)
-			{
+			} else if (insn.getType() == AbstractInsnNode.LABEL) {
 				expectedInsnIndexByLabel.put((LabelNode) insn, insnIndex++);
 			}
 		}
 		insnIndex = 0;
-		for (AbstractInsnNode insn : actualMethodNode.instructions)
-		{
-			if (insn.getOpcode() >= 0)
-			{
+		for (AbstractInsnNode insn : actualMethodNode.instructions) {
+			if (insn.getOpcode() >= 0) {
 				insnIndex++;
-			}
-			else if (insn.getType() == AbstractInsnNode.LABEL)
-			{
+			} else if (insn.getType() == AbstractInsnNode.LABEL) {
 				actualInsnIndexByLabel.put((LabelNode) insn, insnIndex++);
 			}
 		}
 
 		int expectedIndex = 0;
 		int actualIndex = 0;
-		while (true)
-		{
+		while (true) {
 			AbstractInsnNode expectedInsn = null;
-			while (expectedIndex < expectedMethodNode.instructions.size() && (expectedInsn = expectedMethodNode.instructions.get(expectedIndex)).getOpcode() < 0)
-			{
+			while (expectedIndex < expectedMethodNode.instructions.size() && (expectedInsn = expectedMethodNode.instructions.get(expectedIndex)).getOpcode() < 0) {
 				expectedIndex++;
 			}
 
 			AbstractInsnNode actualInsn = null;
-			while (actualIndex < actualMethodNode.instructions.size() && (actualInsn = actualMethodNode.instructions.get(actualIndex)).getOpcode() < 0)
-			{
+			while (actualIndex < actualMethodNode.instructions.size() && (actualInsn = actualMethodNode.instructions.get(actualIndex)).getOpcode() < 0) {
 				actualIndex++;
 			}
 
 			assertEquals(expectedIndex >= expectedMethodNode.instructions.size(), actualIndex >= expectedMethodNode.instructions.size(), "Mismatching number of instructions");
-			if (expectedIndex >= expectedMethodNode.instructions.size())
-			{
+			if (expectedIndex >= expectedMethodNode.instructions.size()) {
 				break;
 			}
 			assert expectedInsn != null && actualInsn != null; // should never happen
@@ -167,22 +143,19 @@ public class ASMAssertions
 		int actualTryCatchBlockCount = actualMethodNode.tryCatchBlocks == null ? 0 : actualMethodNode.tryCatchBlocks.size();
 		assertEquals(expectedTryCatchBlockCount, actualTryCatchBlockCount, "Number of try catch blocks");
 
-		for (int i = 0; i < expectedTryCatchBlockCount; i++)
-		{
+		for (int i = 0; i < expectedTryCatchBlockCount; i++) {
 			TryCatchBlockNode expectedTryCatchBlock = expectedMethodNode.tryCatchBlocks.get(i);
 			TryCatchBlockNode actualTryCatchBlock = actualMethodNode.tryCatchBlocks.get(i);
 			assertEquals(expectedTryCatchBlock.type, actualTryCatchBlock.type);
-			assertEquals(expectedInsnIndexByLabel.get(expectedTryCatchBlock.start),  actualInsnIndexByLabel.get(expectedTryCatchBlock.start));
-			assertEquals(expectedInsnIndexByLabel.get(expectedTryCatchBlock.end),  actualInsnIndexByLabel.get(expectedTryCatchBlock.end));
-			assertEquals(expectedInsnIndexByLabel.get(expectedTryCatchBlock.handler),  actualInsnIndexByLabel.get(expectedTryCatchBlock.handler));
+			assertEquals(expectedInsnIndexByLabel.get(expectedTryCatchBlock.start), actualInsnIndexByLabel.get(expectedTryCatchBlock.start));
+			assertEquals(expectedInsnIndexByLabel.get(expectedTryCatchBlock.end), actualInsnIndexByLabel.get(expectedTryCatchBlock.end));
+			assertEquals(expectedInsnIndexByLabel.get(expectedTryCatchBlock.handler), actualInsnIndexByLabel.get(expectedTryCatchBlock.handler));
 		}
 	}
 
-	private static void assertInstructionEquals(AbstractInsnNode expectedInsn, AbstractInsnNode actualInsn, Map<LabelNode, Integer> expectedInsnIndexByLabel, Map<LabelNode, Integer> actualInsnIndexByLabel)
-	{
+	private static void assertInstructionEquals(AbstractInsnNode expectedInsn, AbstractInsnNode actualInsn, Map<LabelNode, Integer> expectedInsnIndexByLabel, Map<LabelNode, Integer> actualInsnIndexByLabel) {
 		assertEquals(Printer.OPCODES[expectedInsn.getOpcode()], Printer.OPCODES[actualInsn.getOpcode()]);
-		switch (expectedInsn.getType())
-		{
+		switch (expectedInsn.getType()) {
 			case AbstractInsnNode.INSN:
 				break;
 			case AbstractInsnNode.INT_INSN:
@@ -216,8 +189,7 @@ public class ASMAssertions
 				assertEquals(expectedInvokeDynamicInsn.desc, actualInvokeDynamicInsn.desc);
 				assertHandleEquals(expectedInvokeDynamicInsn.bsm, actualInvokeDynamicInsn.bsm);
 				assertEquals(expectedInvokeDynamicInsn.bsmArgs.length, actualInvokeDynamicInsn.bsmArgs.length);
-				for (int i = 0; i < expectedInvokeDynamicInsn.bsmArgs.length; i++)
-				{
+				for (int i = 0; i < expectedInvokeDynamicInsn.bsmArgs.length; i++) {
 					assertConstantEquals(expectedInvokeDynamicInsn.bsmArgs[i], actualInvokeDynamicInsn.bsmArgs[i]);
 				}
 				break;
@@ -242,8 +214,7 @@ public class ASMAssertions
 				assertEquals(expectedTableSwitchInsn.max, actualTableSwitchInsn.max);
 				assertEquals(expectedInsnIndexByLabel.get(expectedTableSwitchInsn.dflt), actualInsnIndexByLabel.get(actualTableSwitchInsn.dflt));
 				assertEquals(expectedTableSwitchInsn.labels.size(), actualTableSwitchInsn.labels.size());
-				for (int i = 0; i < expectedTableSwitchInsn.labels.size(); i++)
-				{
+				for (int i = 0; i < expectedTableSwitchInsn.labels.size(); i++) {
 					assertEquals(expectedInsnIndexByLabel.get(expectedTableSwitchInsn.labels.get(i)), actualInsnIndexByLabel.get(actualTableSwitchInsn.labels.get(i)));
 				}
 				break;
@@ -251,9 +222,8 @@ public class ASMAssertions
 				LookupSwitchInsnNode expectedLookupSwitchInsn = (LookupSwitchInsnNode) expectedInsn;
 				LookupSwitchInsnNode actualLookupSwitchInsn = (LookupSwitchInsnNode) actualInsn;
 				assertEquals(expectedInsnIndexByLabel.get(expectedLookupSwitchInsn.dflt), actualInsnIndexByLabel.get(actualLookupSwitchInsn.dflt));
-				assertEquals(expectedLookupSwitchInsn.keys,  actualLookupSwitchInsn.keys);
-				for (int i = 0; i < expectedLookupSwitchInsn.labels.size(); i++)
-				{
+				assertEquals(expectedLookupSwitchInsn.keys, actualLookupSwitchInsn.keys);
+				for (int i = 0; i < expectedLookupSwitchInsn.labels.size(); i++) {
 					assertEquals(expectedInsnIndexByLabel.get(expectedLookupSwitchInsn.labels.get(i)), actualInsnIndexByLabel.get(actualLookupSwitchInsn.labels.get(i)));
 				}
 				break;
@@ -268,8 +238,7 @@ public class ASMAssertions
 		}
 	}
 
-	private static void assertHandleEquals(Handle expectedHandle, Handle actualHandle)
-	{
+	private static void assertHandleEquals(Handle expectedHandle, Handle actualHandle) {
 		assertEquals(expectedHandle.getTag(), actualHandle.getTag());
 		assertEquals(expectedHandle.getOwner(), actualHandle.getOwner());
 		assertEquals(expectedHandle.getName(), actualHandle.getName());
@@ -277,34 +246,26 @@ public class ASMAssertions
 		assertEquals(expectedHandle.isInterface(), actualHandle.isInterface());
 	}
 
-	private static void assertCondyEquals(ConstantDynamic expectedCondy,  ConstantDynamic actualCondy)
-	{
+	private static void assertCondyEquals(ConstantDynamic expectedCondy, ConstantDynamic actualCondy) {
 		assertEquals(expectedCondy.getName(), actualCondy.getName());
 		assertEquals(expectedCondy.getDescriptor(), actualCondy.getDescriptor());
 		assertHandleEquals(expectedCondy.getBootstrapMethod(), actualCondy.getBootstrapMethod());
 		assertEquals(expectedCondy.getBootstrapMethodArgumentCount(), actualCondy.getBootstrapMethodArgumentCount());
-		for (int i = 0; i < expectedCondy.getBootstrapMethodArgumentCount(); i++)
-		{
+		for (int i = 0; i < expectedCondy.getBootstrapMethodArgumentCount(); i++) {
 			assertConstantEquals(expectedCondy.getBootstrapMethodArgument(i), actualCondy.getBootstrapMethodArgument(i));
 		}
 	}
 
-	private static void assertConstantEquals(Object expectedBsmArg, Object actualBsmArg)
-	{
-		if (expectedBsmArg instanceof Handle)
-		{
+	private static void assertConstantEquals(Object expectedBsmArg, Object actualBsmArg) {
+		if (expectedBsmArg instanceof Handle) {
 			Handle expectedHandle = (Handle) expectedBsmArg;
 			Handle actualHandle = assertInstanceOf(Handle.class, actualBsmArg);
 			assertHandleEquals(expectedHandle, actualHandle);
-		}
-		else if (expectedBsmArg instanceof ConstantDynamic)
-		{
+		} else if (expectedBsmArg instanceof ConstantDynamic) {
 			ConstantDynamic expectedCondy = (ConstantDynamic) expectedBsmArg;
 			ConstantDynamic actualCondy = assertInstanceOf(ConstantDynamic.class, actualBsmArg);
 			assertCondyEquals(expectedCondy, actualCondy);
-		}
-		else
-		{
+		} else {
 			assertEquals(expectedBsmArg, actualBsmArg);
 		}
 	}

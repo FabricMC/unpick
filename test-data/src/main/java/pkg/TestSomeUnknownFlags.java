@@ -1,24 +1,19 @@
 package pkg;
 
-public class TestSomeUnknownFlags
-{
-	public void testByte()
-	{
+public class TestSomeUnknownFlags {
+	public void testByte() {
 		Constants.consumeByte((byte) 0b10001);
 	}
 
-	public void testShort()
-	{
+	public void testShort() {
 		Constants.consumeShort((short) 0b10001);
 	}
 
-	public void testInt()
-	{
+	public void testInt() {
 		Constants.consumeInt(0b10001);
 	}
 
-	public void testLong()
-	{
+	public void testLong() {
 		Constants.consumeLong(0b10001);
 	}
 }

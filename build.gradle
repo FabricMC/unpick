@@ -1,7 +1,7 @@
 plugins {
-    id 'java-library'
-    id 'maven-publish'
-    id 'eclipse'
+	id 'java-library'
+	id 'maven-publish'
+	id 'eclipse'
 	id 'checkstyle'
 	id 'com.diffplug.spotless' version '7.0.2'
 }
@@ -11,58 +11,58 @@ repositories {
 }
 
 allprojects {
-    apply plugin: 'java-library'
-    apply plugin: 'maven-publish'
+	apply plugin: 'java-library'
+	apply plugin: 'maven-publish'
 	apply plugin: 'checkstyle'
 	apply plugin: 'com.diffplug.spotless'
 
-    group = 'net.fabricmc.unpick'
+	group = 'net.fabricmc.unpick'
 
-    def ENV = System.getenv()
-    version = "2.3.1"
-    version = version + (ENV.GITHUB_ACTIONS ? "" : "+local")
+	def ENV = System.getenv()
+	version = "2.3.1"
+	version = version + (ENV.GITHUB_ACTIONS ? "" : "+local")
 
-    repositories {
-        mavenCentral()
-    }
+	repositories {
+		mavenCentral()
+	}
 
-    dependencies {
-        api 'org.ow2.asm:asm:9.6'
-        api 'org.ow2.asm:asm-tree:9.6'
-        implementation 'org.ow2.asm:asm-commons:9.6'
-        implementation 'org.ow2.asm:asm-util:9.6'
-        compileOnly 'org.jetbrains:annotations:24.0.0'
+	dependencies {
+		api 'org.ow2.asm:asm:9.6'
+		api 'org.ow2.asm:asm-tree:9.6'
+		implementation 'org.ow2.asm:asm-commons:9.6'
+		implementation 'org.ow2.asm:asm-util:9.6'
+		compileOnly 'org.jetbrains:annotations:24.0.0'
 
-        // Use JUnit test framework
-        testImplementation platform('org.junit:junit-bom:5.10.1')
-        testImplementation 'org.junit.jupiter:junit-jupiter-api'
-        testImplementation 'org.junit.jupiter:junit-jupiter-params'
-        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
-        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    }
+		// Use JUnit test framework
+		testImplementation platform('org.junit:junit-bom:5.10.1')
+		testImplementation 'org.junit.jupiter:junit-jupiter-api'
+		testImplementation 'org.junit.jupiter:junit-jupiter-params'
+		testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+		testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	}
 
-    test {
-        useJUnitPlatform()
-    }
+	test {
+		useJUnitPlatform()
+	}
 
-    tasks.withType(JavaCompile).configureEach {
-        it.options.encoding = "UTF-8"
+	tasks.withType(JavaCompile).configureEach {
+		it.options.encoding = "UTF-8"
 
-        if (JavaVersion.current().isJava9Compatible()) {
-            it.options.release = 8
-        }
-    }
+		if (JavaVersion.current().isJava9Compatible()) {
+			it.options.release = 8
+		}
+	}
 
-    java {
-        withSourcesJar()
-        sourceCompatibility = 1.8
-        targetCompatibility = 1.8
-    }
+	java {
+		withSourcesJar()
+		sourceCompatibility = 1.8
+		targetCompatibility = 1.8
+	}
 
-    task javadocJar(type: Jar, dependsOn: javadoc) {
-        archiveClassifier = 'javadoc'
-        from javadoc.destinationDir
-    }
+	task javadocJar(type: Jar, dependsOn: javadoc) {
+		archiveClassifier = 'javadoc'
+		from javadoc.destinationDir
+	}
 
 	checkstyle {
 		toolVersion = '10.21.1'
@@ -75,44 +75,43 @@ allprojects {
 
 		java {
 			removeUnusedImports()
-			importOrder('daomephsta.unpick', 'org.jetbrains.annotations', 'org.objectweb.asm', '', 'java', 'javax')
+			importOrder('java', 'javax', '', 'daomephsta.unpick')
 			leadingSpacesToTabs()
 			trimTrailingWhitespace()
-			endWithNewline()
 		}
 	}
 
-    if (!project.name.startsWith('test-data')) {
-        publishing {
-            repositories {
-                if (ENV.MAVEN_URL) {
-                    repositories.maven {
-                        name "fabric"
-                        url ENV.MAVEN_URL
-                        credentials {
-                            username ENV.MAVEN_USERNAME
-                            password ENV.MAVEN_PASSWORD
-                        }
-                    }
-                }
-            }
-            publications {
-                mavenJava(MavenPublication) {
-                    from components.java
-                    artifact(javadocJar)
-                }
-            }
-        }
-    }
+	if (!project.name.startsWith('test-data')) {
+		publishing {
+			repositories {
+				if (ENV.MAVEN_URL) {
+					repositories.maven {
+						name "fabric"
+						url ENV.MAVEN_URL
+						credentials {
+							username ENV.MAVEN_USERNAME
+							password ENV.MAVEN_PASSWORD
+						}
+					}
+				}
+			}
+			publications {
+				mavenJava(MavenPublication) {
+					from components.java
+					artifact(javadocJar)
+				}
+			}
+		}
+	}
 }
 
 dependencies {
-    implementation project(':unpick-format-utils')
+	implementation project(':unpick-format-utils')
 }
 
 test {
-    dependsOn tasks.getByPath(':test-data:classes')
-    dependsOn tasks.getByPath(':test-data-expected:classes')
-    systemProperties testData: project(':test-data').sourceSets.main.java.destinationDirectory.get().asFile.absolutePath,
-        testDataExpected: project(':test-data-expected').sourceSets.main.java.destinationDirectory.get().asFile.absolutePath
+	dependsOn tasks.getByPath(':test-data:classes')
+	dependsOn tasks.getByPath(':test-data-expected:classes')
+	systemProperties testData: project(':test-data').sourceSets.main.java.destinationDirectory.get().asFile.absolutePath,
+		testDataExpected: project(':test-data-expected').sourceSets.main.java.destinationDirectory.get().asFile.absolutePath
 }

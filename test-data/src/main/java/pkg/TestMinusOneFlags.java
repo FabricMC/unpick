@@ -1,24 +1,19 @@
 package pkg;
 
-public class TestMinusOneFlags
-{
-	public void testByte()
-	{
+public class TestMinusOneFlags {
+	public void testByte() {
 		Constants.consumeByte((byte) -1);
 	}
 
-	public void testShort()
-	{
+	public void testShort() {
 		Constants.consumeShort((short) -1);
 	}
 
-	public void testInt()
-	{
+	public void testInt() {
 		Constants.consumeInt(-1);
 	}
 
-	public void testLong()
-	{
+	public void testLong() {
 		Constants.consumeLong(-1);
 	}
 }

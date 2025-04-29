@@ -1,5 +1,7 @@
 package daomephsta.unpick.tests;
 
+import org.junit.jupiter.api.Test;
+
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
@@ -12,15 +14,10 @@ import daomephsta.unpick.constantmappers.datadriven.tree.expr.LiteralExpression;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.UnaryExpression;
 import daomephsta.unpick.tests.lib.TestUtils;
 
-import org.junit.jupiter.api.Test;
-
-public class TestExpressions
-{
+public class TestExpressions {
 	@Test
-	public void testExpressions()
-	{
-		TestUtils.runTest("pkg/TestExpressions", data ->
-		{
+	public void testExpressions() {
+		TestUtils.runTest("pkg/TestExpressions", data -> {
 			Expression const5 = new FieldExpression("pkg.Constants", "INT_CONST_5", null, true);
 			data.visitGroupDefinition(GroupDefinition.Builder.global(DataType.INT)
 					.constant(new GroupConstant(new Literal.Long(6), new BinaryExpression(const5, new LiteralExpression(new Literal.Integer(1)), BinaryExpression.Operator.ADD)))
@@ -36,8 +33,8 @@ public class TestExpressions
 					.constant(new GroupConstant(new Literal.Long(1234567890), new CastExpression(DataType.INT, new FieldExpression("pkg.Constants", "LONG_CONST", DataType.LONG, true))))
 					.build());
 
-			Expression const1 =  new FieldExpression("pkg.Constants", "LONG_CONST_1", null, true);
-			Expression longConst =  new FieldExpression("pkg.Constants", "LONG_CONST", null, true);
+			Expression const1 = new FieldExpression("pkg.Constants", "LONG_CONST_1", null, true);
+			Expression longConst = new FieldExpression("pkg.Constants", "LONG_CONST", null, true);
 			data.visitGroupDefinition(GroupDefinition.Builder.global(DataType.LONG)
 					.constant(new GroupConstant(new Literal.Long(6), new BinaryExpression(const1, new LiteralExpression(new Literal.Integer(4)), BinaryExpression.Operator.ADD)))
 					.constant(new GroupConstant(new Literal.Long(-3), new BinaryExpression(new FieldExpression("pkg.Constants", "LONG_CONST_0", null, true), new LiteralExpression(new Literal.Integer(3)), BinaryExpression.Operator.SUBTRACT)))

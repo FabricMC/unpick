@@ -1,5 +1,7 @@
 package daomephsta.unpick.tests;
 
+import org.junit.jupiter.api.Test;
+
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
@@ -7,15 +9,10 @@ import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
 import daomephsta.unpick.tests.lib.TestUtils;
 
-import org.junit.jupiter.api.Test;
-
-public class TestNoSelfReferencing
-{
+public class TestNoSelfReferencing {
 	@Test
-	public void testNoSelfReferencing()
-	{
-		TestUtils.runTest("pkg/TestConstantDeclaration", data ->
-		{
+	public void testNoSelfReferencing() {
+		TestUtils.runTest("pkg/TestConstantDeclaration", data -> {
 			data.visitGroupDefinition(GroupDefinition.Builder.global(DataType.INT)
 					.constant(new GroupConstant(new Literal.Long(0), new FieldExpression("pkg.TestConstantDeclaration", "FOO", null, true)))
 					.build());

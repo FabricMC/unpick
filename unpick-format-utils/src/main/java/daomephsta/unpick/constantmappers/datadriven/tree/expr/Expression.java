@@ -1,9 +1,7 @@
 package daomephsta.unpick.constantmappers.datadriven.tree.expr;
 
-public abstract class Expression
-{
-	Expression()
-	{
+public abstract class Expression {
+	Expression() {
 	}
 
 	public abstract void accept(ExpressionVisitor visitor);

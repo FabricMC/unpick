@@ -1,169 +1,135 @@
 package pkg;
 
-public class TestExpressions
-{
-	public int testAdd()
-	{
+public class TestExpressions {
+	public int testAdd() {
 		return 6;
 	}
 
-	public int testSub()
-	{
+	public int testSub() {
 		return -2;
 	}
 
-	public int testMul()
-	{
+	public int testMul() {
 		return 10;
 	}
 
-	public int testDiv()
-	{
+	public int testDiv() {
 		return 2;
 	}
 
-	public int testMod()
-	{
+	public int testMod() {
 		return 1;
 	}
 
-	public int testShiftLeft()
-	{
+	public int testShiftLeft() {
 		return 20;
 	}
 
-	public int testShiftRight()
-	{
+	public int testShiftRight() {
 		return 0;
 	}
 
-	public int testShiftRightUnsigned()
-	{
+	public int testShiftRightUnsigned() {
 		return 128;
 	}
 
-	public int testNeg()
-	{
+	public int testNeg() {
 		return -5;
 	}
 
-	public int testBitInverse()
-	{
+	public int testBitInverse() {
 		return -6;
 	}
 
-	public int testIntCast()
-	{
+	public int testIntCast() {
 		return 1234567890;
 	}
 
-	public long testAddLong()
-	{
+	public long testAddLong() {
 		return 6;
 	}
 
-	public long testSubLong()
-	{
+	public long testSubLong() {
 		return -3;
 	}
 
-	public long testMulLong()
-	{
+	public long testMulLong() {
 		return 10;
 	}
 
-	public long testDivLong()
-	{
+	public long testDivLong() {
 		return 123456789;
 	}
 
-	public long testModLong()
-	{
+	public long testModLong() {
 		return 1;
 	}
 
-	public long testShiftLeftLong()
-	{
+	public long testShiftLeftLong() {
 		return 8;
 	}
 
-	public long testShiftRightLong()
-	{
+	public long testShiftRightLong() {
 		return 0;
 	}
 
-	public long testShiftRightUnsignedLong()
-	{
+	public long testShiftRightUnsignedLong() {
 		return 617283945;
 	}
 
-	public long testNegLong()
-	{
+	public long testNegLong() {
 		return -1;
 	}
 
-	public long testBitInverseLong()
-	{
+	public long testBitInverseLong() {
 		return -2;
 	}
 
-	public float testAddFloat()
-	{
+	public float testAddFloat() {
 		return 3;
 	}
 
-	public float testSubFloat()
-	{
+	public float testSubFloat() {
 		return -2;
 	}
 
-	public float testMulFloat()
-	{
+	public float testMulFloat() {
 		return 2;
 	}
 
-	public float testDivFloat()
-	{
+	public float testDivFloat() {
 		return 0.5f;
 	}
 
-	public float testModFloat()
-	{
+	public float testModFloat() {
 		return 1;
 	}
 
-	public float testNegFloat()
-	{
+	public float testNegFloat() {
 		return -1;
 	}
 
-	public double testAddDouble()
-	{
+	public double testAddDouble() {
 		return 3;
 	}
 
-	public double testSubDouble()
-	{
+	public double testSubDouble() {
 		return -2;
 	}
 
-	public double testMulDouble()
-	{
+	public double testMulDouble() {
 		return 2;
 	}
 
-	public double testDivDouble()
-	{
+	public double testDivDouble() {
 		return 0.5;
 	}
 
-	public double testModDouble()
-	{
+	public double testModDouble() {
 		return 1;
 	}
 
-	public double testNegDouble()
-	{
+	public double testNegDouble() {
 		return -1;
 	}
 }

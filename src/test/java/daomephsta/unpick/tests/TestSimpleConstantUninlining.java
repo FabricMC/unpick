@@ -1,5 +1,7 @@
 package daomephsta.unpick.tests;
 
+import org.junit.jupiter.api.Test;
+
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
@@ -9,140 +11,113 @@ import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
 import daomephsta.unpick.tests.lib.TestUtils;
 
-import org.junit.jupiter.api.Test;
-
-public class TestSimpleConstantUninlining
-{
+public class TestSimpleConstantUninlining {
 	@Test
-	public void testKnownByteConstantsReturn()
-	{
+	public void testKnownByteConstantsReturn() {
 		testConstantReturn("pkg.TestKnownByteConstantsReturn", "byteConsts", "B", 8);
 	}
 
 	@Test
-	public void testKnownByteConstantsParameter()
-	{
+	public void testKnownByteConstantsParameter() {
 		testConstantParameter("pkg.TestKnownByteConstantsParameter");
 	}
 
 	@Test
-	public void testKnownShortConstantsReturn()
-	{
+	public void testKnownShortConstantsReturn() {
 		testConstantReturn("pkg.TestKnownShortConstantsReturn", "shortConsts", "S", 8);
 	}
 
 	@Test
-	public void testKnownShortConstantsParameter()
-	{
+	public void testKnownShortConstantsParameter() {
 		testConstantParameter("pkg.TestKnownShortConstantsParameter");
 	}
 
 	@Test
-	public void testKnownCharConstantsReturn()
-	{
+	public void testKnownCharConstantsReturn() {
 		testConstantReturn("pkg.TestKnownCharConstantsReturn", "charConsts", "C", 7);
 	}
 
 	@Test
-	public void testKnownCharConstantsParameter()
-	{
+	public void testKnownCharConstantsParameter() {
 		testConstantParameter("pkg.TestKnownCharConstantsParameter");
 	}
 
 	@Test
-	public void testKnownIntConstantsReturn()
-	{
+	public void testKnownIntConstantsReturn() {
 		testConstantReturn("pkg.TestKnownIntConstantsReturn", "intConsts", "I", 8);
 	}
 
 	@Test
-	public void testKnownIntConstantsParameter()
-	{
+	public void testKnownIntConstantsParameter() {
 		testConstantParameter("pkg.TestKnownIntConstantsParameter");
 	}
 
 	@Test
-	public void testKnownLongConstantsReturn()
-	{
+	public void testKnownLongConstantsReturn() {
 		testConstantReturn("pkg.TestKnownLongConstantsReturn", "longConsts", "J", 3);
 	}
 
 	@Test
-	public void testKnownLongConstantsParameter()
-	{
+	public void testKnownLongConstantsParameter() {
 		testConstantParameter("pkg.TestKnownLongConstantsParameter");
 	}
 
 	@Test
-	public void testKnownFloatConstantsReturn()
-	{
+	public void testKnownFloatConstantsReturn() {
 		testConstantReturn("pkg.TestKnownFloatConstantsReturn", "floatConsts", "F", 4);
 	}
 
 	@Test
-	public void testKnownFloatConstantsParameter()
-	{
+	public void testKnownFloatConstantsParameter() {
 		testConstantParameter("pkg.TestKnownFloatConstantsParameter");
 	}
 
 	@Test
-	public void testKnownDoubleConstantsReturn()
-	{
+	public void testKnownDoubleConstantsReturn() {
 		testConstantReturn("pkg.TestKnownDoubleConstantsReturn", "doubleConsts", "D", 3);
 	}
 
 	@Test
-	public void testKnownDoubleConstantsParameter()
-	{
+	public void testKnownDoubleConstantsParameter() {
 		testConstantParameter("pkg.TestKnownDoubleConstantsParameter");
 	}
 
 	@Test
-	public void testKnownStringConstantsReturn()
-	{
+	public void testKnownStringConstantsReturn() {
 		testConstantReturn("pkg.TestKnownStringConstantsReturn", "stringConsts", "Ljava/lang/String;", 3);
 	}
 
 	@Test
-	public void testKnownStringConstantsParameter()
-	{
+	public void testKnownStringConstantsParameter() {
 		testConstantParameter("pkg.TestKnownStringConstantsParameter");
 	}
 
 	@Test
-	public void testKnownClassConstantsReturn()
-	{
+	public void testKnownClassConstantsReturn() {
 		testConstantReturn("pkg.TestKnownClassConstantsReturn", "classConsts", "Ljava/lang/Class;", 3);
 	}
 
 	@Test
-	public void testKnownClassConstantsParameter()
-	{
+	public void testKnownClassConstantsParameter() {
 		testConstantParameter("pkg.TestKnownClassConstantsParameter");
 	}
 
 	@Test
-	public void testUnknownConstants()
-	{
+	public void testUnknownConstants() {
 		testConstantParameter("pkg.TestUnknownConstants");
 	}
 
-	private static void testConstantReturn(String className, String groupName, String descriptor, int methodCount)
-	{
-		TestUtils.runTest(className.replace('.', '/'), data ->
-		{
+	private static void testConstantReturn(String className, String groupName, String descriptor, int methodCount) {
+		TestUtils.runTest(className.replace('.', '/'), data -> {
 			visitGroups(data);
-			for (int i = 1; i <= methodCount; i++)
-			{
+			for (int i = 1; i <= methodCount; i++) {
 				data.visitTargetMethod(TargetMethod.Builder.builder(className, "test" + i, "()" + descriptor).returnGroup(groupName).build());
 			}
 		});
 	}
 
-	private static void testConstantParameter(String className)
-	{
-		TestUtils.runTest(className.replace('.', '/'), data ->
-		{
+	private static void testConstantParameter(String className) {
+		TestUtils.runTest(className.replace('.', '/'), data -> {
 			visitGroups(data);
 			data.visitTargetMethod(TargetMethod.Builder.builder("pkg.Constants", "consumeByte", "(B)V").paramGroup(0, "byteConsts").build());
 			data.visitTargetMethod(TargetMethod.Builder.builder("pkg.Constants", "consumeShort", "(S)V").paramGroup(0, "shortConsts").build());
@@ -156,8 +131,7 @@ public class TestSimpleConstantUninlining
 		});
 	}
 
-	private static void visitGroups(UnpickV3Visitor data)
-	{
+	private static void visitGroups(UnpickV3Visitor data) {
 		data.visitGroupDefinition(GroupDefinition.Builder.named(DataType.INT, "byteConsts")
 				.constant(new GroupConstant(new Literal.Long(-1), new FieldExpression("pkg.Constants", "BYTE_CONST_M1", DataType.BYTE, true)))
 				.constant(new GroupConstant(new Literal.Long(0), new FieldExpression("pkg.Constants", "BYTE_CONST_0", DataType.BYTE, true)))

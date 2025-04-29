@@ -1,28 +1,23 @@
 package daomephsta.unpick.impl.constantresolvers;
 
+import org.jetbrains.annotations.Nullable;
+
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.impl.Utils;
 
-import org.jetbrains.annotations.Nullable;
-
-public class ChainConstantResolver implements IConstantResolver
-{
+public class ChainConstantResolver implements IConstantResolver {
 	private final IConstantResolver[] constantResolvers;
 
-	public ChainConstantResolver(IConstantResolver[] constantResolvers)
-	{
+	public ChainConstantResolver(IConstantResolver[] constantResolvers) {
 		this.constantResolvers = constantResolvers;
 	}
 
 	@Override
 	@Nullable
-	public ResolvedConstant resolveConstant(String owner, String name)
-	{
-		for (IConstantResolver constantResolver : constantResolvers)
-		{
+	public ResolvedConstant resolveConstant(String owner, String name) {
+		for (IConstantResolver constantResolver : constantResolvers) {
 			ResolvedConstant resolvedConstant = constantResolver.resolveConstant(owner, name);
-			if (resolvedConstant != null)
-			{
+			if (resolvedConstant != null) {
 				return resolvedConstant;
 			}
 		}
@@ -31,8 +26,7 @@ public class ChainConstantResolver implements IConstantResolver
 	}
 
 	@Override
-	public IConstantResolver chain(IConstantResolver... others)
-	{
+	public IConstantResolver chain(IConstantResolver... others) {
 		return new ChainConstantResolver(Utils.concat(constantResolvers, others));
 	}
 }

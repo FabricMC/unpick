@@ -1,48 +1,43 @@
 package daomephsta.unpick.impl.representations;
 
+import java.util.logging.Logger;
+
+import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.analysis.Frame;
+
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
 import daomephsta.unpick.impl.UnpickValue;
 
-import org.jetbrains.annotations.Nullable;
-
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.analysis.Frame;
-
-import java.util.logging.Logger;
-
 /**
  * @author Daomephsta
  */
-public interface ReplacementInstructionGenerator extends IReplacementGenerator
-{
-	public abstract boolean canReplace(Context context);
+public interface ReplacementInstructionGenerator extends IReplacementGenerator {
+	boolean canReplace(Context context);
 
 	/**
-	 * Generates replacement instructions for the provided value
+	 * Generates replacement instructions for the provided value.
 	 * @param context TODO
 	 */
-	public abstract void generateReplacements(Context context);
+	void generateReplacements(Context context);
 
 	@Override
-	default void apply(IContext context)
-	{
+	default void apply(IContext context) {
 		Context contextImpl = (Context) context;
-		if (canReplace(contextImpl))
-		{
+		if (canReplace(contextImpl)) {
 			generateReplacements(contextImpl);
 		}
 	}
 
 	/**
-	 * Internal, use {@link IReplacementGenerator.IContext} instead
+	 * Internal, use {@link IReplacementGenerator.IContext} instead.
 	 */
-	public class Context implements IContext
-	{
+	class Context implements IContext {
 		private final IClassResolver classResolver;
 		private final IConstantResolver constantResolver;
 		private final IInheritanceChecker inheritanceChecker;
@@ -55,8 +50,7 @@ public interface ReplacementInstructionGenerator extends IReplacementGenerator
 
 		public Context(IClassResolver classResolver, IConstantResolver constantResolver,
 					IInheritanceChecker inheritanceChecker, ReplacementSet replacementSet, ClassNode containingClass,
-					MethodNode containingMethod, AbstractInsnNode target, Frame<UnpickValue>[] frames, Logger logger)
-		{
+					MethodNode containingMethod, AbstractInsnNode target, Frame<UnpickValue>[] frames, Logger logger) {
 			this.classResolver = classResolver;
 			this.constantResolver = constantResolver;
 			this.inheritanceChecker = inheritanceChecker;
@@ -69,58 +63,49 @@ public interface ReplacementInstructionGenerator extends IReplacementGenerator
 		}
 
 		@Override
-		public IClassResolver getClassResolver()
-		{
+		public IClassResolver getClassResolver() {
 			return classResolver;
 		}
 
 		@Override
-		public IConstantResolver getConstantResolver()
-		{
+		public IConstantResolver getConstantResolver() {
 			return constantResolver;
 		}
 
 		@Override
-		public IInheritanceChecker getInheritanceChecker()
-		{
+		public IInheritanceChecker getInheritanceChecker() {
 			return inheritanceChecker;
 		}
 
 		@Override
-		public ClassNode getContainingClass()
-		{
+		public ClassNode getContainingClass() {
 			return containingClass;
 		}
 
 		@Override
-		public MethodNode getContainingMethod()
-		{
+		public MethodNode getContainingMethod() {
 			return containingMethod;
 		}
 
 		@Override
-		public ReplacementSet getReplacementSet()
-		{
+		public ReplacementSet getReplacementSet() {
 			return replacementSet;
 		}
 
 		@Override
-		public AbstractInsnNode getTarget()
-		{
+		public AbstractInsnNode getTarget() {
 			return target;
 		}
 
 		@SuppressWarnings("unchecked")
 		@Nullable
 		@Override
-		public Frame<IDataflowValue> getDataflowFrame(AbstractInsnNode insn)
-		{
+		public Frame<IDataflowValue> getDataflowFrame(AbstractInsnNode insn) {
 			return (Frame<IDataflowValue>) (Frame<?>) frames[containingMethod.instructions.indexOf(insn)];
 		}
 
 		@Override
-		public Logger getLogger()
-		{
+		public Logger getLogger() {
 			return logger;
 		}
 	}

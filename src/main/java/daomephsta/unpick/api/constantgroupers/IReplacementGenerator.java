@@ -1,13 +1,10 @@
 package daomephsta.unpick.api.constantgroupers;
 
-import daomephsta.unpick.api.classresolvers.IClassResolver;
-import daomephsta.unpick.api.classresolvers.IConstantResolver;
-import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
-import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
+import java.util.Set;
+import java.util.logging.Logger;
 
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
-
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
@@ -16,17 +13,17 @@ import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Frame;
 import org.objectweb.asm.tree.analysis.Value;
 
-import java.util.Set;
-import java.util.logging.Logger;
+import daomephsta.unpick.api.classresolvers.IClassResolver;
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
+import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
+import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 
 @FunctionalInterface
-public interface IReplacementGenerator
-{
+public interface IReplacementGenerator {
 	void apply(IContext context);
 
 	@ApiStatus.NonExtendable
-	interface IContext
-	{
+	interface IContext {
 		IClassResolver getClassResolver();
 		IConstantResolver getConstantResolver();
 		IInheritanceChecker getInheritanceChecker();
@@ -40,10 +37,8 @@ public interface IReplacementGenerator
 	}
 
 	@ApiStatus.NonExtendable
-	interface IReplacementSet
-	{
-		default void addReplacement(AbstractInsnNode oldNode, AbstractInsnNode newNode)
-		{
+	interface IReplacementSet {
+		default void addReplacement(AbstractInsnNode oldNode, AbstractInsnNode newNode) {
 			InsnList newNodes = new InsnList();
 			newNodes.add(newNode);
 			addReplacement(oldNode, newNodes);
@@ -53,8 +48,7 @@ public interface IReplacementGenerator
 	}
 
 	@ApiStatus.NonExtendable
-	interface IDataflowValue extends Value
-	{
+	interface IDataflowValue extends Value {
 		Type getDataType();
 		Set<Integer> getParameterSources();
 		Set<IParameterUsage> getParameterUsages();
@@ -63,8 +57,7 @@ public interface IReplacementGenerator
 	}
 
 	@ApiStatus.NonExtendable
-	interface IParameterUsage
-	{
+	interface IParameterUsage {
 		AbstractInsnNode getMethodInvocation();
 		int getParamIndex();
 	}

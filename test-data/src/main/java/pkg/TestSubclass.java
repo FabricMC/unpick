@@ -1,16 +1,12 @@
 package pkg;
 
-public class TestSubclass
-{
-	void test(int x)
-	{
+public class TestSubclass {
+	void test(int x) {
 	}
 
-	static class Subclass extends TestSubclass
-	{
+	static class Subclass extends TestSubclass {
 		@Override
-		void test(int x)
-		{
+		void test(int x) {
 			boolean b = x == 257;
 		}
 	}
