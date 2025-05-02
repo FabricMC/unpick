@@ -5,28 +5,13 @@ import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
 
-public final class TargetMethod {
-	public final String className;
-	public final String methodName;
-	public final String methodDesc;
-	public final Map<Integer, String> paramGroups;
-	@Nullable
-	public final String returnGroup;
-
-	public TargetMethod(
-			String className,
-			String methodName,
-			String methodDesc,
-			Map<Integer, String> paramGroups,
-			@Nullable String returnGroup
-	) {
-		this.className = className;
-		this.methodName = methodName;
-		this.methodDesc = methodDesc;
-		this.paramGroups = paramGroups;
-		this.returnGroup = returnGroup;
-	}
-
+public record TargetMethod(
+		String className,
+		String methodName,
+		String methodDesc,
+		Map<Integer, String> paramGroups,
+		@Nullable String returnGroup
+) {
 	public static final class Builder {
 		private final String className;
 		private final String methodName;
@@ -45,18 +30,39 @@ public final class TargetMethod {
 			return new Builder(className, methodName, methodDesc);
 		}
 
+		public static Builder from(TargetMethod method) {
+			return new Builder(method.className(), method.methodName(), method.methodDesc())
+					.paramGroups(method.paramGroups())
+					.returnGroup(method.returnGroup());
+		}
+
+		public Builder paramGroup(int index) {
+			return paramGroup(index, null);
+		}
+
 		public Builder paramGroup(int index, String group) {
-			paramGroups.put(index, group);
+			this.paramGroups.put(index, group);
 			return this;
 		}
 
-		public Builder returnGroup(String group) {
-			returnGroup = group;
+		public Builder paramGroups(Map<Integer, String> paramGroups) {
+			this.paramGroups.putAll(paramGroups);
+			return this;
+		}
+
+		public Builder setParamGroups(Map<Integer, String> paramGroups) {
+			this.paramGroups.clear();
+			this.paramGroups.putAll(paramGroups);
+			return this;
+		}
+
+		public Builder returnGroup(String returnGroup) {
+			this.returnGroup = returnGroup;
 			return this;
 		}
 
 		public TargetMethod build() {
-			return new TargetMethod(className, methodName, methodDesc, paramGroups, returnGroup);
+			return new TargetMethod(className, methodName, methodDesc, Map.copyOf(paramGroups), returnGroup);
 		}
 	}
 }

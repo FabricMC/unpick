@@ -24,7 +24,7 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue {
 		this.usages = new HashSet<>();
 		this.typeInterpretations = new HashSet<>();
 		if (dataType != null) {
-			this.addTypeInterpretationFromDesc(dataType.getDescriptor());
+			this.addTypeInterpretationFromType(dataType);
 		}
 	}
 
@@ -35,7 +35,7 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue {
 		this.usages = cloneOf.getUsages();
 		this.typeInterpretations = cloneOf.getTypeInterpretations();
 		if (dataType != null) {
-			this.addTypeInterpretationFromDesc(dataType.getDescriptor());
+			this.addTypeInterpretationFromType(dataType);
 		}
 	}
 
@@ -85,40 +85,11 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue {
 		this.typeInterpretations = typeInterpretations;
 	}
 
-	void addTypeInterpretationFromDesc(String desc) {
-		DataType dataType;
-		switch (desc) {
-			case "C":
-				dataType = DataType.CHAR;
-				break;
-			case "B":
-				dataType = DataType.BYTE;
-				break;
-			case "S":
-				dataType = DataType.SHORT;
-				break;
-			case "I":
-				dataType = DataType.INT;
-				break;
-			case "J":
-				dataType = DataType.LONG;
-				break;
-			case "F":
-				dataType = DataType.FLOAT;
-				break;
-			case "D":
-				dataType = DataType.DOUBLE;
-				break;
-			case "Ljava/lang/String;":
-				dataType = DataType.STRING;
-				break;
-			case "Ljava/lang/Class;":
-				dataType = DataType.CLASS;
-				break;
-			default:
-				return;
+	void addTypeInterpretationFromType(Type type) {
+		DataType dataType = Utils.asmTypeToDataType(type);
+		if (dataType != null) {
+			typeInterpretations.add(dataType);
 		}
-		typeInterpretations.add(dataType);
 	}
 
 	@Override

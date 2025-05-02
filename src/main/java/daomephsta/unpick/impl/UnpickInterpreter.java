@@ -186,7 +186,7 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 				if (classInfo == null) {
 					return Type.getObjectType("java/lang/Object");
 				} else {
-					return Type.getObjectType(Objects.requireNonNull(classInfo.getSuperClass(), "returned null for non-Object superclass"));
+					return Type.getObjectType(Objects.requireNonNull(classInfo.superClass(), "returned null for non-Object superclass"));
 				}
 			}
 		}
@@ -303,13 +303,13 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 			case FRETURN:
 			case DRETURN:
 			case ARETURN:
-				value.addTypeInterpretationFromDesc(Type.getReturnType(method.desc).getDescriptor());
+				value.addTypeInterpretationFromType(Type.getReturnType(method.desc));
 				break;
 			case PUTSTATIC:
-				value.addTypeInterpretationFromDesc(((FieldInsnNode) insn).desc);
+				value.addTypeInterpretationFromType(Type.getType(((FieldInsnNode) insn).desc));
 				break;
 			case CHECKCAST:
-				value.addTypeInterpretationFromDesc(((TypeInsnNode) insn).desc);
+				value.addTypeInterpretationFromType(Type.getType(((TypeInsnNode) insn).desc));
 				break;
 		}
 
@@ -387,7 +387,7 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 				return new UnpickValue(type);
 			case PUTFIELD:
 				value2.getUsages().add(insn);
-				value2.addTypeInterpretationFromDesc(((FieldInsnNode) insn).desc);
+				value2.addTypeInterpretationFromType(Type.getType(((FieldInsnNode) insn).desc));
 				return new UnpickValue(type);
 			default:
 				throw new IllegalArgumentException("Unrecognized insn: " + insn.getOpcode());
@@ -425,7 +425,7 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 				break;
 			case AASTORE:
 				if (value1.getDataType().getSort() == Type.ARRAY) {
-					value3.addTypeInterpretationFromDesc(value1.getDataType().getDescriptor().substring(1));
+					value3.addTypeInterpretationFromType(Type.getType(value1.getDataType().getDescriptor().substring(1)));
 				}
 				break;
 		}
@@ -446,7 +446,7 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 			for (int i = hasThis ? 1 : 0; i < values.size(); i++) {
 				int paramIndex = hasThis ? i - 1 : i;
 				values.get(i).getParameterUsages().add(new UnpickValue.ParameterUsage(insn, paramIndex));
-				values.get(i).addTypeInterpretationFromDesc(argumentTypes[paramIndex].getDescriptor());
+				values.get(i).addTypeInterpretationFromType(argumentTypes[paramIndex]);
 			}
 			UnpickValue value = new UnpickValue(type);
 			value.getUsages().add(insn);

@@ -65,24 +65,11 @@ public class UnpickV2Reader implements Closeable {
 						lastTargetMethodVisitor = null;
 					}
 					switch (tokens[0]) {
-						case "constant":
-							visitSimpleConstantDefinition(visitor, tokens, reader.getLineNumber());
-							break;
-
-						case "flag":
-							visitFlagConstantDefinition(visitor, tokens, reader.getLineNumber());
-							break;
-
-						case "param":
-							visitParameterConstantGroupDefinition(visitor, tokens, reader.getLineNumber());
-							break;
-
-						case "return":
-							visitReturnConstantGroupDefinition(visitor, tokens, reader.getLineNumber());
-							break;
-
-						default:
-							throw new UnpickSyntaxException("\nUnknown start token Tokens: " + Arrays.toString(tokens));
+						case "constant" -> visitSimpleConstantDefinition(visitor, tokens, reader.getLineNumber());
+						case "flag" -> visitFlagConstantDefinition(visitor, tokens, reader.getLineNumber());
+						case "param" -> visitParameterConstantGroupDefinition(visitor, tokens, reader.getLineNumber());
+						case "return" -> visitReturnConstantGroupDefinition(visitor, tokens, reader.getLineNumber());
+						default -> throw new UnpickSyntaxException("\nUnknown start token Tokens: " + Arrays.toString(tokens));
 					}
 				}
 			}

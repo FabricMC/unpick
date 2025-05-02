@@ -5,12 +5,19 @@ import org.jetbrains.annotations.Nullable;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 
 public class ClasspathInheritanceChecker implements IInheritanceChecker {
+	@Nullable
+	private final ClassLoader classLoader;
+
+	public ClasspathInheritanceChecker(@Nullable ClassLoader classLoader) {
+		this.classLoader = classLoader;
+	}
+
 	@Override
 	@Nullable
 	public ClassInfo getClassInfo(String className) {
 		Class<?> clazz;
 		try {
-			clazz = Class.forName(className.replace('/', '.'), false, ClasspathInheritanceChecker.class.getClassLoader());
+			clazz = Class.forName(className.replace('/', '.'), false, classLoader);
 		} catch (ClassNotFoundException e) {
 			return null;
 		}

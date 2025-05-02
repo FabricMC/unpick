@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
 import org.objectweb.asm.ClassReader;
@@ -48,11 +49,9 @@ import daomephsta.unpick.constantmappers.datadriven.parser.MemberKey;
 import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
 import daomephsta.unpick.constantmappers.datadriven.parser.v3.UnpickV3Reader;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
-import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupFormat;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupScope;
-import daomephsta.unpick.constantmappers.datadriven.tree.GroupType;
 import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetField;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
@@ -79,12 +78,14 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 	private static final Logger LOGGER = Logger.getLogger("unpick");
 
 	private final Data data = new Data();
+	private final IConstantResolver constantResolver;
 	private final IInheritanceChecker inheritanceChecker;
 	private final Map<MemberKey, TargetMethod> targetMethodCache = new ConcurrentHashMap<>();
 	private final Set<MemberKey> noTargetMethodCache = ConcurrentHashMap.newKeySet();
 	private final ConstantGroup defaultGroup = new ConstantGroup("<default>", this::replaceDefault);
 
-	public DataDrivenConstantGrouper(@Nullable IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker, InputStream... mappingSources) {
+	public DataDrivenConstantGrouper(IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker, InputStream... mappingSources) {
+		this.constantResolver = constantResolver;
 		this.inheritanceChecker = inheritanceChecker;
 		for (InputStream mappingSource : mappingSources) {
 			BufferedReader reader = new BufferedReader(new InputStreamReader(mappingSource, StandardCharsets.UTF_8));
@@ -123,8 +124,10 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		LOGGER.info(() -> String.format("Loaded %d constant groups, %d target fields and %d target methods", data.defaultGroups.size() + data.groups.size(), data.targetFields.size(), data.targetMethods.size()));
 	}
 
+	@ApiStatus.Internal
 	@VisibleForTesting
-	public DataDrivenConstantGrouper(IInheritanceChecker inheritanceChecker, Consumer<UnpickV3Visitor> dataProvider) {
+	public DataDrivenConstantGrouper(IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker, Consumer<UnpickV3Visitor> dataProvider) {
+		this.constantResolver = constantResolver;
 		this.inheritanceChecker = inheritanceChecker;
 		dataProvider.accept(data);
 	}
@@ -133,14 +136,14 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 	@Nullable
 	public ConstantGroup getFieldGroup(String fieldOwner, String fieldName, String fieldDescriptor) {
 		TargetField targetField = data.targetFields.get(new MemberKey(fieldOwner.replace('/', '.'), fieldName, fieldDescriptor));
-		return targetField == null ? null : getGroupByName(targetField.groupName);
+		return targetField == null ? null : getGroupByName(targetField.groupName());
 	}
 
 	@Override
 	@Nullable
 	public ConstantGroup getMethodReturnGroup(String methodOwner, String methodName, String methodDescriptor) {
 		TargetMethod targetMethod = findTargetMethod(methodOwner, methodName, methodDescriptor);
-		return targetMethod == null || targetMethod.returnGroup == null ? null : getGroupByName(targetMethod.returnGroup);
+		return targetMethod == null || targetMethod.returnGroup() == null ? null : getGroupByName(targetMethod.returnGroup());
 	}
 
 	@Override
@@ -150,7 +153,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		if (targetMethod == null) {
 			return null;
 		}
-		String groupName = targetMethod.paramGroups.get(parameterIndex);
+		String groupName = targetMethod.paramGroups().get(parameterIndex);
 		return groupName == null ? null : getGroupByName(groupName);
 	}
 
@@ -169,12 +172,12 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		if (targetMethod == null) {
 			IInheritanceChecker.ClassInfo classInfo = inheritanceChecker.getClassInfo(methodOwner);
 			if (classInfo != null) {
-				if (classInfo.getSuperClass() != null) {
-					targetMethod = findTargetMethod(classInfo.getSuperClass(), methodName, methodDescriptor);
+				if (classInfo.superClass() != null) {
+					targetMethod = findTargetMethod(classInfo.superClass(), methodName, methodDescriptor);
 				}
 
 				if (targetMethod == null) {
-					for (String itf : classInfo.getInterfaces()) {
+					for (String itf : classInfo.interfaces()) {
 						targetMethod = findTargetMethod(itf, methodName, methodDescriptor);
 						if (targetMethod != null) {
 							break;
@@ -332,26 +335,15 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 			return;
 		}
 
-		if (groupInfo.groupType == GroupType.FLAG && castedLiteral != null && !castedLiteral.equals(0L) && !castedLiteral.equals(-1L)) {
+		if (groupInfo.flags && castedLiteral != null && !castedLiteral.equals(0L) && !castedLiteral.equals(-1L)) {
 			DataType narrowedLiteralType = getNarrowedLiteralType(context, target, literalType, literal);
-			long mask;
-			switch (narrowedLiteralType) {
-				case BYTE:
-					mask = 0xff;
-					break;
-				case SHORT:
-				case CHAR:
-					mask = 0xffff;
-					break;
-				case INT:
-					mask = 0xffff_ffffL;
-					break;
-				case LONG:
-					mask = 0xffff_ffff_ffff_ffffL;
-					break;
-				default:
-					throw new AssertionError("Invalid literal type for  flag: " + narrowedLiteralType);
-			}
+			long mask = switch (narrowedLiteralType) {
+				case BYTE -> 0xff;
+				case SHORT, CHAR -> 0xffff;
+				case INT -> 0xffff_ffffL;
+				case LONG -> 0xffff_ffff_ffff_ffffL;
+				default -> throw new AssertionError("Invalid literal type for flag: " + narrowedLiteralType);
+			};
 			long targetValue = (Long) castedLiteral & mask;
 
 			Map<Long, Expression> inScopeFlags = new LinkedHashMap<>();
@@ -504,8 +496,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		AbstractInsnNode targetInsn = context.getTarget();
 
 		// check for lonesome instance field replacement to replace a null check
-		if (replacement instanceof FieldExpression && !((FieldExpression) replacement).isStatic) {
-			FieldExpression fieldReplacement = (FieldExpression) replacement;
+		if (replacement instanceof FieldExpression fieldReplacement && !fieldReplacement.isStatic) {
 			String fieldOwner = fieldReplacement.className.replace('.', '/');
 			DataType fieldType = fieldReplacement.fieldType == null ? groupInfo.dataType : fieldReplacement.fieldType;
 
@@ -524,7 +515,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 							context.getReplacementSet().addReplacement(nullCheckEnd, new InsnList());
 
 							// replace the constant instruction with a getfield
-							context.getReplacementSet().addReplacement(targetInsn, new FieldInsnNode(Opcodes.GETFIELD, fieldOwner, fieldReplacement.fieldName, getDescriptor(fieldType)));
+							context.getReplacementSet().addReplacement(targetInsn, new FieldInsnNode(Opcodes.GETFIELD, fieldOwner, fieldReplacement.fieldName, Utils.getDescriptor(fieldType)));
 							return;
 						}
 					}
@@ -577,44 +568,19 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 				boolean isShift = binaryExpression.operator == BinaryExpression.Operator.BIT_SHIFT_LEFT || binaryExpression.operator == BinaryExpression.Operator.BIT_SHIFT_RIGHT || binaryExpression.operator == BinaryExpression.Operator.BIT_SHIFT_RIGHT_UNSIGNED;
 				addCastInsns(replacementInsns, rightType, isShift ? DataType.INT : overallType);
 
-				int opcode;
-				switch (binaryExpression.operator) {
-					case BIT_OR:
-						opcode = getOpcode(restrictToIntegralType(overallType), Opcodes.IOR);
-						break;
-					case BIT_XOR:
-						opcode = getOpcode(restrictToIntegralType(overallType), Opcodes.IXOR);
-						break;
-					case BIT_AND:
-						opcode = getOpcode(restrictToIntegralType(overallType), Opcodes.IAND);
-						break;
-					case BIT_SHIFT_LEFT:
-						opcode = getOpcode(restrictToIntegralType(overallType), Opcodes.ISHL);
-						break;
-					case BIT_SHIFT_RIGHT:
-						opcode = getOpcode(restrictToIntegralType(overallType), Opcodes.ISHR);
-						break;
-					case BIT_SHIFT_RIGHT_UNSIGNED:
-						opcode = getOpcode(restrictToIntegralType(overallType), Opcodes.IUSHR);
-						break;
-					case ADD:
-						opcode = getOpcode(restrictToNumberType(overallType), Opcodes.IADD);
-						break;
-					case SUBTRACT:
-						opcode = getOpcode(restrictToNumberType(overallType), Opcodes.ISUB);
-						break;
-					case MULTIPLY:
-						opcode = getOpcode(restrictToNumberType(overallType), Opcodes.IMUL);
-						break;
-					case DIVIDE:
-						opcode = getOpcode(restrictToNumberType(overallType), Opcodes.IDIV);
-						break;
-					case MODULO:
-						opcode = getOpcode(restrictToNumberType(overallType), Opcodes.IREM);
-						break;
-					default:
-						throw new AssertionError("Unknown binary operator: " + binaryExpression.operator);
-				}
+				int opcode = switch (binaryExpression.operator) {
+					case BIT_OR -> getOpcode(restrictToIntegralType(overallType), Opcodes.IOR);
+					case BIT_XOR -> getOpcode(restrictToIntegralType(overallType), Opcodes.IXOR);
+					case BIT_AND -> getOpcode(restrictToIntegralType(overallType), Opcodes.IAND);
+					case BIT_SHIFT_LEFT -> getOpcode(restrictToIntegralType(overallType), Opcodes.ISHL);
+					case BIT_SHIFT_RIGHT -> getOpcode(restrictToIntegralType(overallType), Opcodes.ISHR);
+					case BIT_SHIFT_RIGHT_UNSIGNED -> getOpcode(restrictToIntegralType(overallType), Opcodes.IUSHR);
+					case ADD -> getOpcode(restrictToNumberType(overallType), Opcodes.IADD);
+					case SUBTRACT -> getOpcode(restrictToNumberType(overallType), Opcodes.ISUB);
+					case MULTIPLY -> getOpcode(restrictToNumberType(overallType), Opcodes.IMUL);
+					case DIVIDE -> getOpcode(restrictToNumberType(overallType), Opcodes.IDIV);
+					case MODULO -> getOpcode(restrictToNumberType(overallType), Opcodes.IREM);
+				};
 
 				replacementInsns.add(new InsnNode(opcode));
 			}
@@ -629,7 +595,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 
 			@Override
 			public void visitFieldExpression(FieldExpression fieldExpression) {
-				String fieldDesc = getDescriptor(fieldExpression.fieldType == null ? groupInfo.dataType : fieldExpression.fieldType);
+				String fieldDesc = Utils.getDescriptor(fieldExpression.fieldType == null ? groupInfo.dataType : fieldExpression.fieldType);
 				if (fieldExpression.isStatic) {
 					String fieldOwner = fieldExpression.className.replace('.', '/');
 					replacementInsns.add(new FieldInsnNode(Opcodes.GETSTATIC, fieldOwner, fieldExpression.fieldName, fieldDesc));
@@ -651,19 +617,19 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 
 			@Override
 			public void visitUnaryExpression(UnaryExpression unaryExpression) {
-				if (unaryExpression.operator == UnaryExpression.Operator.NEGATE && unaryExpression.operand instanceof LiteralExpression) {
-					Literal literal = ((LiteralExpression) unaryExpression.operand).literal;
-					if (literal instanceof Literal.Integer) {
-						replacementInsns.add(InstructionFactory.pushInt(-((Literal.Integer) literal).value));
+				if (unaryExpression.operator == UnaryExpression.Operator.NEGATE && unaryExpression.operand instanceof LiteralExpression literalExpr) {
+					Literal literal = literalExpr.literal;
+					if (literal instanceof Literal.Integer intLiteral) {
+						replacementInsns.add(InstructionFactory.pushInt(-intLiteral.value()));
 						return;
-					} else if (literal instanceof Literal.Long) {
-						replacementInsns.add(InstructionFactory.pushLong(-((Literal.Long) literal).value));
+					} else if (literal instanceof Literal.Long longLiteral) {
+						replacementInsns.add(InstructionFactory.pushLong(-longLiteral.value()));
 						return;
-					} else if (literal instanceof Literal.Float) {
-						replacementInsns.add(InstructionFactory.pushFloat(-((Literal.Float) literal).value));
+					} else if (literal instanceof Literal.Float floatLiteral) {
+						replacementInsns.add(InstructionFactory.pushFloat(-floatLiteral.value()));
 						return;
-					} else if (literal instanceof Literal.Double) {
-						replacementInsns.add(InstructionFactory.pushDouble(-((Literal.Double) literal).value));
+					} else if (literal instanceof Literal.Double doubleLiteral) {
+						replacementInsns.add(InstructionFactory.pushDouble(-doubleLiteral.value()));
 						return;
 					}
 				}
@@ -706,7 +672,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 					replacementInsns.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "java/lang/StringBuilder", "<init>", "()V", false));
 					for (Expression expression : stuffToConcatenate) {
 						expression.accept(this);
-						String sbDesc = "(" + getDescriptor(getExpressionType(groupInfo, expression)) + ")Ljava/lang/StringBuilder;";
+						String sbDesc = "(" + Utils.getDescriptor(getExpressionType(groupInfo, expression)) + ")Ljava/lang/StringBuilder;";
 						replacementInsns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/StringBuilder", "append", sbDesc, false));
 					}
 					replacementInsns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/StringBuilder", "toString", "()Ljava/lang/String;", false));
@@ -715,7 +681,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 					StringBuilder concatType = new StringBuilder("(");
 					for (Expression expression : stuffToConcatenate) {
 						recipe.append('\1');
-						concatType.append(getDescriptor(getExpressionType(groupInfo, expression)));
+						concatType.append(Utils.getDescriptor(getExpressionType(groupInfo, expression)));
 						expression.accept(this);
 					}
 					concatType.append(")Ljava/lang/String;");
@@ -737,19 +703,12 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 			}
 
 			private DataType restrictToNumberType(DataType dataType) {
-				switch (dataType) {
-					case BYTE:
-					case SHORT:
-					case CHAR:
-					case INT:
-						return DataType.INT;
-					case LONG:
-						return DataType.LONG;
-					case FLOAT:
-						return DataType.FLOAT;
-					default:
-						return DataType.DOUBLE;
-				}
+				return switch (dataType) {
+					case BYTE, SHORT, CHAR, INT -> DataType.INT;
+					case LONG -> DataType.LONG;
+					case FLOAT -> DataType.FLOAT;
+					default -> DataType.DOUBLE;
+				};
 			}
 		});
 
@@ -795,141 +754,73 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 	}
 
 	private static int getOpcode(DataType dataType, int intOpcode) {
-		Type type;
-		switch (dataType) {
-			case BYTE:
-			case SHORT:
-			case CHAR:
-			case INT:
-				type = Type.INT_TYPE;
-				break;
-			case LONG:
-				type = Type.LONG_TYPE;
-				break;
-			case FLOAT:
-				type = Type.FLOAT_TYPE;
-				break;
-			case DOUBLE:
-				type = Type.DOUBLE_TYPE;
-				break;
-			case STRING:
-				type = Type.getObjectType("java/lang/String");
-				break;
-			case CLASS:
-				type = Type.getObjectType("java/lang/Class");
-				break;
-			default:
-				throw new AssertionError("Unexpected type: " + dataType);
-		}
+		Type type = switch (dataType) {
+			case BYTE, SHORT, CHAR, INT -> Type.INT_TYPE;
+			case LONG -> Type.LONG_TYPE;
+			case FLOAT -> Type.FLOAT_TYPE;
+			case DOUBLE -> Type.DOUBLE_TYPE;
+			case STRING -> Type.getObjectType("java/lang/String");
+			case CLASS -> Type.getObjectType("java/lang/Class");
+		};
 
 		return type.getOpcode(intOpcode);
 	}
 
 	private static void addCastInsns(InsnList insns, DataType fromType, DataType toType) {
-		int opcode;
-		switch (fromType) {
-			case BYTE:
-			case SHORT:
-			case CHAR:
-			case INT:
-				switch (toType) {
-					case BYTE:
-						if (fromType != DataType.BYTE) {
-							insns.add(new InsnNode(Opcodes.I2B));
-						}
-						return;
-					case SHORT:
-						if (fromType != DataType.BYTE && fromType != DataType.SHORT) {
-							insns.add(new InsnNode(Opcodes.I2S));
-						}
-						return;
-					case CHAR:
-						if (fromType != DataType.CHAR) {
-							insns.add(new InsnNode(Opcodes.I2C));
-						}
-						return;
-					case LONG:
-						opcode = Opcodes.I2L;
-						break;
-					case FLOAT:
-						opcode = Opcodes.I2F;
-						break;
-					case DOUBLE:
-						opcode = Opcodes.I2D;
-						break;
-					default:
-						return;
+		Integer opcode = switch (fromType) {
+			case BYTE, SHORT, CHAR, INT -> switch (toType) {
+				case BYTE -> {
+					if (fromType != DataType.BYTE) {
+						insns.add(new InsnNode(Opcodes.I2B));
+					}
+					yield null;
 				}
-				break;
-			case LONG:
-				switch (toType) {
-					case BYTE:
-					case SHORT:
-					case CHAR:
-					case INT:
-						opcode = Opcodes.L2I;
-						break;
-					case FLOAT:
-						opcode = Opcodes.L2F;
-						break;
-					case DOUBLE:
-						opcode = Opcodes.L2D;
-						break;
-					default:
-						return;
+				case SHORT -> {
+					if (fromType != DataType.BYTE && fromType != DataType.SHORT) {
+						insns.add(new InsnNode(Opcodes.I2S));
+					}
+					yield null;
 				}
-				break;
-			case FLOAT:
-				switch (toType) {
-					case BYTE:
-					case SHORT:
-					case CHAR:
-					case INT:
-						opcode = Opcodes.F2I;
-						break;
-					case LONG:
-						opcode = Opcodes.F2L;
-						break;
-					case DOUBLE:
-						opcode = Opcodes.F2D;
-						break;
-					default:
-						return;
+				case CHAR -> {
+					if (fromType != DataType.CHAR) {
+						insns.add(new InsnNode(Opcodes.I2C));
+					}
+					yield null;
 				}
-				break;
-			case DOUBLE:
-				switch (toType) {
-					case BYTE:
-					case SHORT:
-					case CHAR:
-					case INT:
-						opcode = Opcodes.D2I;
-						break;
-					case LONG:
-						opcode = Opcodes.D2L;
-						break;
-					case FLOAT:
-						opcode = Opcodes.D2F;
-						break;
-					default:
-						return;
-				}
-				break;
-			default:
-				return;
+				case LONG -> Opcodes.I2L;
+				case FLOAT -> Opcodes.I2F;
+				case DOUBLE -> Opcodes.I2D;
+				default -> null;
+			};
+			case LONG -> switch (toType) {
+				case BYTE, SHORT, CHAR, INT -> Opcodes.L2I;
+				case FLOAT -> Opcodes.L2F;
+				case DOUBLE -> Opcodes.L2D;
+				default -> null;
+			};
+			case FLOAT -> switch (toType) {
+				case BYTE, SHORT, CHAR, INT -> Opcodes.F2I;
+				case LONG -> Opcodes.F2L;
+				case DOUBLE -> Opcodes.F2D;
+				default -> null;
+			};
+			case DOUBLE -> switch (toType) {
+				case BYTE, SHORT, CHAR, INT -> Opcodes.D2I;
+				case LONG -> Opcodes.D2L;
+				case FLOAT -> Opcodes.D2F;
+				default -> null;
+			};
+			default -> null;
+		};
+		if (opcode == null) {
+			return;
 		}
 
 		insns.add(new InsnNode(opcode));
 		switch (toType) {
-			case BYTE:
-				insns.add(new InsnNode(Opcodes.I2B));
-				break;
-			case SHORT:
-				insns.add(new InsnNode(Opcodes.I2S));
-				break;
-			case CHAR:
-				insns.add(new InsnNode(Opcodes.I2C));
-				break;
+			case BYTE -> insns.add(new InsnNode(Opcodes.I2B));
+			case SHORT -> insns.add(new InsnNode(Opcodes.I2S));
+			case CHAR -> insns.add(new InsnNode(Opcodes.I2C));
 		}
 	}
 
@@ -1046,51 +937,44 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 
 	@Nullable
 	private static Object castLiteral(Object literal, DataType destType) {
-		switch (destType) {
-			case BYTE:
-			case SHORT:
-			case CHAR:
-			case INT: {
+		return switch (destType) {
+			case BYTE, SHORT, CHAR, INT -> {
 				int result = ((Number) literal).intValue();
 				boolean exactCast = result == ((Number) literal).doubleValue();
-				return exactCast ? result : null;
+				yield exactCast ? result : null;
 			}
-			case LONG: {
+			case LONG -> {
 				long result = ((Number) literal).longValue();
 				boolean exactCast = !Utils.isFloatingPoint(literal) || result == ((Number) literal).doubleValue();
-				return exactCast ? result : null;
+				yield exactCast ? result : null;
 			}
-			case FLOAT: {
+			case FLOAT -> {
 				float result = ((Number) literal).floatValue();
 				boolean exactCast = Utils.isFloatingPoint(literal) ? Double.compare(result, ((Number) literal).doubleValue()) == 0 : (long) result == ((Number) literal).longValue();
-				return exactCast ? result : null;
+				yield exactCast ? result : null;
 			}
-			case DOUBLE: {
+			case DOUBLE -> {
 				double result = ((Number) literal).doubleValue();
 				boolean exactCast = Utils.isFloatingPoint(literal) || (long) result == ((Number) literal).longValue();
-				return exactCast ? result : null;
+				yield exactCast ? result : null;
 			}
-			case STRING:
-			case CLASS:
-				return literal;
-			default:
-				throw new AssertionError("Unknown literal data type " + destType);
-		}
+			case STRING, CLASS -> literal;
+		};
 	}
 
 	private static Object literalToObject(Literal literal) {
 		if (literal instanceof Literal.Integer) {
-			return ((Literal.Integer) literal).value;
+			return ((Literal.Integer) literal).value();
 		} else if (literal instanceof Literal.Long) {
-			return ((Literal.Long) literal).value;
+			return ((Literal.Long) literal).value();
 		} else if (literal instanceof Literal.Float) {
-			return ((Literal.Float) literal).value;
+			return ((Literal.Float) literal).value();
 		} else if (literal instanceof Literal.Double) {
-			return ((Literal.Double) literal).value;
+			return ((Literal.Double) literal).value();
 		} else if (literal instanceof Literal.Character) {
-			return ((Literal.Character) literal).value;
+			return ((Literal.Character) literal).value();
 		} else if (literal instanceof Literal.String) {
-			return ((Literal.String) literal).value;
+			return ((Literal.String) literal).value();
 		} else {
 			throw new AssertionError("Unexpected literal type: " + literal.getClass().getName());
 		}
@@ -1115,47 +999,11 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 	}
 
 	private static DataType toConstantKeyType(DataType dataType) {
-		switch (dataType) {
-			case BYTE:
-			case SHORT:
-			case CHAR:
-			case INT:
-			case LONG:
-				return DataType.LONG;
-			case FLOAT:
-			case DOUBLE:
-				return DataType.DOUBLE;
-			case STRING:
-			case CLASS:
-				return dataType;
-			default:
-				throw new AssertionError("Unsupported data type " + dataType);
-		}
-	}
-
-	private static String getDescriptor(DataType dataType) {
-		switch (dataType) {
-			case BYTE:
-				return "B";
-			case SHORT:
-				return "S";
-			case INT:
-				return "I";
-			case LONG:
-				return "J";
-			case FLOAT:
-				return "F";
-			case DOUBLE:
-				return "D";
-			case CHAR:
-				return "C";
-			case STRING:
-				return "Ljava/lang/String;";
-			case CLASS:
-				return "Ljava/lang/Class;";
-			default:
-				throw new AssertionError("Unsupported data type " + dataType);
-		}
+		return switch (dataType) {
+			case BYTE, SHORT, CHAR, INT, LONG -> DataType.LONG;
+			case FLOAT, DOUBLE -> DataType.DOUBLE;
+			case STRING, CLASS -> dataType;
+		};
 	}
 
 	@Nullable
@@ -1219,27 +1067,20 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		}
 	}
 
-	private static final class OuterClassReference {
-		private final ClassNode outerClass;
-		private final FieldNode outerThisReference;
-
-		private OuterClassReference(ClassNode outerClass, FieldNode outerThisReference) {
-			this.outerClass = outerClass;
-			this.outerThisReference = outerThisReference;
-		}
+	private record OuterClassReference(ClassNode outerClass, FieldNode outerThisReference) {
 	}
 
 	private static final class GroupInfo {
 		private final DataType dataType;
-		private final GroupType groupType;
+		private final boolean flags;
 		private final ScopedGroupInfo globalScope = new ScopedGroupInfo();
 		private final Map<String, ScopedGroupInfo> packageScopes = new HashMap<>();
 		private final Map<String, ScopedGroupInfo> classScopes = new HashMap<>();
 		private final Map<MemberKey, ScopedGroupInfo> methodScopes = new HashMap<>();
 
-		private GroupInfo(DataType dataType, GroupType groupType) {
+		private GroupInfo(DataType dataType, boolean flags) {
 			this.dataType = dataType;
-			this.groupType = groupType;
+			this.flags = flags;
 		}
 	}
 
@@ -1249,17 +1090,10 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		private final Map<Object, ConstantReplacementInfo> constantReplacementMap = new HashMap<>();
 	}
 
-	private static final class ConstantReplacementInfo {
-		private final boolean strict;
-		private final Expression replacementExpression;
-
-		private ConstantReplacementInfo(boolean strict, Expression replacementExpression) {
-			this.strict = strict;
-			this.replacementExpression = replacementExpression;
-		}
+	private record ConstantReplacementInfo(boolean strict, Expression replacementExpression) {
 	}
 
-	public static final class Data extends UnpickV3Visitor {
+	public final class Data extends UnpickV3Visitor {
 		private final Map<DataType, GroupInfo> defaultGroups = new EnumMap<>(DataType.class);
 		private final Map<String, GroupInfo> groups = new HashMap<>();
 		private final Map<MemberKey, TargetField> targetFields = new HashMap<>();
@@ -1270,130 +1104,192 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 
 		@Override
 		public void visitGroupDefinition(GroupDefinition groupDefinition) {
-			GroupInfo existingInfo = groupDefinition.name == null
-					? defaultGroups.computeIfAbsent(groupDefinition.dataType, k -> new GroupInfo(groupDefinition.dataType, groupDefinition.type))
-					: groups.computeIfAbsent(groupDefinition.name, k -> new GroupInfo(groupDefinition.dataType, groupDefinition.type));
-			String groupDisplayName = groupDefinition.name == null ? "<default>" : groupDefinition.name;
+			GroupInfo existingInfo = groupDefinition.name() == null
+					? defaultGroups.computeIfAbsent(groupDefinition.dataType(), k -> new GroupInfo(groupDefinition.dataType(), groupDefinition.flags()))
+					: groups.computeIfAbsent(groupDefinition.name(), k -> new GroupInfo(groupDefinition.dataType(), groupDefinition.flags()));
+			String groupDisplayName = groupDefinition.name() == null ? "<default>" : groupDefinition.name();
 
-			if (existingInfo.groupType != groupDefinition.type) {
-				throw new UnpickSyntaxException("Group type mismatch for group " + groupDisplayName);
+			if (existingInfo.flags != groupDefinition.flags()) {
+				throw new UnpickSyntaxException("Flags mismatch for group " + groupDisplayName);
 			}
-			if (existingInfo.dataType != groupDefinition.dataType) {
+			if (existingInfo.dataType != groupDefinition.dataType()) {
 				throw new UnpickSyntaxException("Data type mismatch for group " + groupDisplayName);
 			}
 
-			ScopedGroupInfo existingScopedInfo;
-			if (groupDefinition.scope instanceof GroupScope.Global) {
-				existingScopedInfo = existingInfo.globalScope;
-			} else if (groupDefinition.scope instanceof GroupScope.Package) {
-				existingScopedInfo = existingInfo.packageScopes.computeIfAbsent(((GroupScope.Package) groupDefinition.scope).packageName, k -> new ScopedGroupInfo());
-			} else if (groupDefinition.scope instanceof GroupScope.Class) {
-				existingScopedInfo = existingInfo.classScopes.computeIfAbsent(((GroupScope.Class) groupDefinition.scope).className, k -> new ScopedGroupInfo());
-			} else if (groupDefinition.scope instanceof GroupScope.Method) {
-				GroupScope.Method methodScope = (GroupScope.Method) groupDefinition.scope;
-				existingScopedInfo = existingInfo.methodScopes.computeIfAbsent(new MemberKey(methodScope.className, methodScope.methodName, methodScope.methodDesc), k -> new ScopedGroupInfo());
+			if (groupDefinition.scopes().isEmpty()) {
+				addScopedGroupDefinition(groupDefinition, existingInfo.globalScope, groupDisplayName);
 			} else {
-				throw new AssertionError("Unknown scope type: " + groupDefinition.scope.getClass().getName());
-			}
+				for (GroupScope scope : groupDefinition.scopes()) {
+					ScopedGroupInfo existingScopedInfo;
+					if (scope instanceof GroupScope.Package packageScope) {
+						existingScopedInfo = existingInfo.packageScopes.computeIfAbsent(packageScope.packageName(), k -> new ScopedGroupInfo());
+					} else if (scope instanceof GroupScope.Class classScope) {
+						existingScopedInfo = existingInfo.classScopes.computeIfAbsent(classScope.className(), k -> new ScopedGroupInfo());
+					} else if (scope instanceof GroupScope.Method methodScope) {
+						existingScopedInfo = existingInfo.methodScopes.computeIfAbsent(new MemberKey(methodScope.className(), methodScope.methodName(), methodScope.methodDesc()), k -> new ScopedGroupInfo());
+					} else {
+						throw new AssertionError("Unknown scope type: " + scope.getClass().getName());
+					}
 
-			if (groupDefinition.format != null) {
-				if (existingScopedInfo.format != groupDefinition.format && existingScopedInfo.format != null) {
-					throw new UnpickSyntaxException("Format mismatch for group " + groupDisplayName);
-				}
-
-				existingScopedInfo.format = groupDefinition.format;
-			}
-
-			for (GroupConstant constant : groupDefinition.constants) {
-				Object cst = extractConstantObject(constant.key, groupDefinition.dataType);
-
-				if (existingScopedInfo.constantReplacementMap.put(cst, new ConstantReplacementInfo(groupDefinition.strict, constant.value)) != null) {
-					throw new UnpickSyntaxException("Duplicate constant in group " + groupDisplayName + ": " + cst);
+					addScopedGroupDefinition(groupDefinition, existingScopedInfo, groupDisplayName);
 				}
 			}
 		}
 
+		private void addScopedGroupDefinition(GroupDefinition groupDefinition, ScopedGroupInfo existingScopedInfo, String groupDisplayName) {
+			if (groupDefinition.format() != null) {
+				if (existingScopedInfo.format != groupDefinition.format() && existingScopedInfo.format != null) {
+					throw new UnpickSyntaxException("Format mismatch for group " + groupDisplayName);
+				}
+
+				existingScopedInfo.format = groupDefinition.format();
+			}
+
+			for (Expression expression : groupDefinition.constants()) {
+				for (Expression nonWildcardExpression : replaceWildcardIfNecessary(expression, groupDefinition.dataType(), groupDisplayName)) {
+					ExpressionEvaluator evaluator = new ExpressionEvaluator(constantResolver, inheritanceChecker);
+					nonWildcardExpression.accept(evaluator);
+					Object cst = evaluator.getResult();
+
+					if (cst instanceof Float floatValue) {
+						cst = floatValue.doubleValue();
+					} else if (cst instanceof Character charValue) {
+						cst = (long) charValue;
+					} else if (cst instanceof Byte || cst instanceof Short || cst instanceof Integer) {
+						cst = ((Number) cst).longValue();
+					}
+
+					if (existingScopedInfo.constantReplacementMap.put(cst, new ConstantReplacementInfo(groupDefinition.strict(), nonWildcardExpression)) != null) {
+						throw new UnpickSyntaxException("Duplicate constant in group " + groupDisplayName + ": " + cst);
+					}
+				}
+			}
+		}
+
+		private List<Expression> replaceWildcardIfNecessary(Expression expression, DataType groupType, String groupDisplayName) {
+			FieldExpression wildcardExpr = findWildcardFieldExpression(expression, groupDisplayName);
+			if (wildcardExpr == null) {
+				return List.of(expression);
+			}
+
+			Map<String, IConstantResolver.ResolvedConstant> constants = constantResolver.getAllConstantsInClass(wildcardExpr.className.replace('.', '/'));
+			if (constants == null) {
+				throw new UnpickSyntaxException("Could not resolve class " + wildcardExpr.className + " in group " + groupDisplayName);
+			}
+
+			List<Expression> replacements = new ArrayList<>();
+			constants.forEach((fieldName, resolvedConstant) -> {
+				if (resolvedConstant.isStatic() != wildcardExpr.isStatic) {
+					return;
+				}
+
+				DataType resolvedConstantType = Utils.asmTypeToDataType(resolvedConstant.type());
+				if (wildcardExpr.fieldType != null) {
+					if (resolvedConstantType != wildcardExpr.fieldType) {
+						return;
+					}
+				} else {
+					if (resolvedConstantType != groupType) {
+						if (resolvedConstantType == DataType.STRING || resolvedConstantType == DataType.CLASS || groupType == DataType.STRING || groupType == DataType.CLASS) {
+							return;
+						}
+						switch (groupType) {
+							case INT:
+								if (resolvedConstantType == DataType.LONG) {
+									return;
+								}
+								// fallthrough
+							case LONG:
+								if (resolvedConstantType == DataType.FLOAT) {
+									return;
+								}
+								// fallthrough
+							case FLOAT:
+								if (resolvedConstantType == DataType.DOUBLE) {
+									return;
+								}
+						}
+					}
+				}
+
+				Expression replacement = expression.transform(new ExpressionTransformer() {
+					@Override
+					public Expression transformFieldExpression(FieldExpression fieldExpression) {
+						if (fieldExpression.fieldName == null) {
+							return new FieldExpression(fieldExpression.className, fieldName, resolvedConstantType, fieldExpression.isStatic);
+						} else {
+							return super.transformFieldExpression(fieldExpression);
+						}
+					}
+				});
+				replacements.add(replacement);
+			});
+
+			if (replacements.isEmpty()) {
+				throw new UnpickSyntaxException("Could not resolve wildcard field expression " + wildcardExpr.className + ".* in group " + groupDisplayName);
+			}
+
+			return replacements;
+		}
+
+		@Nullable
+		private static FieldExpression findWildcardFieldExpression(Expression expression, String groupDisplayName) {
+			FieldExpression[] result = {null};
+			expression.accept(new ExpressionVisitor() {
+				@Override
+				public void visitFieldExpression(FieldExpression fieldExpression) {
+					if (fieldExpression.fieldName == null) {
+						if (result[0] != null) {
+							throw new UnpickSyntaxException("Expression in group " + groupDisplayName + " has multiple wildcard field expressions");
+						}
+						result[0] = fieldExpression;
+					}
+				}
+			});
+			return result[0];
+		}
+
 		@Override
 		public void visitTargetField(TargetField targetField) {
-			if (targetFields.put(new MemberKey(targetField.className, targetField.fieldName, targetField.fieldDesc), targetField) != null) {
-				throw new UnpickSyntaxException("Duplicate target field: " + targetField.className + "." + targetField.fieldName);
+			if (targetFields.put(new MemberKey(targetField.className(), targetField.fieldName(), targetField.fieldDesc()), targetField) != null) {
+				throw new UnpickSyntaxException("Duplicate target field: " + targetField.className() + "." + targetField.fieldName());
 			}
 		}
 
 		@Override
 		public void visitTargetMethod(TargetMethod targetMethod) {
-			MemberKey key = new MemberKey(targetMethod.className, targetMethod.methodName, targetMethod.methodDesc);
+			MemberKey key = new MemberKey(targetMethod.className(), targetMethod.methodName(), targetMethod.methodDesc());
 			TargetMethod existingTargetMethod = targetMethods.get(key);
 			if (existingTargetMethod == null) {
 				targetMethods.put(key, targetMethod);
 				return;
 			}
 
-			Map<Integer, String> paramGroups = new HashMap<>(existingTargetMethod.paramGroups);
-			targetMethod.paramGroups.forEach((paramIndex, groupName) -> {
+			Map<Integer, String> paramGroups = new HashMap<>(existingTargetMethod.paramGroups());
+			targetMethod.paramGroups().forEach((paramIndex, groupName) -> {
 				if (paramGroups.put(paramIndex, groupName) != null) {
-					throw new UnpickSyntaxException("Duplicate param group: " + targetMethod.className + "." + targetMethod.methodName + targetMethod.methodDesc + " " + paramIndex);
+					throw new UnpickSyntaxException("Duplicate param group: " + targetMethod.className() + "." + targetMethod.methodName() + targetMethod.methodDesc() + " " + paramIndex);
 				}
 			});
 
 			String returnGroup;
-			if (targetMethod.returnGroup != null) {
-				if (existingTargetMethod.returnGroup != null) {
-					throw new UnpickSyntaxException("Duplicate return group: " + targetMethod.className + "." + targetMethod.methodName + targetMethod.methodDesc);
+			if (targetMethod.returnGroup() != null) {
+				if (existingTargetMethod.returnGroup() != null) {
+					throw new UnpickSyntaxException("Duplicate return group: " + targetMethod.className() + "." + targetMethod.methodName() + targetMethod.methodDesc());
 				}
-				returnGroup = targetMethod.returnGroup;
+				returnGroup = targetMethod.returnGroup();
 			} else {
-				returnGroup = existingTargetMethod.returnGroup;
+				returnGroup = existingTargetMethod.returnGroup();
 			}
 
 			TargetMethod merged = new TargetMethod(
-					targetMethod.className,
-					targetMethod.methodName,
-					targetMethod.methodDesc,
+					targetMethod.className(),
+					targetMethod.methodName(),
+					targetMethod.methodDesc(),
 					paramGroups,
 					returnGroup
 			);
 			targetMethods.put(key, merged);
-		}
-
-		private static Object extractConstantObject(Literal.ConstantKey constant, DataType groupType) {
-			Object uncastedObject;
-			if (constant instanceof Literal.Long) {
-				uncastedObject = ((Literal.Long) constant).value;
-			} else if (constant instanceof Literal.Double) {
-				uncastedObject = ((Literal.Double) constant).value;
-			} else if (constant instanceof Literal.String) {
-				uncastedObject = ((Literal.String) constant).value;
-			} else if (constant instanceof Literal.Class) {
-				uncastedObject = Type.getType(((Literal.Class) constant).descriptor);
-			} else if (constant instanceof Literal.Null) {
-				uncastedObject = null;
-			} else {
-				throw new AssertionError("Unknown constant type: " + constant.getClass().getName());
-			}
-
-			switch (groupType) {
-				case INT:
-					assert uncastedObject instanceof Number;
-					return (long) ((Number) uncastedObject).intValue();
-				case LONG:
-					assert uncastedObject instanceof Number;
-					return ((Number) uncastedObject).longValue();
-				case FLOAT:
-					assert uncastedObject instanceof Number;
-					return (double) ((Number) uncastedObject).floatValue();
-				case DOUBLE:
-					assert uncastedObject instanceof Number;
-					return ((Number) uncastedObject).doubleValue();
-				case STRING:
-					assert uncastedObject == null || uncastedObject instanceof String;
-					return uncastedObject;
-				case CLASS:
-					assert uncastedObject == null || uncastedObject instanceof Type;
-					return uncastedObject;
-				default:
-					throw new AssertionError("Invalid group type: " + groupType);
-			}
 		}
 	}
 }

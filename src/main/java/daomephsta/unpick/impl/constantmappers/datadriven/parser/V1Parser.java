@@ -12,9 +12,7 @@ import java.util.regex.Pattern;
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
-import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
-import daomephsta.unpick.constantmappers.datadriven.tree.GroupType;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
 import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
@@ -43,22 +41,14 @@ public final class V1Parser {
 				}
 
 				switch (tokens[0]) {
-					case "constant": {
-						data.visitGroupDefinition(parseGroupDefinition(GroupType.CONST, constantResolver, tokens, reader.getLineNumber()));
-						break;
-					}
-
-					case "flag": {
-						data.visitGroupDefinition(parseGroupDefinition(GroupType.FLAG, constantResolver, tokens, reader.getLineNumber()));
-						break;
-					}
-
-					case "unpick":
-						data.visitTargetMethod(parseTargetMethodDefinition(tokens, reader.getLineNumber()));
-						break;
-
-					default:
-						throw new UnpickSyntaxException(reader.getLineNumber(), "Unknown start token " + tokens[0]);
+					case "constant" ->
+							data.visitGroupDefinition(parseGroupDefinition(false, constantResolver, tokens, reader.getLineNumber()));
+					case "flag" ->
+							data.visitGroupDefinition(parseGroupDefinition(true, constantResolver, tokens, reader.getLineNumber()));
+					case "unpick" ->
+							data.visitTargetMethod(parseTargetMethodDefinition(tokens, reader.getLineNumber()));
+					default ->
+							throw new UnpickSyntaxException(reader.getLineNumber(), "Unknown start token " + tokens[0]);
 				}
 			}
 		}
@@ -81,7 +71,7 @@ public final class V1Parser {
 		return result.toArray(new String[0]);
 	}
 
-	private static GroupDefinition parseGroupDefinition(GroupType groupType, IConstantResolver constantResolver, String[] tokens, int lineNumber) {
+	private static GroupDefinition parseGroupDefinition(boolean flags, IConstantResolver constantResolver, String[] tokens, int lineNumber) {
 		if (tokens.length != 4 && tokens.length != 6) {
 			throw new UnpickSyntaxException(lineNumber, "Unexpected token count. Expected 4 or 6. Found " + tokens.length);
 		}
@@ -90,36 +80,33 @@ public final class V1Parser {
 		String owner = tokens[2];
 		String name = tokens[3];
 		DataType dataType;
-		Object value;
 
-		if (tokens.length > 4) {
+		boolean explicitType = tokens.length > 4;
+		if (explicitType) {
 			dataType = V2Parser.parseType(tokens[5], lineNumber);
-			value = V2Parser.parseConstantKeyValue(dataType, tokens[4], lineNumber);
 		} else {
 			IConstantResolver.ResolvedConstant constant = constantResolver.resolveConstant(owner, name);
 			if (constant == null) {
 				throw new UnpickSyntaxException(lineNumber, "Cannot resolve constant " + owner + "." + name);
 			}
-			dataType = V2Parser.parseType(constant.getType().getDescriptor(), lineNumber);
-			value = constant.getValue();
+			dataType = V2Parser.parseType(constant.type().getDescriptor(), lineNumber);
 		}
 
 		DataType groupDataType = V2Parser.widenGroupType(dataType);
 
-		return GroupDefinition.Builder.named(groupDataType, group)
-				.type(groupType)
+		GroupDefinition.Builder groupDefinition = GroupDefinition.Builder.named(groupDataType, group)
 				.constant(
-						new GroupConstant(
-								V2Parser.objectToConstantKey(value, lineNumber),
-								new FieldExpression(
-										owner.replace('/', '.'),
-										name,
-										dataType == groupDataType ? null : dataType,
-										true
-								)
+						new FieldExpression(
+								owner.replace('/', '.'),
+								name,
+								explicitType ? dataType : null,
+								true
 						)
-				)
-				.build();
+				);
+		if (flags) {
+			groupDefinition.flags();
+		}
+		return groupDefinition.build();
 	}
 
 	private static TargetMethod parseTargetMethodDefinition(String[] tokens, int lineNumber) {

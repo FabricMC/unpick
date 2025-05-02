@@ -27,7 +27,7 @@ public class TestUtils {
 
 		IClassResolver classResolver = ClassResolvers.fromPath(TEST_DATA).chain(ClassResolvers.classpath());
 		ConstantUninliner.builder()
-				.grouper(new DataDrivenConstantGrouper(classResolver.asInheritanceChecker(), dataProvider))
+				.grouper(new DataDrivenConstantGrouper(classResolver.asConstantResolver(), classResolver.asInheritanceChecker(), dataProvider))
 				.classResolver(classResolver)
 				.build()
 				.transform(clazz);

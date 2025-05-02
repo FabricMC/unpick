@@ -3,10 +3,7 @@ package daomephsta.unpick.tests;
 import org.junit.jupiter.api.Test;
 
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
-import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
-import daomephsta.unpick.constantmappers.datadriven.tree.GroupType;
-import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
 import daomephsta.unpick.tests.lib.TestUtils;
@@ -147,13 +144,13 @@ public class TestFlagUninlining {
 
 	private static GroupDefinition createFlagsGroup(String name, DataType dataType, DataType groupDataType) {
 		return GroupDefinition.Builder.named(groupDataType, name)
-				.type(GroupType.FLAG)
-				.constant(new GroupConstant(new Literal.Long(0b0001), new FieldExpression("pkg.Constants", dataType + "_FLAG_BIT_0", dataType, true)))
-				.constant(new GroupConstant(new Literal.Long(0b0010), new FieldExpression("pkg.Constants", dataType + "_FLAG_BIT_1", dataType, true)))
-				.constant(new GroupConstant(new Literal.Long(0b0100), new FieldExpression("pkg.Constants", dataType + "_FLAG_BIT_2", dataType, true)))
-				.constant(new GroupConstant(new Literal.Long(0b1000), new FieldExpression("pkg.Constants", dataType + "_FLAG_BIT_3", dataType, true)))
-				.constant(new GroupConstant(new Literal.Long(0), new FieldExpression("pkg.Constants", dataType + "_FLAG_0", dataType, true)))
-				.constant(new GroupConstant(new Literal.Long(-1), new FieldExpression("pkg.Constants", dataType + "_FLAG_M1", dataType, true)))
+				.flags()
+				.constant(new FieldExpression("pkg.Constants", dataType + "_FLAG_BIT_0", dataType, true))
+				.constant(new FieldExpression("pkg.Constants", dataType + "_FLAG_BIT_1", dataType, true))
+				.constant(new FieldExpression("pkg.Constants", dataType + "_FLAG_BIT_2", dataType, true))
+				.constant(new FieldExpression("pkg.Constants", dataType + "_FLAG_BIT_3", dataType, true))
+				.constant(new FieldExpression("pkg.Constants", dataType + "_FLAG_0", dataType, true))
+				.constant(new FieldExpression("pkg.Constants", dataType + "_FLAG_M1", dataType, true))
 				.build();
 	}
 }

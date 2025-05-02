@@ -14,11 +14,9 @@ import org.jetbrains.annotations.Nullable;
 
 import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
-import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupFormat;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupScope;
-import daomephsta.unpick.constantmappers.datadriven.tree.GroupType;
 import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetField;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
@@ -91,79 +89,43 @@ public final class UnpickV3Reader implements AutoCloseable {
 		}
 
 		switch (token) {
-			case "target_field":
-				visitor.visitTargetField(parseTargetField());
-				break;
-			case "target_method":
-				visitor.visitTargetMethod(parseTargetMethod());
-				break;
-			case "scoped":
-				GroupScope scope = parseGroupScope();
-				token = nextToken("group type", TokenType.IDENTIFIER);
-				switch (token) {
-					case "const":
-						visitor.visitGroupDefinition(parseGroupDefinition(scope, GroupType.CONST));
-						break;
-					case "flag":
-						visitor.visitGroupDefinition(parseGroupDefinition(scope, GroupType.FLAG));
-						break;
-					default:
-						throw expectedTokenError("group type", token);
-				}
-				break;
-			case "const":
-				visitor.visitGroupDefinition(parseGroupDefinition(GroupScope.Global.INSTANCE, GroupType.CONST));
-				break;
-			case "flag":
-				visitor.visitGroupDefinition(parseGroupDefinition(GroupScope.Global.INSTANCE, GroupType.FLAG));
-				break;
-			default:
-				throw expectedTokenError("unpick item", token);
+			case "target_field" -> visitor.visitTargetField(parseTargetField());
+			case "target_method" -> visitor.visitTargetMethod(parseTargetMethod());
+			case "group" -> visitor.visitGroupDefinition(parseGroupDefinition());
+			default -> throw expectedTokenError("unpick item", token);
 		}
 	}
 
 	private GroupScope parseGroupScope() throws IOException {
 		String token = nextToken("group scope type", TokenType.IDENTIFIER);
-		switch (token) {
-			case "package":
-				return new GroupScope.Package(parseClassName("package name"));
-			case "class":
-				return new GroupScope.Class(parseClassName());
-			case "method":
+		return switch (token) {
+			case "package" -> new GroupScope.Package(parseClassName("package name"));
+			case "class" -> new GroupScope.Class(parseClassName());
+			case "method" -> {
 				String className = parseClassName();
 				String methodName = parseMethodName();
 				String methodDesc = nextToken(TokenType.METHOD_DESCRIPTOR);
-				return new GroupScope.Method(className, methodName, methodDesc);
-			default:
-				throw expectedTokenError("group scope type", token);
-		}
+				yield new GroupScope.Method(className, methodName, methodDesc);
+			}
+			default -> throw expectedTokenError("group scope type", token);
+		};
 	}
 
-	private GroupDefinition parseGroupDefinition(GroupScope scope, GroupType type) throws IOException {
-		int typeLine = lastTokenLine;
-		int typeColumn = lastTokenColumn;
-
-		boolean strict = false;
-		if ("strict".equals(peekToken())) {
-			nextToken();
-			strict = true;
-		}
-
+	private GroupDefinition parseGroupDefinition() throws IOException {
 		DataType dataType = parseDataType();
 		if (!isDataTypeValidInGroup(dataType)) {
 			throw parseError("Data type not allowed in group: " + dataType);
 		}
-		if (type == GroupType.FLAG && dataType != DataType.INT && dataType != DataType.LONG) {
-			throw parseError("Data type not allowed for flag constants");
-		}
 
 		String name = peekTokenType() == TokenType.IDENTIFIER ? nextToken() : null;
-		if (name == null && type != GroupType.CONST) {
-			throw parseError("Non-const group type used for default group", typeLine, typeColumn);
-		}
 
-		List<GroupConstant> constants = new ArrayList<>();
+		List<GroupScope> scopes = new ArrayList<>();
+		boolean flags = false;
+		boolean strict = false;
+		List<Expression> constants = new ArrayList<>();
 		GroupFormat format = null;
+
+		boolean finishedAttributes = false;
 
 		while (true) {
 			String token = nextToken();
@@ -179,178 +141,69 @@ public final class UnpickV3Reader implements AutoCloseable {
 			}
 			nextToken();
 
-			token = nextToken();
-			switch (lastTokenType) {
-				case IDENTIFIER:
-					if ("format".equals(token)) {
-						if (format != null) {
-							throw parseError("Duplicate format declaration");
+			if ("@".equals(peekToken())) {
+				nextToken();
+				if (finishedAttributes) {
+					throw parseError("Found attribute after expression");
+				}
+				token = nextToken("attribute name", TokenType.IDENTIFIER);
+				switch (token) {
+					case "scope" -> scopes.add(parseGroupScope());
+					case "flags" -> {
+						if (flags) {
+							throw parseError("Duplicate flags attribute");
 						}
-						expectToken("=");
+						if (dataType != DataType.INT && dataType != DataType.LONG) {
+							throw parseError("The flags attribute is not applicable to this data type");
+						}
+						if (name == null) {
+							throw parseError("The flags attribute is not applicable to the default group");
+						}
+						flags = true;
+					}
+					case "strict" -> {
+						if (strict) {
+							throw parseError("Duplicate strict attribute");
+						}
+						strict = true;
+					}
+					case "format" -> {
+						if (format != null) {
+							throw parseError("Duplicate format attribute");
+						}
+						if (dataType != DataType.INT && dataType != DataType.LONG && dataType != DataType.FLOAT && dataType != DataType.DOUBLE) {
+							throw parseError("The format attribute is not applicable to this data type");
+						}
 						format = parseGroupFormat();
-						break;
+						if (format != GroupFormat.DECIMAL && format != GroupFormat.HEX && dataType != DataType.INT && dataType != DataType.LONG) {
+							throw parseError("This format is not applicable to floating point data types");
+						}
 					}
-					// fallthrough
-				case OPERATOR: case INTEGER: case DOUBLE: case CHAR: case STRING:
-					int constantLine = lastTokenLine;
-					int constantColumn = lastTokenColumn;
-					GroupConstant constant = parseGroupConstant(token);
-					if (!isMatchingConstantType(dataType, constant.key)) {
-						throw parseError("Constant type not valid for group data type", constantLine, constantColumn);
-					}
-					if (isDuplicateConstantKey(constants, constant)) {
-						throw parseError("Duplicate constant key", constantLine, constantColumn);
-					}
-					constants.add(constant);
-					break;
-				default:
-					throw expectedTokenError("constant", token);
+					default -> throw expectedTokenError("attribute name", token);
+				}
+			} else {
+				finishedAttributes = true;
+				constants.add(parseExpression(0));
 			}
 		}
 
-		return new GroupDefinition(scope, type, strict, dataType, name, constants, format);
+		return new GroupDefinition(scopes, flags, strict, dataType, name, constants, format);
 	}
 
 	private static boolean isDataTypeValidInGroup(DataType type) {
 		return type == DataType.INT || type == DataType.LONG || type == DataType.FLOAT || type == DataType.DOUBLE || type == DataType.STRING || type == DataType.CLASS;
 	}
 
-	private static boolean isMatchingConstantType(DataType type, Literal.ConstantKey constantKey) {
-		if (constantKey instanceof Literal.Long) {
-			return type != DataType.STRING && type != DataType.CLASS;
-		} else if (constantKey instanceof Literal.Double) {
-			return type == DataType.FLOAT || type == DataType.DOUBLE;
-		} else if (constantKey instanceof Literal.String) {
-			return type == DataType.STRING;
-		} else if (constantKey instanceof Literal.Class) {
-			return type == DataType.CLASS;
-		} else if (constantKey instanceof Literal.Null) {
-			return type == DataType.STRING || type == DataType.CLASS;
-		} else {
-			throw new AssertionError("Unknown group constant type: " + constantKey.getClass().getName());
-		}
-	}
-
-	private static boolean isDuplicateConstantKey(List<GroupConstant> constants, GroupConstant newConstant) {
-		if (newConstant.key instanceof Literal.Long) {
-			long newValue = ((Literal.Long) newConstant.key).value;
-			for (GroupConstant constant : constants) {
-				if (constant.key instanceof Literal.Long && ((Literal.Long) constant.key).value == newValue) {
-					return true;
-				}
-				if (constant.key instanceof Literal.Double && ((Literal.Double) constant.key).value == newValue) {
-					return true;
-				}
-			}
-		} else if (newConstant.key instanceof Literal.Double) {
-			double newValue = ((Literal.Double) newConstant.key).value;
-			for (GroupConstant constant : constants) {
-				if (constant.key instanceof Literal.Long && ((Literal.Long) constant.key).value == newValue) {
-					return true;
-				}
-				if (constant.key instanceof Literal.Double && ((Literal.Double) constant.key).value == newValue) {
-					return true;
-				}
-			}
-		} else if (newConstant.key instanceof Literal.String) {
-			String newValue = ((Literal.String) newConstant.key).value;
-			for (GroupConstant constant : constants) {
-				if (constant.key instanceof Literal.String && ((Literal.String) constant.key).value.equals(newValue)) {
-					return true;
-				}
-			}
-		} else if (newConstant.key instanceof Literal.Class) {
-			String newValue = ((Literal.Class) newConstant.key).descriptor;
-			for (GroupConstant constant : constants) {
-				if (constant.key instanceof Literal.Class && ((Literal.Class) constant.key).descriptor.equals(newValue)) {
-					return true;
-				}
-			}
-		} else if (newConstant.key instanceof Literal.Null) {
-			for (GroupConstant constant : constants) {
-				if (constant.key instanceof Literal.Null) {
-					return true;
-				}
-			}
-		}
-
-		return false;
-	}
-
 	private GroupFormat parseGroupFormat() throws IOException {
 		String token = nextToken("group format", TokenType.IDENTIFIER);
-		switch (token) {
-			case "decimal":
-				return GroupFormat.DECIMAL;
-			case "hex":
-				return GroupFormat.HEX;
-			case "binary":
-				return GroupFormat.BINARY;
-			case "octal":
-				return GroupFormat.OCTAL;
-			case "char":
-				return GroupFormat.CHAR;
-			default:
-				throw expectedTokenError("group format", token);
-		}
-	}
-
-	private GroupConstant parseGroupConstant(String token) throws IOException {
-		Literal.ConstantKey key = parseGroupConstantKey(token);
-		expectToken("=");
-		Expression value = parseExpression(0);
-		return new GroupConstant(key, value);
-	}
-
-	private Literal.ConstantKey parseGroupConstantKey(String token) throws IOException {
-		boolean negative = false;
-		if ("-".equals(token)) {
-			negative = true;
-			token = nextToken();
-		}
-
-		switch (lastTokenType) {
-			case INTEGER:
-				ParsedLong parsedLong = parseLong(token, negative);
-				return new Literal.Long(parsedLong.value, parsedLong.radix);
-			case DOUBLE:
-				return new Literal.Double(parseDouble(token, negative));
-			case CHAR:
-				if (negative) {
-					throw expectedTokenError("number", token);
-				}
-				return new Literal.Long(unquoteChar(token));
-			case STRING:
-				if (negative) {
-					throw expectedTokenError("number", token);
-				}
-				return new Literal.String(unquoteString(token));
-			case IDENTIFIER:
-				switch (token) {
-					case "NaN":
-						if (negative) {
-							throw expectedTokenError("number", token);
-						}
-						return new Literal.Double(Double.NaN);
-					case "Infinity":
-						return new Literal.Double(negative ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
-					case "null":
-						if (negative) {
-							throw expectedTokenError("number", token);
-						}
-						return Literal.Null.INSTANCE;
-					case "class":
-						if (negative) {
-							throw expectedTokenError("number", token);
-						}
-						String desc = nextToken(TokenType.CLASS_DESCRIPTOR);
-						return new Literal.Class(desc);
-					default:
-						throw expectedTokenError(negative ? "number" : "constant", token);
-				}
-			default:
-				throw expectedTokenError(negative ? "number" : "constant", token);
-		}
+		return switch (token) {
+			case "decimal" -> GroupFormat.DECIMAL;
+			case "hex" -> GroupFormat.HEX;
+			case "binary" -> GroupFormat.BINARY;
+			case "octal" -> GroupFormat.OCTAL;
+			case "char" -> GroupFormat.CHAR;
+			default -> throw expectedTokenError("group format", token);
+		};
 	}
 
 	private Expression parseExpression(int parseDepth) throws IOException {
@@ -360,45 +213,23 @@ public final class UnpickV3Reader implements AutoCloseable {
 
 		operandStack.push(parseUnaryExpression(parseDepth, false));
 
-		parseLoop:
 		while (true) {
-			BinaryExpression.Operator operator;
-			switch (peekToken()) {
-				case "|":
-					operator = BinaryExpression.Operator.BIT_OR;
-					break;
-				case "^":
-					operator = BinaryExpression.Operator.BIT_XOR;
-					break;
-				case "&":
-					operator = BinaryExpression.Operator.BIT_AND;
-					break;
-				case "<<":
-					operator = BinaryExpression.Operator.BIT_SHIFT_LEFT;
-					break;
-				case ">>":
-					operator = BinaryExpression.Operator.BIT_SHIFT_RIGHT;
-					break;
-				case ">>>":
-					operator = BinaryExpression.Operator.BIT_SHIFT_RIGHT_UNSIGNED;
-					break;
-				case "+":
-					operator = BinaryExpression.Operator.ADD;
-					break;
-				case "-":
-					operator = BinaryExpression.Operator.SUBTRACT;
-					break;
-				case "*":
-					operator = BinaryExpression.Operator.MULTIPLY;
-					break;
-				case "/":
-					operator = BinaryExpression.Operator.DIVIDE;
-					break;
-				case "%":
-					operator = BinaryExpression.Operator.MODULO;
-					break;
-				default:
-					break parseLoop;
+			BinaryExpression.Operator operator = switch (peekToken()) {
+				case "|" -> BinaryExpression.Operator.BIT_OR;
+				case "^" -> BinaryExpression.Operator.BIT_XOR;
+				case "&" -> BinaryExpression.Operator.BIT_AND;
+				case "<<" -> BinaryExpression.Operator.BIT_SHIFT_LEFT;
+				case ">>" -> BinaryExpression.Operator.BIT_SHIFT_RIGHT;
+				case ">>>" -> BinaryExpression.Operator.BIT_SHIFT_RIGHT_UNSIGNED;
+				case "+" -> BinaryExpression.Operator.ADD;
+				case "-" -> BinaryExpression.Operator.SUBTRACT;
+				case "*" -> BinaryExpression.Operator.MULTIPLY;
+				case "/" -> BinaryExpression.Operator.DIVIDE;
+				case "%" -> BinaryExpression.Operator.MODULO;
+				default -> null;
+			};
+			if (operator == null) {
+				break;
 			}
 			nextToken(); // consume the operator
 
@@ -429,11 +260,13 @@ public final class UnpickV3Reader implements AutoCloseable {
 
 		String token = nextToken();
 		switch (token) {
-			case "-":
+			case "-" -> {
 				return new UnaryExpression(parseUnaryExpression(parseDepth + 1, true), UnaryExpression.Operator.NEGATE);
-			case "~":
+			}
+			case "~" -> {
 				return new UnaryExpression(parseUnaryExpression(parseDepth + 1, false), UnaryExpression.Operator.BIT_NOT);
-			case "(":
+			}
+			case "(" -> {
 				boolean parseAsCast = peekTokenType() == TokenType.IDENTIFIER && ")".equals(peekToken2());
 				if (parseAsCast) {
 					DataType castType = parseDataType();
@@ -444,40 +277,58 @@ public final class UnpickV3Reader implements AutoCloseable {
 					expectToken(")");
 					return new ParenExpression(expression);
 				}
+			}
 		}
 
-		switch (lastTokenType) {
-			case IDENTIFIER:
-				return parseFieldExpression(token);
-			case INTEGER:
+		return switch (lastTokenType) {
+			case IDENTIFIER -> parseFieldExpression(token);
+			case INTEGER -> {
 				ParsedInteger parsedInt = parseInt(token, negative);
-				return new LiteralExpression(new Literal.Integer(negative ? -parsedInt.value : parsedInt.value, parsedInt.radix));
-			case LONG:
+				yield new LiteralExpression(new Literal.Integer(negative ? -parsedInt.value : parsedInt.value, parsedInt.radix));
+			}
+			case LONG -> {
 				ParsedLong parsedLong = parseLong(token, negative);
-				return new LiteralExpression(new Literal.Long(negative ? -parsedLong.value : parsedLong.value, parsedLong.radix));
-			case FLOAT:
+				yield new LiteralExpression(new Literal.Long(negative ? -parsedLong.value : parsedLong.value, parsedLong.radix));
+			}
+			case FLOAT -> {
 				float parsedFloat = parseFloat(token, negative);
-				return new LiteralExpression(new Literal.Float(negative ? -parsedFloat : parsedFloat));
-			case DOUBLE:
+				yield new LiteralExpression(new Literal.Float(negative ? -parsedFloat : parsedFloat));
+			}
+			case DOUBLE -> {
 				double parsedDouble = parseDouble(token, negative);
-				return new LiteralExpression(new Literal.Double(negative ? -parsedDouble : parsedDouble));
-			case CHAR:
-				return new LiteralExpression(new Literal.Character(unquoteChar(token)));
-			case STRING:
-				return new LiteralExpression(new Literal.String(unquoteString(token)));
-			default:
-				throw expectedTokenError("expression", token);
-		}
+				yield new LiteralExpression(new Literal.Double(negative ? -parsedDouble : parsedDouble));
+			}
+			case CHAR -> new LiteralExpression(new Literal.Character(unquoteChar(token)));
+			case STRING -> new LiteralExpression(new Literal.String(unquoteString(token)));
+			default -> throw expectedTokenError("expression", token);
+		};
 	}
 
 	private FieldExpression parseFieldExpression(String token) throws IOException {
 		expectToken(".");
-		String className = token + "." + parseClassName("field name");
+		StringBuilder classAndFieldNameBuilder = new StringBuilder(token).append('.');
+		while (true) {
+			if ("*".equals(peekToken())) {
+				nextToken();
+				classAndFieldNameBuilder.append('*');
+				break;
+			}
+			classAndFieldNameBuilder.append(nextToken(TokenType.IDENTIFIER));
+			if (!".".equals(peekToken())) {
+				break;
+			}
+			nextToken();
+			classAndFieldNameBuilder.append('.');
+		}
+		String classAndFieldName = classAndFieldNameBuilder.toString();
 
 		// the field name has been joined to the class name, split it off
-		int dotIndex = className.lastIndexOf('.');
-		String fieldName = className.substring(dotIndex + 1);
-		className = className.substring(0, dotIndex);
+		int dotIndex = classAndFieldName.lastIndexOf('.');
+		String className = classAndFieldName.substring(0, dotIndex);
+		String fieldName = classAndFieldName.substring(dotIndex + 1);
+		if ("*".equals(fieldName)) {
+			fieldName = null;
+		}
 
 		boolean isStatic = true;
 		DataType fieldType = null;
@@ -501,7 +352,7 @@ public final class UnpickV3Reader implements AutoCloseable {
 	private TargetField parseTargetField() throws IOException {
 		String className = parseClassName();
 		String fieldName = nextToken(TokenType.IDENTIFIER);
-		String fieldDesc = nextToken(TokenType.CLASS_DESCRIPTOR);
+		String fieldDesc = nextToken(TokenType.TYPE_DESCRIPTOR);
 		String groupName = nextToken(TokenType.IDENTIFIER);
 		String token = nextToken();
 		if (lastTokenType != TokenType.NEWLINE && lastTokenType != TokenType.EOF) {
@@ -534,21 +385,20 @@ public final class UnpickV3Reader implements AutoCloseable {
 
 			token = nextToken("target method item", TokenType.IDENTIFIER);
 			switch (token) {
-				case "param":
+				case "param" -> {
 					int paramIndex = parseInt(nextToken(TokenType.INTEGER), false).value;
 					if (paramGroups.containsKey(paramIndex)) {
 						throw parseError("Specified parameter " + paramIndex + " twice");
 					}
 					paramGroups.put(paramIndex, nextToken(TokenType.IDENTIFIER));
-					break;
-				case "return":
+				}
+				case "return" -> {
 					if (returnGroup != null) {
 						throw parseError("Specified return group twice");
 					}
 					returnGroup = nextToken(TokenType.IDENTIFIER);
-					break;
-				default:
-					throw expectedTokenError("target method item", token);
+				}
+				default -> throw expectedTokenError("target method item", token);
 			}
 		}
 
@@ -557,28 +407,18 @@ public final class UnpickV3Reader implements AutoCloseable {
 
 	private DataType parseDataType() throws IOException {
 		String token = nextToken("data type", TokenType.IDENTIFIER);
-		switch (token) {
-			case "byte":
-				return DataType.BYTE;
-			case "short":
-				return DataType.SHORT;
-			case "int":
-				return DataType.INT;
-			case "long":
-				return DataType.LONG;
-			case "float":
-				return DataType.FLOAT;
-			case "double":
-				return DataType.DOUBLE;
-			case "char":
-				return DataType.CHAR;
-			case "String":
-				return DataType.STRING;
-			case "Class":
-				return DataType.CLASS;
-			default:
-				throw expectedTokenError("data type", token);
-		}
+		return switch (token) {
+			case "byte" -> DataType.BYTE;
+			case "short" -> DataType.SHORT;
+			case "int" -> DataType.INT;
+			case "long" -> DataType.LONG;
+			case "float" -> DataType.FLOAT;
+			case "double" -> DataType.DOUBLE;
+			case "char" -> DataType.CHAR;
+			case "String" -> DataType.STRING;
+			case "Class" -> DataType.CLASS;
+			default -> throw expectedTokenError("data type", token);
+		};
 	}
 
 	private String parseClassName() throws IOException {
@@ -733,38 +573,22 @@ public final class UnpickV3Reader implements AutoCloseable {
 			if (string.charAt(i) == '\\') {
 				i++;
 				switch (string.charAt(i)) {
-					case 'u':
+					case 'u' -> {
 						do {
 							i++;
 						} while (string.charAt(i) == 'u');
 						result.append((char) Integer.parseInt(string.substring(i, i + 4), 16));
 						i += 3;
-						break;
-					case 'b':
-						result.append('\b');
-						break;
-					case 't':
-						result.append('\t');
-						break;
-					case 'n':
-						result.append('\n');
-						break;
-					case 'f':
-						result.append('\f');
-						break;
-					case 'r':
-						result.append('\r');
-						break;
-					case '"':
-						result.append('"');
-						break;
-					case '\'':
-						result.append('\'');
-						break;
-					case '\\':
-						result.append('\\');
-						break;
-					case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7':
+					}
+					case 'b' -> result.append('\b');
+					case 't' -> result.append('\t');
+					case 'n' -> result.append('\n');
+					case 'f' -> result.append('\f');
+					case 'r' -> result.append('\r');
+					case '"' -> result.append('"');
+					case '\'' -> result.append('\'');
+					case '\\' -> result.append('\\');
+					case '0', '1', '2', '3', '4', '5', '6', '7' -> {
 						char c;
 						int count = 0;
 						int maxCount = string.charAt(i) <= '3' ? 3 : 2;
@@ -773,9 +597,8 @@ public final class UnpickV3Reader implements AutoCloseable {
 						}
 						result.append((char) Integer.parseInt(string.substring(i, i + count), 8));
 						i += count - 1;
-						break;
-					default:
-						throw new AssertionError("Unexpected escape sequence in string");
+					}
+					default -> throw new AssertionError("Unexpected escape sequence in string");
 				}
 			} else {
 				result.append(string.charAt(i));
@@ -898,7 +721,7 @@ public final class UnpickV3Reader implements AutoCloseable {
 		lastTokenColumn = column;
 		lastTokenLine = reader.getLineNumber();
 
-		if (typeHint == TokenType.CLASS_DESCRIPTOR) {
+		if (typeHint == TokenType.TYPE_DESCRIPTOR) {
 			if (skipFieldDescriptor(true)) {
 				return line.substring(lastTokenColumn, column);
 			}
@@ -959,15 +782,14 @@ public final class UnpickV3Reader implements AutoCloseable {
 
 		// first character of main part of descriptor
 		if (column == line.length() || isTokenEnd(line.charAt(column))) {
-			throw parseErrorInToken("Unexpected end to descriptor");
+			throw parseErrorInToken("Unexpected end of descriptor");
 		}
 		switch (line.charAt(column)) {
 			// primitive types
-			case 'B': case 'C': case 'D': case 'F': case 'I': case 'J': case 'S': case 'Z':
-				column++;
-				break;
+			case 'B', 'C', 'D', 'F', 'I', 'J', 'S', 'Z' -> column++;
+
 			// class types
-			case 'L':
+			case 'L' -> {
 				column++;
 
 				// class name
@@ -984,15 +806,16 @@ public final class UnpickV3Reader implements AutoCloseable {
 					throw parseErrorInToken("Unexpected end of descriptor");
 				}
 				column++;
-				break;
-			default:
+			}
+			default -> {
 				if (!startOfToken) {
 					throw parseErrorInToken("Illegal character in descriptor: " + line.charAt(column));
 				}
 				return false;
+			}
 		}
 
-		lastTokenType = TokenType.CLASS_DESCRIPTOR;
+		lastTokenType = TokenType.TYPE_DESCRIPTOR;
 		return true;
 	}
 
@@ -1166,7 +989,7 @@ public final class UnpickV3Reader implements AutoCloseable {
 				}
 				char c = line.charAt(column);
 				switch (c) {
-					case 'u':
+					case 'u' -> {
 						do {
 							column++;
 						} while (column < line.length() && line.charAt(column) == 'u');
@@ -1180,19 +1003,16 @@ public final class UnpickV3Reader implements AutoCloseable {
 							}
 							column++;
 						}
-						break;
-					case 'b': case 't': case 'n': case 'f': case 'r': case '"': case '\'': case '\\':
-						column++;
-						break;
-					case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7':
+					}
+					case 'b', 't', 'n', 'f', 'r', '"', '\'', '\\' -> column++;
+					case '0', '1', '2', '3', '4', '5', '6', '7' -> {
 						column++;
 						int maxOctalDigits = c <= '3' ? 3 : 2;
 						for (int i = 1; i < maxOctalDigits && column < line.length() && (c = line.charAt(column)) >= '0' && c <= '7'; i++) {
 							column++;
 						}
-						break;
-					default:
-						throw parseErrorInToken("Illegal escape sequence \\" + c);
+					}
+					default -> throw parseErrorInToken("Illegal escape sequence \\" + c);
 				}
 			} else {
 				column++;
@@ -1274,7 +1094,7 @@ public final class UnpickV3Reader implements AutoCloseable {
 		STRING("string"),
 		INDENT("indent"),
 		NEWLINE("newline"),
-		CLASS_DESCRIPTOR("classF descriptor"),
+		TYPE_DESCRIPTOR("type descriptor"),
 		METHOD_DESCRIPTOR("method descriptor"),
 		OPERATOR("operator"),
 		EOF("eof");

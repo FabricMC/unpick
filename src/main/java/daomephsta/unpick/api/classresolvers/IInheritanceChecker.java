@@ -24,13 +24,13 @@ public interface IInheritanceChecker {
 				return false;
 			}
 
-			for (String itf : classInfo.getInterfaces()) {
+			for (String itf : classInfo.interfaces()) {
 				if (isAssignableFrom(type1, itf)) {
 					return true;
 				}
 			}
 
-			type2 = classInfo.getSuperClass();
+			type2 = classInfo.superClass();
 		}
 
 		return false;
@@ -40,28 +40,6 @@ public interface IInheritanceChecker {
 		return new ChainInheritanceChecker(Utils.prepend(this, others));
 	}
 
-	final class ClassInfo {
-		private final String superClass;
-		private final String[] interfaces;
-		private final boolean isInterface;
-
-		public ClassInfo(String superClass, String[] interfaces, boolean isInterface) {
-			this.superClass = superClass;
-			this.interfaces = interfaces;
-			this.isInterface = isInterface;
-		}
-
-		@Nullable("null in the case of java.lang.Object")
-		public String getSuperClass() {
-			return superClass;
-		}
-
-		public String[] getInterfaces() {
-			return interfaces;
-		}
-
-		public boolean isInterface() {
-			return isInterface;
-		}
+	record ClassInfo(@Nullable("null in the case of java.lang.Object") String superClass, String[] interfaces, boolean isInterface) {
 	}
 }

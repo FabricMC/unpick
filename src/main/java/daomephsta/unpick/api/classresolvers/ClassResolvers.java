@@ -12,7 +12,11 @@ public final class ClassResolvers {
 	}
 
 	public static IClassResolver classpath() {
-		return new ClasspathClassResolver();
+		return classpath(Thread.currentThread().getContextClassLoader());
+	}
+
+	public static IClassResolver classpath(ClassLoader classLoader) {
+		return new ClasspathClassResolver(classLoader);
 	}
 
 	public static IClassResolver fromPath(Path root) {

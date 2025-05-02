@@ -14,10 +14,7 @@ import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader;
 import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.TargetMethodDefinitionVisitor;
 import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.Visitor;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
-import daomephsta.unpick.constantmappers.datadriven.tree.GroupConstant;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
-import daomephsta.unpick.constantmappers.datadriven.tree.GroupType;
-import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
 import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
@@ -39,73 +36,24 @@ public final class V2Parser implements Visitor {
 	}
 
 	public static DataType parseType(String descriptor, int lineNumber) {
-		switch (descriptor) {
-			case "B":
-				return DataType.BYTE;
-			case "C":
-				return DataType.CHAR;
-			case "D":
-				return DataType.DOUBLE;
-			case "F":
-				return DataType.FLOAT;
-			case "I":
-				return DataType.INT;
-			case "J":
-				return DataType.LONG;
-			case "S":
-				return DataType.SHORT;
-			case "Ljava/lang/String;":
-				return DataType.STRING;
-			default:
-				throw new UnpickSyntaxException(lineNumber, "Invalid constant type " + descriptor);
-		}
+		return switch (descriptor) {
+			case "B" -> DataType.BYTE;
+			case "C" -> DataType.CHAR;
+			case "D" -> DataType.DOUBLE;
+			case "F" -> DataType.FLOAT;
+			case "I" -> DataType.INT;
+			case "J" -> DataType.LONG;
+			case "S" -> DataType.SHORT;
+			case "Ljava/lang/String;" -> DataType.STRING;
+			default -> throw new UnpickSyntaxException(lineNumber, "Invalid constant type " + descriptor);
+		};
 	}
 
 	public static DataType widenGroupType(DataType groupType) {
-		switch (groupType) {
-			case BYTE:
-			case SHORT:
-			case CHAR:
-				return DataType.INT;
-			default:
-				return groupType;
-		}
-	}
-
-	public static Object parseConstantKeyValue(DataType dataType, String constant, int lineNumber) {
-		try {
-			switch (dataType) {
-				case DOUBLE:
-				case FLOAT:
-					return Double.parseDouble(constant);
-				case BYTE:
-				case CHAR:
-				case INT:
-				case LONG:
-				case SHORT:
-					return Long.parseLong(constant);
-				case STRING:
-					return constant;
-				default:
-					throw new UnpickSyntaxException(lineNumber, "Invalid constant type " + dataType);
-			}
-		} catch (NumberFormatException e) {
-			throw new UnpickSyntaxException(lineNumber, "Invalid constant " + constant);
-		}
-	}
-
-	public static Literal.ConstantKey objectToConstantKey(Object object, int lineNumber) {
-		if (object instanceof Float) {
-			return new Literal.Double(((Float) object).doubleValue());
-		} else if (object instanceof Double) {
-			return new Literal.Double((Double) object);
-		} else if (object instanceof Number) {
-			return new Literal.Long(((Number) object).longValue());
-		} else if (object instanceof String) {
-			return new Literal.String((String) object);
-		} else {
-			throw new UnpickSyntaxException(lineNumber, "Invalid constant type " + object.getClass().getName());
-		}
+		return switch (groupType) {
+			case BYTE, SHORT, CHAR -> DataType.INT;
+			default -> groupType;
+		};
 	}
 
 	@Override
@@ -115,48 +63,42 @@ public final class V2Parser implements Visitor {
 
 	@Override
 	public void visitSimpleConstantDefinition(String groupId, String owner, String name, String value, String descriptor) {
-		visitConstantDefinition(GroupType.CONST, groupId, owner, name, value, descriptor);
+		visitConstantDefinition(false, groupId, owner, name, descriptor);
 	}
 
 	@Override
 	public void visitFlagConstantDefinition(String groupId, String owner, String name, String value, String descriptor) {
-		visitConstantDefinition(GroupType.FLAG, groupId, owner, name, value, descriptor);
+		visitConstantDefinition(true, groupId, owner, name, descriptor);
 	}
 
-	private void visitConstantDefinition(GroupType groupType, String groupId, String owner, String name, @Nullable String value, @Nullable String descriptor) {
+	private void visitConstantDefinition(boolean flags, String groupId, String owner, String name, @Nullable String descriptor) {
 		DataType dataType;
-		Object valueObj;
-
-		if (value == null || descriptor == null) {
+		boolean explicitType = descriptor != null;
+		if (explicitType) {
+			dataType = parseType(descriptor, lineNumber);
+		} else {
 			IConstantResolver.ResolvedConstant constant = constantResolver.resolveConstant(owner, name);
 			if (constant == null) {
 				throw new UnpickSyntaxException(lineNumber, "Constant '" + owner + "." + name + "' not found");
 			}
-			dataType = parseType(constant.getType().getDescriptor(), lineNumber);
-			valueObj = constant.getValue();
-		} else {
-			dataType = parseType(descriptor, lineNumber);
-			valueObj = parseConstantKeyValue(dataType, value, lineNumber);
+			dataType = parseType(constant.type().getDescriptor(), lineNumber);
 		}
 
 		DataType groupDataType = widenGroupType(dataType);
 
-		data.visitGroupDefinition(
-				GroupDefinition.Builder.named(groupDataType, groupId)
-						.type(groupType)
-						.constant(
-								new GroupConstant(
-										objectToConstantKey(valueObj, lineNumber),
-										new FieldExpression(
-												owner.replace('/', '.'),
-												name,
-												dataType == groupDataType ? null : dataType,
-												true
-										)
-								)
+		GroupDefinition.Builder groupDefinition = GroupDefinition.Builder.named(groupDataType, groupId)
+				.constant(
+						new FieldExpression(
+								owner.replace('/', '.'),
+								name,
+								explicitType ? dataType : null,
+								true
 						)
-						.build()
-		);
+				);
+		if (flags) {
+			groupDefinition.flags();
+		}
+		data.visitGroupDefinition(groupDefinition.build());
 	}
 
 	@Override

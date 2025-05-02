@@ -10,10 +10,6 @@ public final class ConstantGroupers {
 	private ConstantGroupers() {
 	}
 
-	public static IConstantGrouper dataDriven(IInheritanceChecker inheritanceChecker, InputStream... mappingSources) {
-		return new DataDrivenConstantGrouper(null, inheritanceChecker, mappingSources);
-	}
-
 	public static IConstantGrouper dataDriven(IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker, InputStream... mappingSources) {
 		return new DataDrivenConstantGrouper(constantResolver, inheritanceChecker, mappingSources);
 	}

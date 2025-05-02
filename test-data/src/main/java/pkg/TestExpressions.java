@@ -46,7 +46,7 @@ public class TestExpressions {
 	}
 
 	public long testAddLong() {
-		return 6;
+		return 5;
 	}
 
 	public long testSubLong() {

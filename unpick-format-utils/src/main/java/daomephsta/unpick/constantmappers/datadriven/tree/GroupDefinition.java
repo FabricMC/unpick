@@ -7,46 +7,31 @@ import java.util.List;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
-public final class GroupDefinition {
-	public final GroupScope scope;
-	public final GroupType type;
-	public final boolean strict;
-	public final DataType dataType;
-	@Nullable
-	public final String name;
-	public final List<GroupConstant> constants;
-	@Nullable
-	public final GroupFormat format;
+import daomephsta.unpick.constantmappers.datadriven.tree.expr.Expression;
 
+public record GroupDefinition(
+		List<GroupScope> scopes,
+		boolean flags,
+		boolean strict,
+		DataType dataType,
+		@Nullable String name,
+		List<Expression> constants,
+		@Nullable GroupFormat format
+) {
 	@ApiStatus.Internal
-	public GroupDefinition(
-			GroupScope scope,
-			GroupType type,
-			boolean strict,
-			DataType dataType,
-			@Nullable String name,
-			List<GroupConstant> constants,
-			@Nullable GroupFormat format
-	) {
-		this.scope = scope;
-		this.type = type;
-		this.strict = strict;
-		this.dataType = dataType;
-		this.name = name;
-		this.constants = constants;
-		this.format = format;
+	public GroupDefinition {
 	}
 
 	public static final class Builder {
-		private GroupScope scope = GroupScope.Global.INSTANCE;
-		private GroupType type = GroupType.CONST;
-		private boolean strict = false;
+		private final List<GroupScope> scopes = new ArrayList<>();
+		private boolean flags;
+		private boolean strict;
 		private final DataType dataType;
 		@Nullable
 		private final String name;
-		private final List<GroupConstant> constants = new ArrayList<>();
+		private final List<Expression> constants = new ArrayList<>();
 		@Nullable
-		private GroupFormat format = null;
+		private GroupFormat format;
 
 		private Builder(DataType dataType, @Nullable String name) {
 			this.dataType = dataType;
@@ -61,23 +46,34 @@ public final class GroupDefinition {
 			return new Builder(dataType, name);
 		}
 
-		public static Builder from(GroupDefinition groupDefinition) {
-			Builder builder = new Builder(groupDefinition.dataType, groupDefinition.name)
-					.scoped(groupDefinition.scope)
-					.type(groupDefinition.type)
-					.constants(groupDefinition.constants)
-					.format(groupDefinition.format);
-			builder.strict = groupDefinition.strict;
+		public static Builder from(GroupDefinition definition) {
+			Builder builder = new Builder(definition.dataType(), definition.name())
+					.scopes(definition.scopes())
+					.constants(definition.constants())
+					.format(definition.format());
+			builder.flags = definition.flags();
+			builder.strict = definition.strict();
 			return builder;
 		}
 
-		public Builder scoped(GroupScope scope) {
-			this.scope = scope;
+		public Builder scope(GroupScope scope) {
+			this.scopes.add(scope);
 			return this;
 		}
 
-		public Builder type(GroupType type) {
-			this.type = type;
+		public Builder scopes(Collection<? extends GroupScope> scopes) {
+			this.scopes.addAll(scopes);
+			return this;
+		}
+
+		public Builder setScopes(Collection<? extends GroupScope> scopes) {
+			this.scopes.clear();
+			this.scopes.addAll(scopes);
+			return this;
+		}
+
+		public Builder flags() {
+			this.flags = true;
 			return this;
 		}
 
@@ -86,12 +82,18 @@ public final class GroupDefinition {
 			return this;
 		}
 
-		public Builder constant(GroupConstant constant) {
+		public Builder constant(Expression constant) {
 			this.constants.add(constant);
 			return this;
 		}
 
-		public Builder constants(Collection<GroupConstant> constants) {
+		public Builder constants(Collection<? extends Expression> constants) {
+			this.constants.addAll(constants);
+			return this;
+		}
+
+		public Builder setConstants(Collection<? extends Expression> constants) {
+			this.constants.clear();
 			this.constants.addAll(constants);
 			return this;
 		}
@@ -102,7 +104,7 @@ public final class GroupDefinition {
 		}
 
 		public GroupDefinition build() {
-			return new GroupDefinition(scope, type, strict, dataType, name, constants, format);
+			return new GroupDefinition(scopes, flags, strict, dataType, name, constants, format);
 		}
 	}
 }
