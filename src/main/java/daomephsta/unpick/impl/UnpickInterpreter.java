@@ -309,7 +309,7 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 				value.addTypeInterpretationFromType(Type.getType(((FieldInsnNode) insn).desc));
 				break;
 			case CHECKCAST:
-				value.addTypeInterpretationFromType(Type.getType(((TypeInsnNode) insn).desc));
+				value.addTypeInterpretationFromType(Type.getObjectType(((TypeInsnNode) insn).desc));
 				break;
 		}
 

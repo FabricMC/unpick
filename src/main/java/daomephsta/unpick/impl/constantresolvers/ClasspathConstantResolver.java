@@ -24,34 +24,8 @@ public class ClasspathConstantResolver extends BytecodeAnalysisConstantResolver 
 	}
 
 	@Override
-	public ResolvedConstant resolveConstant(String owner, String name) {
-		ResolvedConstant resolvedConstant = super.resolveConstant(owner, name);
-		if (resolvedConstant != null) {
-			return resolvedConstant;
-		}
-
-		// Fallback: use reflection (but this means we are unable to tell whether a field is constant, and doesn't
-		// work for instance fields)
-		Class<?> clazz;
-		try {
-			clazz = Class.forName(owner.replace('/', '.'), false, classLoader);
-		} catch (ClassNotFoundException e) {
-			return null;
-		}
-
-		Field field;
-		try {
-			field = clazz.getDeclaredField(name);
-		} catch (NoSuchFieldException e) {
-			return null;
-		}
-
-		return resolvedConstantFromField(field);
-	}
-
-	@Override
-	public Map<String, ResolvedConstant> getAllConstantsInClass(String owner) {
-		Map<String, ResolvedConstant> resolvedConstants = super.getAllConstantsInClass(owner);
+	protected Map<String, ResolvedConstant> extractConstants(String owner) {
+		Map<String, ResolvedConstant> resolvedConstants = super.extractConstants(owner);
 		if (resolvedConstants != null) {
 			return resolvedConstants;
 		}

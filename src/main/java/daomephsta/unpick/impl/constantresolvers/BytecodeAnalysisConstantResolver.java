@@ -65,7 +65,8 @@ public class BytecodeAnalysisConstantResolver implements IConstantResolver {
 		return resolvedConstants == null ? null : Collections.unmodifiableMap(resolvedConstants);
 	}
 
-	private Map<String, ResolvedConstant> extractConstants(String owner) {
+	@Nullable
+	protected Map<String, ResolvedConstant> extractConstants(String owner) {
 		ClassReader cr = classResolver.resolveClass(owner);
 		if (cr == null) {
 			return null;

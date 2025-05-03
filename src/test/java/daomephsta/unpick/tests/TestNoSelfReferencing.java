@@ -11,7 +11,7 @@ public class TestNoSelfReferencing {
 	@Test
 	public void testNoSelfReferencing() {
 		TestUtils.runTest("pkg/TestConstantDeclaration", data -> {
-			data.visitGroupDefinition(GroupDefinition.Builder.global(DataType.INT)
+			data.visitGroupDefinition(GroupDefinition.Builder.global(DataType.CLASS)
 					.constant(new FieldExpression("pkg.TestConstantDeclaration", "FOO", null, true))
 					.build());
 		});

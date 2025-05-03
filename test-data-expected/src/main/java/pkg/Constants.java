@@ -86,39 +86,39 @@ public class Constants {
 	public static final Class<?> CLASS_CONST_NULL = blackBoxClass(null);
 
 	// Some black box methods to prevent javac from inlining these expected result constants
-	private static byte blackBoxByte(int b) {
+	public static byte blackBoxByte(int b) {
 		return (byte) b;
 	}
 
-	private static short blackBoxShort(int s) {
+	public static short blackBoxShort(int s) {
 		return (short) s;
 	}
 
-	private static char blackBoxChar(char c) {
+	public static char blackBoxChar(char c) {
 		return c;
 	}
 
-	private static int blackBoxInt(int i) {
+	public static int blackBoxInt(int i) {
 		return i;
 	}
 
-	private static long blackBoxLong(long l) {
+	public static long blackBoxLong(long l) {
 		return l;
 	}
 
-	private static float blackBoxFloat(float f) {
+	public static float blackBoxFloat(float f) {
 		return f;
 	}
 
-	private static double blackBoxDouble(double d) {
+	public static double blackBoxDouble(double d) {
 		return d;
 	}
 
-	private static String blackBoxString(String s) {
+	public static String blackBoxString(String s) {
 		return s;
 	}
 
-	private static Class<?> blackBoxClass(Class<?> c) {
+	public static Class<?> blackBoxClass(Class<?> c) {
 		return c;
 	}
 

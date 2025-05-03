@@ -68,4 +68,14 @@ public class TestExpressions {
 					.build());
 		});
 	}
+
+	@Test
+	public void testWildcardFieldExpressions() {
+		TestUtils.runTest("pkg/TestKnownStringConstantsParameter", data -> {
+			data.visitGroupDefinition(GroupDefinition.Builder.global(DataType.STRING).constant(new FieldExpression("pkg/Constants", null, null, true)).build());
+		});
+		TestUtils.runTest("pkg/TestKnownStringConstantsReturn", data -> {
+			data.visitGroupDefinition(GroupDefinition.Builder.global(DataType.STRING).constant(new FieldExpression("pkg/Constants", null, null, true)).build());
+		});
+	}
 }

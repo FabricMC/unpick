@@ -93,7 +93,7 @@ public final class ConstantUninliner {
 							}
 						}
 
-						if (group != null) {
+						if (group != null && !isAssigningToConstant(insn)) {
 							Context context = new Context(classResolver, constantResolver, inheritanceChecker, replacementSet, methodOwner, method, insn, frames, logger);
 							group.apply(context);
 						}
@@ -192,6 +192,21 @@ public final class ConstantUninliner {
 		}
 
 		return null;
+	}
+
+	private boolean isAssigningToConstant(AbstractInsnNode insn) {
+		AbstractInsnNode nextInsn = AbstractInsnNodes.nextInstruction(insn);
+		if (nextInsn == null) {
+			return false;
+		}
+		if (nextInsn.getOpcode() != Opcodes.PUTFIELD && nextInsn.getOpcode() != Opcodes.PUTSTATIC) {
+			return false;
+		}
+
+		FieldInsnNode fieldInsn = (FieldInsnNode) nextInsn;
+		// is our field a constant?
+		IConstantResolver.ResolvedConstant resolvedConstant = constantResolver.resolveConstant(fieldInsn.owner, fieldInsn.name);
+		return resolvedConstant != null && fieldInsn.desc.equals(resolvedConstant.type().getDescriptor());
 	}
 
 	public static final class Builder {

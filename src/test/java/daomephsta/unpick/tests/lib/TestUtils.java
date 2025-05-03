@@ -22,6 +22,11 @@ public class TestUtils {
 	private static final Path TEST_DATA_EXPECTED = Paths.get(System.getProperty("testDataExpected"));
 
 	public static void runTest(String className, Consumer<UnpickV3Visitor> dataProvider) {
+		runTest(className, dataProvider, clazz -> {
+		});
+	}
+
+	public static void runTest(String className, Consumer<UnpickV3Visitor> dataProvider, Consumer<ClassNode> classPostProcessor) {
 		ClassNode clazz = readClass(TEST_DATA, className);
 		ClassNode expectedClass = readClass(TEST_DATA_EXPECTED, className);
 
@@ -31,6 +36,9 @@ public class TestUtils {
 				.classResolver(classResolver)
 				.build()
 				.transform(clazz);
+
+		classPostProcessor.accept(clazz);
+		classPostProcessor.accept(expectedClass);
 
 		ASMAssertions.assertClassEquals(expectedClass, clazz);
 	}
