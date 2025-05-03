@@ -26,6 +26,7 @@ public class TestNonStaticConstants {
 		public class TestInnerInner {
 			public void test() {
 				Constants.consumeInt(foo);
+				System.out.println(TestNonStaticConstants.this); // use the outer class so it's preserved
 			}
 		}
 	}
