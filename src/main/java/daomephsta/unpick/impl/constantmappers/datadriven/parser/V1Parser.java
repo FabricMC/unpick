@@ -15,7 +15,7 @@ import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
-import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
+import daomephsta.unpick.impl.constantmappers.datadriven.data.Data;
 import daomephsta.unpick.impl.constantmappers.datadriven.parser.v2.V2Parser;
 
 public final class V1Parser {
@@ -24,7 +24,7 @@ public final class V1Parser {
 
 	private static final Pattern WHITESPACE_SPLITTER = Pattern.compile("\\s");
 
-	public static void parse(Reader mappingSource, IConstantResolver constantResolver, DataDrivenConstantGrouper.Data data) throws IOException {
+	public static void parse(Reader mappingSource, IConstantResolver constantResolver, Data data) throws IOException {
 		try (LineNumberReader reader = new LineNumberReader(mappingSource)) {
 			reader.readLine(); // skip version
 

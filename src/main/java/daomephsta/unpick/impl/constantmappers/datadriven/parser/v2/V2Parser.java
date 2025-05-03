@@ -17,19 +17,19 @@ import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
-import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
+import daomephsta.unpick.impl.constantmappers.datadriven.data.Data;
 
 public final class V2Parser implements Visitor {
 	private final IConstantResolver constantResolver;
-	private final DataDrivenConstantGrouper.Data data;
+	private final Data data;
 	private int lineNumber;
 
-	private V2Parser(IConstantResolver constantResolver, DataDrivenConstantGrouper.Data data) {
+	private V2Parser(IConstantResolver constantResolver, Data data) {
 		this.constantResolver = constantResolver;
 		this.data = data;
 	}
 
-	public static void parse(Reader mappingSource, IConstantResolver constantResolver, DataDrivenConstantGrouper.Data data) throws IOException {
+	public static void parse(Reader mappingSource, IConstantResolver constantResolver, Data data) throws IOException {
 		try (UnpickV2Reader unpickDefinitions = new UnpickV2Reader(mappingSource)) {
 			unpickDefinitions.accept(new V2Parser(constantResolver, data));
 		}
@@ -107,7 +107,7 @@ public final class V2Parser implements Visitor {
 	}
 
 	private static class TargetMethodParser implements TargetMethodDefinitionVisitor {
-		private final DataDrivenConstantGrouper.Data data;
+		private final Data data;
 		private final String owner;
 		private final String name;
 		private final String descriptor;
@@ -116,7 +116,7 @@ public final class V2Parser implements Visitor {
 		private String returnGroup;
 		private final IntSupplier lineNumber;
 
-		TargetMethodParser(DataDrivenConstantGrouper.Data data, String owner, String name, String descriptor, IntSupplier lineNumber) {
+		TargetMethodParser(Data data, String owner, String name, String descriptor, IntSupplier lineNumber) {
 			this.data = data;
 			this.owner = owner;
 			this.name = name;
