@@ -156,33 +156,30 @@ public class ASMAssertions {
 	private static void assertInstructionEquals(AbstractInsnNode expectedInsn, AbstractInsnNode actualInsn, Map<LabelNode, Integer> expectedInsnIndexByLabel, Map<LabelNode, Integer> actualInsnIndexByLabel) {
 		assertEquals(Printer.OPCODES[expectedInsn.getOpcode()], Printer.OPCODES[actualInsn.getOpcode()]);
 		switch (expectedInsn.getType()) {
-			case AbstractInsnNode.INSN:
-				break;
-			case AbstractInsnNode.INT_INSN:
-				assertEquals(((IntInsnNode) expectedInsn).operand, ((IntInsnNode) actualInsn).operand);
-				break;
-			case AbstractInsnNode.VAR_INSN:
-				assertEquals(((VarInsnNode) expectedInsn).var, ((VarInsnNode) actualInsn).var);
-				break;
-			case AbstractInsnNode.TYPE_INSN:
-				assertEquals(((TypeInsnNode) expectedInsn).desc, ((TypeInsnNode) actualInsn).desc);
-				break;
-			case AbstractInsnNode.FIELD_INSN:
+			case AbstractInsnNode.INSN -> {
+			}
+			case AbstractInsnNode.INT_INSN ->
+					assertEquals(((IntInsnNode) expectedInsn).operand, ((IntInsnNode) actualInsn).operand);
+			case AbstractInsnNode.VAR_INSN ->
+					assertEquals(((VarInsnNode) expectedInsn).var, ((VarInsnNode) actualInsn).var);
+			case AbstractInsnNode.TYPE_INSN ->
+					assertEquals(((TypeInsnNode) expectedInsn).desc, ((TypeInsnNode) actualInsn).desc);
+			case AbstractInsnNode.FIELD_INSN -> {
 				FieldInsnNode expectedFieldInsn = (FieldInsnNode) expectedInsn;
 				FieldInsnNode actualFieldInsn = (FieldInsnNode) actualInsn;
 				assertEquals(expectedFieldInsn.owner, actualFieldInsn.owner);
 				assertEquals(expectedFieldInsn.name, actualFieldInsn.name);
 				assertEquals(expectedFieldInsn.desc, actualFieldInsn.desc);
-				break;
-			case AbstractInsnNode.METHOD_INSN:
+			}
+			case AbstractInsnNode.METHOD_INSN -> {
 				MethodInsnNode expectedMethodInsn = (MethodInsnNode) expectedInsn;
 				MethodInsnNode actualMethodInsn = (MethodInsnNode) actualInsn;
 				assertEquals(expectedMethodInsn.owner, actualMethodInsn.owner);
 				assertEquals(expectedMethodInsn.name, actualMethodInsn.name);
 				assertEquals(expectedMethodInsn.desc, actualMethodInsn.desc);
 				assertEquals(expectedMethodInsn.itf, actualMethodInsn.itf);
-				break;
-			case AbstractInsnNode.INVOKE_DYNAMIC_INSN:
+			}
+			case AbstractInsnNode.INVOKE_DYNAMIC_INSN -> {
 				InvokeDynamicInsnNode expectedInvokeDynamicInsn = (InvokeDynamicInsnNode) expectedInsn;
 				InvokeDynamicInsnNode actualInvokeDynamicInsn = (InvokeDynamicInsnNode) actualInsn;
 				assertEquals(expectedInvokeDynamicInsn.name, actualInvokeDynamicInsn.name);
@@ -192,22 +189,21 @@ public class ASMAssertions {
 				for (int i = 0; i < expectedInvokeDynamicInsn.bsmArgs.length; i++) {
 					assertConstantEquals(expectedInvokeDynamicInsn.bsmArgs[i], actualInvokeDynamicInsn.bsmArgs[i]);
 				}
-				break;
-			case AbstractInsnNode.JUMP_INSN:
+			}
+			case AbstractInsnNode.JUMP_INSN -> {
 				JumpInsnNode expectedJumpInsn = (JumpInsnNode) expectedInsn;
 				JumpInsnNode actualJumpInsn = (JumpInsnNode) actualInsn;
 				assertEquals(expectedInsnIndexByLabel.get(expectedJumpInsn.label), actualInsnIndexByLabel.get(actualJumpInsn.label));
-				break;
-			case AbstractInsnNode.LDC_INSN:
-				assertConstantEquals(((LdcInsnNode) expectedInsn).cst, ((LdcInsnNode) actualInsn).cst);
-				break;
-			case AbstractInsnNode.IINC_INSN:
+			}
+			case AbstractInsnNode.LDC_INSN ->
+					assertConstantEquals(((LdcInsnNode) expectedInsn).cst, ((LdcInsnNode) actualInsn).cst);
+			case AbstractInsnNode.IINC_INSN -> {
 				IincInsnNode expectedIincInsn = (IincInsnNode) expectedInsn;
 				IincInsnNode actualIincInsn = (IincInsnNode) actualInsn;
 				assertEquals(expectedIincInsn.var, actualIincInsn.var);
 				assertEquals(expectedIincInsn.incr, actualIincInsn.incr);
-				break;
-			case AbstractInsnNode.TABLESWITCH_INSN:
+			}
+			case AbstractInsnNode.TABLESWITCH_INSN -> {
 				TableSwitchInsnNode expectedTableSwitchInsn = (TableSwitchInsnNode) expectedInsn;
 				TableSwitchInsnNode actualTableSwitchInsn = (TableSwitchInsnNode) actualInsn;
 				assertEquals(expectedTableSwitchInsn.min, actualTableSwitchInsn.min);
@@ -217,8 +213,8 @@ public class ASMAssertions {
 				for (int i = 0; i < expectedTableSwitchInsn.labels.size(); i++) {
 					assertEquals(expectedInsnIndexByLabel.get(expectedTableSwitchInsn.labels.get(i)), actualInsnIndexByLabel.get(actualTableSwitchInsn.labels.get(i)));
 				}
-				break;
-			case AbstractInsnNode.LOOKUPSWITCH_INSN:
+			}
+			case AbstractInsnNode.LOOKUPSWITCH_INSN -> {
 				LookupSwitchInsnNode expectedLookupSwitchInsn = (LookupSwitchInsnNode) expectedInsn;
 				LookupSwitchInsnNode actualLookupSwitchInsn = (LookupSwitchInsnNode) actualInsn;
 				assertEquals(expectedInsnIndexByLabel.get(expectedLookupSwitchInsn.dflt), actualInsnIndexByLabel.get(actualLookupSwitchInsn.dflt));
@@ -226,15 +222,14 @@ public class ASMAssertions {
 				for (int i = 0; i < expectedLookupSwitchInsn.labels.size(); i++) {
 					assertEquals(expectedInsnIndexByLabel.get(expectedLookupSwitchInsn.labels.get(i)), actualInsnIndexByLabel.get(actualLookupSwitchInsn.labels.get(i)));
 				}
-				break;
-			case AbstractInsnNode.MULTIANEWARRAY_INSN:
+			}
+			case AbstractInsnNode.MULTIANEWARRAY_INSN -> {
 				MultiANewArrayInsnNode expectedMultiANewArrayInsn = (MultiANewArrayInsnNode) expectedInsn;
 				MultiANewArrayInsnNode actualMultiANewArrayInsn = (MultiANewArrayInsnNode) actualInsn;
 				assertEquals(expectedMultiANewArrayInsn.desc, actualMultiANewArrayInsn.desc);
 				assertEquals(expectedMultiANewArrayInsn.dims, actualMultiANewArrayInsn.dims);
-				break;
-			default:
-				throw new AssertionError("Unknown insn type: " + expectedInsn.getClass().getName());
+			}
+			default -> throw new AssertionError("Unknown insn type: " + expectedInsn.getClass().getName());
 		}
 	}
 
@@ -257,16 +252,16 @@ public class ASMAssertions {
 	}
 
 	private static void assertConstantEquals(Object expectedBsmArg, Object actualBsmArg) {
-		if (expectedBsmArg instanceof Handle) {
-			Handle expectedHandle = (Handle) expectedBsmArg;
-			Handle actualHandle = assertInstanceOf(Handle.class, actualBsmArg);
-			assertHandleEquals(expectedHandle, actualHandle);
-		} else if (expectedBsmArg instanceof ConstantDynamic) {
-			ConstantDynamic expectedCondy = (ConstantDynamic) expectedBsmArg;
-			ConstantDynamic actualCondy = assertInstanceOf(ConstantDynamic.class, actualBsmArg);
-			assertCondyEquals(expectedCondy, actualCondy);
-		} else {
-			assertEquals(expectedBsmArg, actualBsmArg);
+		switch (expectedBsmArg) {
+			case Handle expectedHandle -> {
+				Handle actualHandle = assertInstanceOf(Handle.class, actualBsmArg);
+				assertHandleEquals(expectedHandle, actualHandle);
+			}
+			case ConstantDynamic expectedCondy -> {
+				ConstantDynamic actualCondy = assertInstanceOf(ConstantDynamic.class, actualBsmArg);
+				assertCondyEquals(expectedCondy, actualCondy);
+			}
+			case null, default -> assertEquals(expectedBsmArg, actualBsmArg);
 		}
 	}
 }

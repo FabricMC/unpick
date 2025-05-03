@@ -80,20 +80,16 @@ public final class UnpickV3Writer extends UnpickV3Visitor {
 
 	private void writeGroupScope(GroupScope scope) {
 		output.append("@scope ");
-		if (scope instanceof GroupScope.Package packageScope) {
-			output.append("package ").append(packageScope.packageName());
-		} else if (scope instanceof GroupScope.Class classScope) {
-			output.append("class ").append(classScope.className());
-		} else if (scope instanceof GroupScope.Method methodScope) {
-			output.append("method ")
-					.append(methodScope.className())
+		StringBuilder ignored = switch (scope) {
+			case GroupScope.Package(String packageName) -> output.append("package ").append(packageName);
+			case GroupScope.Class(String className) -> output.append("class ").append(className);
+			case GroupScope.Method(String className, String methodName, String methodDesc) -> output.append("method ")
+					.append(className)
 					.append(" ")
-					.append(methodScope.methodName())
+					.append(methodName)
 					.append(" ")
-					.append(methodScope.methodDesc());
-		} else {
-			throw new AssertionError("Unknown group scope type: " + scope.getClass().getName());
-		}
+					.append(methodDesc);
+		};
 	}
 
 	@Override
@@ -273,23 +269,20 @@ public final class UnpickV3Writer extends UnpickV3Visitor {
 
 		@Override
 		public void visitLiteralExpression(LiteralExpression literalExpression) {
-			if (literalExpression.literal instanceof Literal.Integer literalInteger) {
-				writeRadixPrefix(literalInteger.radix());
-				output.append(Integer.toUnsignedString(literalInteger.value(), literalInteger.radix()));
-			} else if (literalExpression.literal instanceof Literal.Long literalLong) {
-				writeRadixPrefix(literalLong.radix());
-				output.append(Long.toUnsignedString(literalLong.value(), literalLong.radix())).append('L');
-			} else if (literalExpression.literal instanceof Literal.Float literalFloat) {
-				output.append(literalFloat.value()).append('F');
-			} else if (literalExpression.literal instanceof Literal.Double literalDouble) {
-				output.append(literalDouble.value());
-			} else if (literalExpression.literal instanceof Literal.Character literalCharacter) {
-				output.append(quoteString(String.valueOf(literalCharacter.value()), '\''));
-			} else if (literalExpression.literal instanceof Literal.String literalString) {
-				output.append(quoteString(literalString.value(), '"'));
-			} else {
-				throw new AssertionError("Unknown literal: " + literalExpression.literal);
-			}
+			StringBuilder ignored = switch (literalExpression.literal) {
+				case Literal.Integer(int value, int radix) -> {
+					writeRadixPrefix(radix);
+					yield output.append(Integer.toUnsignedString(value, radix));
+				}
+				case Literal.Long(long value, int radix) -> {
+					writeRadixPrefix(radix);
+					yield output.append(Long.toUnsignedString(value, radix)).append('L');
+				}
+				case Literal.Float(float value) -> output.append(value).append('F');
+				case Literal.Double(double value) -> output.append(value);
+				case Literal.Character(char value) -> output.append(quoteString(String.valueOf(value), '\''));
+				case Literal.String(String value) -> output.append(quoteString(value, '"'));
+			};
 		}
 
 		@Override

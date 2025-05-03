@@ -34,51 +34,39 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 			if (type == null) {
 				return super.newValue(null);
 			}
-			switch (type.getSort()) {
-				case Type.OBJECT:
-				case Type.ARRAY:
-					return new BasicValue(type);
-				case Type.BYTE:
-					return BYTE_VALUE;
-				case Type.SHORT:
-					return SHORT_VALUE;
-				case Type.CHAR:
-					return CHAR_VALUE;
-				default:
-					return super.newValue(type);
-			}
+			return switch (type.getSort()) {
+				case Type.OBJECT, Type.ARRAY -> new BasicValue(type);
+				case Type.BYTE -> BYTE_VALUE;
+				case Type.SHORT -> SHORT_VALUE;
+				case Type.CHAR -> CHAR_VALUE;
+				default -> super.newValue(type);
+			};
 		}
 
 		@Override
 		public BasicValue unaryOperation(AbstractInsnNode insn, BasicValue value) throws AnalyzerException {
-			switch (insn.getOpcode()) {
-				case I2B:
-					return BYTE_VALUE;
-				case I2S:
-					return SHORT_VALUE;
-				case I2C:
-					return CHAR_VALUE;
-				default:
-					return super.unaryOperation(insn, value);
-			}
+			return switch (insn.getOpcode()) {
+				case I2B -> BYTE_VALUE;
+				case I2S -> SHORT_VALUE;
+				case I2C -> CHAR_VALUE;
+				default -> super.unaryOperation(insn, value);
+			};
 		}
 
 		@Override
 		public BasicValue binaryOperation(AbstractInsnNode insn, BasicValue value1, BasicValue value2) throws AnalyzerException {
-			switch (insn.getOpcode()) {
-				case BALOAD:
+			return switch (insn.getOpcode()) {
+				case BALOAD -> {
 					if (value1.getType().getDescriptor().equals("[Z")) {
-						return super.binaryOperation(insn, value1, value2);
+						yield super.binaryOperation(insn, value1, value2);
 					} else {
-						return BYTE_VALUE;
+						yield BYTE_VALUE;
 					}
-				case SALOAD:
-					return SHORT_VALUE;
-				case CALOAD:
-					return CHAR_VALUE;
-				default:
-					return super.binaryOperation(insn, value1, value2);
-			}
+				}
+				case SALOAD -> SHORT_VALUE;
+				case CALOAD -> CHAR_VALUE;
+				default -> super.binaryOperation(insn, value1, value2);
+			};
 		}
 
 		@Override
@@ -260,57 +248,30 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	@Override
 	public UnpickValue unaryOperation(AbstractInsnNode insn, UnpickValue value) throws AnalyzerException {
 		switch (insn.getOpcode()) {
-			case INEG:
-			case IINC:
-			case I2L:
-			case I2F:
-			case I2D:
-			case I2B:
-			case I2C:
-			case I2S:
-			case IFEQ:
-			case IFNE:
-			case IFLT:
-			case IFGE:
-			case IFGT:
-			case IFLE:
-			case TABLESWITCH:
-			case LOOKUPSWITCH:
-			case NEWARRAY:
-			case ANEWARRAY:
-				value.getTypeInterpretations().add(DataType.INT);
-				break;
-			case LNEG:
-			case L2I:
-			case L2F:
-			case L2D:
-				value.getTypeInterpretations().add(DataType.LONG);
-				break;
-			case FNEG:
-			case F2I:
-			case F2L:
-			case F2D:
-				value.getTypeInterpretations().add(DataType.FLOAT);
-				break;
-			case DNEG:
-			case D2I:
-			case D2L:
-			case D2F:
-				value.getTypeInterpretations().add(DataType.DOUBLE);
-				break;
-			case IRETURN:
-			case LRETURN:
-			case FRETURN:
-			case DRETURN:
-			case ARETURN:
-				value.addTypeInterpretationFromType(Type.getReturnType(method.desc));
-				break;
-			case PUTSTATIC:
-				value.addTypeInterpretationFromType(Type.getType(((FieldInsnNode) insn).desc));
-				break;
-			case CHECKCAST:
-				value.addTypeInterpretationFromType(Type.getObjectType(((TypeInsnNode) insn).desc));
-				break;
+			case INEG,
+				IINC,
+				I2L,
+				I2F,
+				I2D,
+				I2B,
+				I2C,
+				I2S,
+				IFEQ,
+				IFNE,
+				IFLT,
+				IFGE,
+				IFGT,
+				IFLE,
+				TABLESWITCH,
+				LOOKUPSWITCH,
+				NEWARRAY,
+				ANEWARRAY -> value.getTypeInterpretations().add(DataType.INT);
+			case LNEG, L2I, L2F, L2D -> value.getTypeInterpretations().add(DataType.LONG);
+			case FNEG, F2I, F2L, F2D -> value.getTypeInterpretations().add(DataType.FLOAT);
+			case DNEG, D2I, D2L, D2F -> value.getTypeInterpretations().add(DataType.DOUBLE);
+			case IRETURN, LRETURN, FRETURN, DRETURN, ARETURN -> value.addTypeInterpretationFromType(Type.getReturnType(method.desc));
+			case PUTSTATIC -> value.addTypeInterpretationFromType(Type.getType(((FieldInsnNode) insn).desc));
+			case CHECKCAST -> value.addTypeInterpretationFromType(Type.getObjectType(((TypeInsnNode) insn).desc));
 		}
 
 		Type type = getType(typeTracker.unaryOperation(insn, typeTracker.newValue(value.getDataType())));
@@ -324,74 +285,77 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	@Override
 	public UnpickValue binaryOperation(AbstractInsnNode insn, UnpickValue value1, UnpickValue value2) throws AnalyzerException {
 		Type type = getType(typeTracker.binaryOperation(insn, typeTracker.newValue(value1.getDataType()), typeTracker.newValue(value2.getDataType())));
-		switch (insn.getOpcode()) {
-			case IALOAD:
-			case FALOAD:
-			case AALOAD:
-			case BALOAD:
-			case CALOAD:
-			case SALOAD:
-			case LALOAD:
-			case DALOAD:
+		return switch (insn.getOpcode()) {
+			case IALOAD,
+				FALOAD,
+				AALOAD,
+				BALOAD,
+				CALOAD,
+				SALOAD,
+				LALOAD,
+				DALOAD -> {
 				value2.getTypeInterpretations().add(DataType.INT);
-				return new UnpickValue(type);
-			case IADD:
-			case LADD:
-			case FADD:
-			case DADD:
-			case ISUB:
-			case LSUB:
-			case FSUB:
-			case DSUB:
-			case IMUL:
-			case LMUL:
-			case FMUL:
-			case DMUL:
-			case IDIV:
-			case LDIV:
-			case FDIV:
-			case DDIV:
-			case IREM:
-			case LREM:
-			case FREM:
-			case DREM:
-			case IAND:
-			case LAND:
-			case IOR:
-			case LOR:
-			case IXOR:
-			case LXOR:
-				return new UnpickValue(type, merge(value1, value2));
-			case ISHL:
-			case LSHL:
-			case ISHR:
-			case LSHR:
-			case IUSHR:
-			case LUSHR:
+				yield new UnpickValue(type);
+			}
+			case IADD,
+				LADD,
+				FADD,
+				DADD,
+				ISUB,
+				LSUB,
+				FSUB,
+				DSUB,
+				IMUL,
+				LMUL,
+				FMUL,
+				DMUL,
+				IDIV,
+				LDIV,
+				FDIV,
+				DDIV,
+				IREM,
+				LREM,
+				FREM,
+				DREM,
+				IAND,
+				LAND,
+				IOR,
+				LOR,
+				IXOR,
+				LXOR -> new UnpickValue(type, merge(value1, value2));
+			case ISHL,
+				LSHL,
+				ISHR,
+				LSHR,
+				IUSHR,
+				LUSHR -> {
 				value2.getTypeInterpretations().add(DataType.INT);
-				return new UnpickValue(type, value1);
-			case LCMP:
-			case FCMPL:
-			case FCMPG:
-			case DCMPL:
-			case DCMPG:
-			case IF_ICMPEQ:
-			case IF_ICMPNE:
-			case IF_ICMPLT:
-			case IF_ICMPGE:
-			case IF_ICMPGT:
-			case IF_ICMPLE:
-			case IF_ACMPEQ:
-			case IF_ACMPNE:
+				yield new UnpickValue(type, value1);
+			}
+			case LCMP,
+				FCMPL,
+				FCMPG,
+				DCMPL,
+				DCMPG,
+				IF_ICMPEQ,
+				IF_ICMPNE,
+				IF_ICMPLT,
+				IF_ICMPGE,
+				IF_ICMPGT,
+				IF_ICMPLE,
+				IF_ACMPEQ,
+				IF_ACMPNE -> {
 				merge(value1, value2);
-				return new UnpickValue(type);
-			case PUTFIELD:
+				yield new UnpickValue(type);
+			}
+			case PUTFIELD -> {
 				value2.getUsages().add(insn);
 				value2.addTypeInterpretationFromType(Type.getType(((FieldInsnNode) insn).desc));
-				return new UnpickValue(type);
-			default:
+				yield new UnpickValue(type);
+			}
+			default ->
 				throw new IllegalArgumentException("Unrecognized insn: " + insn.getOpcode());
-		}
+		};
 	}
 
 	@Override
@@ -400,34 +364,22 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 		value2.getTypeInterpretations().add(DataType.INT);
 
 		switch (insn.getOpcode()) {
-			case BASTORE:
+			case BASTORE -> {
 				if (!value1.getDataType().getDescriptor().equals("[Z")) {
 					value3.getTypeInterpretations().add(DataType.BYTE);
 				}
-				break;
-			case SASTORE:
-				value3.getTypeInterpretations().add(DataType.SHORT);
-				break;
-			case CASTORE:
-				value3.getTypeInterpretations().add(DataType.CHAR);
-				break;
-			case IASTORE:
-				value3.getTypeInterpretations().add(DataType.INT);
-				break;
-			case LASTORE:
-				value3.getTypeInterpretations().add(DataType.LONG);
-				break;
-			case FASTORE:
-				value3.getTypeInterpretations().add(DataType.FLOAT);
-				break;
-			case DASTORE:
-				value3.getTypeInterpretations().add(DataType.DOUBLE);
-				break;
-			case AASTORE:
+			}
+			case SASTORE -> value3.getTypeInterpretations().add(DataType.SHORT);
+			case CASTORE -> value3.getTypeInterpretations().add(DataType.CHAR);
+			case IASTORE -> value3.getTypeInterpretations().add(DataType.INT);
+			case LASTORE -> value3.getTypeInterpretations().add(DataType.LONG);
+			case FASTORE -> value3.getTypeInterpretations().add(DataType.FLOAT);
+			case DASTORE -> value3.getTypeInterpretations().add(DataType.DOUBLE);
+			case AASTORE -> {
 				if (value1.getDataType().getSort() == Type.ARRAY) {
 					value3.addTypeInterpretationFromType(Type.getType(value1.getDataType().getDescriptor().substring(1)));
 				}
-				break;
+			}
 		}
 
 		Type type = getType(typeTracker.ternaryOperation(insn, typeTracker.newValue(value1.getDataType()), typeTracker.newValue(value2.getDataType()), typeTracker.newValue(value3.getDataType())));

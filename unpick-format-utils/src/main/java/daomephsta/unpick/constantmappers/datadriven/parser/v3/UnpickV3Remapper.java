@@ -32,18 +32,20 @@ public abstract class UnpickV3Remapper extends UnpickV3Visitor {
 	public void visitGroupDefinition(GroupDefinition groupDefinition) {
 		List<GroupScope> scopes = groupDefinition.scopes().stream()
 				.flatMap(scope -> {
-					if (scope instanceof GroupScope.Package packageScope) {
-						return getClassesInPackage(packageScope.packageName()).stream()
-								.map((className) -> new GroupScope.Class(mapClassName(className)));
-					} else if (scope instanceof GroupScope.Class classScope) {
-						return Stream.<GroupScope>of(new GroupScope.Class(mapClassName(classScope.className())));
-					} else if (scope instanceof GroupScope.Method methodScope) {
-						String className = mapClassName(methodScope.className());
-						String methodName = mapMethodName(methodScope.className(), methodScope.methodName(), methodScope.methodDesc());
-						String methodDesc = mapDescriptor(methodScope.methodDesc());
-						return Stream.<GroupScope>of(new GroupScope.Method(className, methodName, methodDesc));
-					} else {
-						throw new AssertionError("Unknown group scope type: " + scope.getClass().getName());
+					switch (scope) {
+						case GroupScope.Package(String packageName) -> {
+							return getClassesInPackage(packageName).stream()
+									.map((className) -> new GroupScope.Class(mapClassName(className)));
+						}
+						case GroupScope.Class(String className) -> {
+							return Stream.<GroupScope>of(new GroupScope.Class(mapClassName(className)));
+						}
+						case GroupScope.Method(String className, String methodName, String methodDesc) -> {
+							String newClassName = mapClassName(className);
+							String newMethodName = mapMethodName(className, methodName, methodDesc);
+							String newMethodDesc = mapDescriptor(methodDesc);
+							return Stream.<GroupScope>of(new GroupScope.Method(newClassName, newMethodName, newMethodDesc));
+						}
 					}
 				})
 				.toList();

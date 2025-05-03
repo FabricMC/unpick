@@ -13,41 +13,18 @@ public class AbstractInsnNodes implements Opcodes {
 
 	@Nullable
 	public static Object getLiteralValue(AbstractInsnNode insn) {
-		switch (insn.getOpcode()) {
-			case ACONST_NULL:
-				return null;
-			case ICONST_M1:
-			case ICONST_0:
-			case ICONST_1:
-			case ICONST_2:
-			case ICONST_3:
-			case ICONST_4:
-			case ICONST_5:
-				return insn.getOpcode() - ICONST_0; //Neat trick that works because the opcodes are sequential
-
-			case LCONST_0:
-			case LCONST_1:
-				return (long) insn.getOpcode() - LCONST_0;
-
-			case FCONST_0:
-			case FCONST_1:
-			case FCONST_2:
-				return (float) insn.getOpcode() - FCONST_0;
-
-			case DCONST_0:
-			case DCONST_1:
-				return (double) insn.getOpcode() - DCONST_0;
-
-			case BIPUSH:
-			case SIPUSH:
-				return ((IntInsnNode) insn).operand;
-
-			case LDC:
-				return ((LdcInsnNode) insn).cst;
-
-			default :
-				throw new UnsupportedOperationException("No value retrieval method programmed for " + Utils.visitableToString(insn::accept).trim());
-		}
+		return switch (insn.getOpcode()) {
+			case ACONST_NULL -> null;
+			case ICONST_M1, ICONST_0, ICONST_1, ICONST_2, ICONST_3, ICONST_4, ICONST_5 ->
+					insn.getOpcode() - ICONST_0; //Neat trick that works because the opcodes are sequential
+			case LCONST_0, LCONST_1 -> (long) insn.getOpcode() - LCONST_0;
+			case FCONST_0, FCONST_1, FCONST_2 -> (float) insn.getOpcode() - FCONST_0;
+			case DCONST_0, DCONST_1 -> (double) insn.getOpcode() - DCONST_0;
+			case BIPUSH, SIPUSH -> ((IntInsnNode) insn).operand;
+			case LDC -> ((LdcInsnNode) insn).cst;
+			default ->
+					throw new UnsupportedOperationException("No value retrieval method programmed for " + Utils.visitableToString(insn::accept).trim());
+		};
 	}
 
 	@Nullable

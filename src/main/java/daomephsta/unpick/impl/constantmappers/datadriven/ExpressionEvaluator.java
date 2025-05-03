@@ -110,14 +110,12 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 	@Override
 	public void visitCastExpression(CastExpression castExpression) {
 		castExpression.operand.accept(this);
-		Number operand;
-		if (result instanceof Number number) {
-			operand = number;
-		} else if (result instanceof Character character) {
-			operand = (int) character;
-		} else {
-			throw new UnpickSyntaxException("Cannot interpret " + asString(result) + " as a number");
-		}
+		Number operand = switch (result) {
+			case Number number -> number;
+			case Character character -> (int) character;
+			case null, default ->
+					throw new UnpickSyntaxException("Cannot interpret " + asString(result) + " as a number");
+		};
 		result = switch (castExpression.castType) {
 			case BYTE -> operand.byteValue();
 			case SHORT -> operand.shortValue();
@@ -150,21 +148,14 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 	@Override
 	public void visitLiteralExpression(LiteralExpression literalExpression) {
 		Literal literal = literalExpression.literal;
-		if (literal instanceof Literal.Integer integer) {
-			result = integer.value();
-		} else if (literal instanceof Literal.Long longLiteral) {
-			result = longLiteral.value();
-		} else if (literal instanceof Literal.Float floatLiteral) {
-			result = floatLiteral.value();
-		} else if (literal instanceof Literal.Double doubleLiteral) {
-			result = doubleLiteral.value();
-		} else if (literal instanceof Literal.Character character) {
-			result = character.value();
-		} else if (literal instanceof Literal.String string) {
-			result = string.value();
-		} else {
-			throw new AssertionError("Unknown literal type " + literal.getClass().getName());
-		}
+		result = switch (literal) {
+			case Literal.Integer(int value, int ignored) -> value;
+			case Literal.Long(long value, int ignored) -> value;
+			case Literal.Float(float value) -> value;
+			case Literal.Double(double value) -> value;
+			case Literal.Character(char value) -> value;
+			case Literal.String(String value) -> value;
+		};
 	}
 
 	@Override
@@ -193,16 +184,14 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 
 	@Nullable
 	private static Long upcastAsLongOrNull(Object value) {
-		if (value instanceof Character character) {
-			return (long) character;
-		}
-		if (value instanceof Integer || value instanceof Short || value instanceof Byte) {
-			return ((Number) value).longValue();
-		} else if (value instanceof Long longValue) {
-			return longValue;
-		} else {
-			return null;
-		}
+		return switch (value) {
+			case Character c -> (long) c;
+			case Integer i -> i.longValue();
+			case Short s -> s.longValue();
+			case Byte b -> b.longValue();
+			case Long l -> l;
+			case null, default -> null;
+		};
 	}
 
 	private long upcastAsLongUnsigned(Object value) {
@@ -220,15 +209,12 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 
 	@Nullable
 	private static Double upcastAsDoubleOrNull(Object value) {
-		if (value instanceof Double doubleValue) {
-			return doubleValue;
-		} else if (value instanceof Character character) {
-			return (double) character;
-		} else if (value instanceof Number number) {
-			return number.doubleValue();
-		} else {
-			return null;
-		}
+		return switch (value) {
+			case Double doubleValue -> doubleValue;
+			case Character character -> (double) character;
+			case Number number -> number.doubleValue();
+			case null, default -> null;
+		};
 	}
 
 	private String asString(Object value) {
@@ -260,15 +246,12 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 			}
 		}
 		Double doubleValue = Objects.requireNonNull(upcastAsDoubleOrNull(value), "Input is not a primitive");
-		if (expectedType instanceof Long) {
-			return doubleValue.longValue();
-		} else if (expectedType instanceof Float) {
-			return doubleValue.floatValue();
-		} else if (expectedType instanceof Double) {
-			return doubleValue;
-		} else {
-			return doubleValue.intValue();
-		}
+		return switch (expectedType) {
+			case Long ignored -> doubleValue.longValue();
+			case Float ignored -> doubleValue.floatValue();
+			case Double ignored -> doubleValue;
+			case null, default -> doubleValue.intValue();
+		};
 	}
 
 	private static Object downcastPrimitive(Object value, Object expectedType1, Object expectedType2) {

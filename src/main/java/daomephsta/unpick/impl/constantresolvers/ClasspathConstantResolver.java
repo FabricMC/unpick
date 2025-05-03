@@ -70,8 +70,8 @@ public class ClasspathConstantResolver extends BytecodeAnalysisConstantResolver 
 			return null;
 		}
 
-		if (value instanceof Class) {
-			value = Type.getType((Class<?>) value);
+		if (value instanceof Class<?> clazz) {
+			value = Type.getType(clazz);
 		}
 
 		return new ResolvedConstant(type, value, true);
