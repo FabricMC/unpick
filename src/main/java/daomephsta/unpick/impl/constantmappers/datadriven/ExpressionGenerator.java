@@ -7,7 +7,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
@@ -26,7 +25,9 @@ import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
 import org.objectweb.asm.tree.analysis.Frame;
 
+import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
+import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.BinaryExpression;
@@ -38,8 +39,8 @@ import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.LiteralExpression;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.UnaryExpression;
 import daomephsta.unpick.impl.AbstractInsnNodes;
+import daomephsta.unpick.impl.DataTypeUtils;
 import daomephsta.unpick.impl.InstructionFactory;
-import daomephsta.unpick.impl.Utils;
 import daomephsta.unpick.impl.constantmappers.datadriven.data.GroupInfo;
 import daomephsta.unpick.impl.constantmappers.datadriven.data.ScopedGroupInfo;
 
@@ -62,7 +63,7 @@ public final class ExpressionGenerator {
 		for (ScopedGroupInfo scope : DataDrivenConstantGrouper.findMatchingScopes(context, groupInfo)) {
 			scope.constantReplacementMap.forEach((key, replacementInfo) -> {
 				if (!replacementInfo.strict() || literalType == groupInfo.dataType) {
-					inScopeFlags.putIfAbsent((Long) key & mask, replacementInfo.replacementExpression());
+					inScopeFlags.putIfAbsent((Long) DataTypeUtils.cast(key, DataType.LONG) & mask, replacementInfo.replacementExpression());
 				}
 			});
 		}
@@ -106,12 +107,12 @@ public final class ExpressionGenerator {
 		if (inverseResidual == 0 && (residual != 0 || negativeSet.size() < positiveSet.size())) {
 			// negativeSet shouldn't be empty if inverseResidual is 0
 			Expression oredFlags = negativeSet.getFirst();
-			if (literalType == DataType.INT && getExpressionType(groupInfo, oredFlags) == DataType.LONG) {
+			if (literalType == DataType.INT && getExpressionType(context, oredFlags) == DataType.LONG) {
 				oredFlags = new CastExpression(narrowedLiteralType, oredFlags);
 			}
 			for (int i = 1; i < negativeSet.size(); i++) {
 				Expression nextExpr = negativeSet.get(i);
-				if (literalType == DataType.INT && getExpressionType(groupInfo, nextExpr) == DataType.LONG) {
+				if (literalType == DataType.INT && getExpressionType(context, nextExpr) == DataType.LONG) {
 					nextExpr = new CastExpression(narrowedLiteralType, nextExpr);
 				}
 				oredFlags = new BinaryExpression(oredFlags, nextExpr, BinaryExpression.Operator.BIT_OR);
@@ -119,12 +120,12 @@ public final class ExpressionGenerator {
 			return new UnaryExpression(oredFlags, UnaryExpression.Operator.BIT_NOT);
 		} else if (!positiveSet.isEmpty()) {
 			Expression oredFlags = positiveSet.getFirst();
-			if (literalType == DataType.INT && getExpressionType(groupInfo, oredFlags) == DataType.LONG) {
+			if (literalType == DataType.INT && getExpressionType(context, oredFlags) == DataType.LONG) {
 				oredFlags = new CastExpression(narrowedLiteralType, oredFlags);
 			}
 			for (int i = 1; i < positiveSet.size(); i++) {
 				Expression nextExpr = positiveSet.get(i);
-				if (literalType == DataType.INT && getExpressionType(groupInfo, nextExpr) == DataType.LONG) {
+				if (literalType == DataType.INT && getExpressionType(context, nextExpr) == DataType.LONG) {
 					nextExpr = new CastExpression(narrowedLiteralType, nextExpr);
 				}
 				oredFlags = new BinaryExpression(oredFlags, nextExpr, BinaryExpression.Operator.BIT_OR);
@@ -146,7 +147,7 @@ public final class ExpressionGenerator {
 		// check for lonesome instance field replacement to replace a null check
 		if (replacement instanceof FieldExpression fieldReplacement && !fieldReplacement.isStatic) {
 			String fieldOwner = fieldReplacement.className.replace('.', '/');
-			DataType fieldType = fieldReplacement.fieldType == null ? groupInfo.dataType : fieldReplacement.fieldType;
+			DataType fieldType = getFieldDataType(context, fieldReplacement);
 
 			AbstractInsnNode nullCheckEnd = AbstractInsnNodes.previousInstruction(targetInsn);
 			if (nullCheckEnd != null) {
@@ -163,7 +164,7 @@ public final class ExpressionGenerator {
 							context.getReplacementSet().addReplacement(nullCheckEnd, new InsnList());
 
 							// replace the constant instruction with a getfield
-							context.getReplacementSet().addReplacement(targetInsn, new FieldInsnNode(Opcodes.GETFIELD, fieldOwner, fieldReplacement.fieldName, Utils.getDescriptor(fieldType)));
+							context.getReplacementSet().addReplacement(targetInsn, new FieldInsnNode(Opcodes.GETFIELD, fieldOwner, fieldReplacement.fieldName, DataTypeUtils.getDescriptor(fieldType)));
 							return;
 						}
 					}
@@ -194,15 +195,15 @@ public final class ExpressionGenerator {
 			thisReferenceChains.put(instanceFieldExpression, thisReferenceChain);
 		}
 
-		replacement = propagateExpectedTypeDown(groupInfo, replacement, literalType);
+		replacement = propagateExpectedTypeDown(context, replacement, literalType);
 
 		InsnList replacementInsns = new InsnList();
 		replacement.accept(new ExpressionVisitor() {
 			@Override
 			public void visitBinaryExpression(BinaryExpression binaryExpression) {
-				DataType leftType = getExpressionType(groupInfo, binaryExpression.lhs);
-				DataType rightType = getExpressionType(groupInfo, binaryExpression.rhs);
-				DataType overallType = getBinaryExpressionType(leftType, rightType);
+				DataType leftType = getExpressionType(context, binaryExpression.lhs);
+				DataType rightType = getExpressionType(context, binaryExpression.rhs);
+				DataType overallType = ExpressionEvaluator.getBinaryResultType(leftType, rightType);
 
 				if (overallType == DataType.STRING) {
 					buildStringConcatenation(context, binaryExpression);
@@ -237,13 +238,13 @@ public final class ExpressionGenerator {
 			public void visitCastExpression(CastExpression castExpression) {
 				castExpression.operand.accept(this);
 
-				DataType operandType = getExpressionType(groupInfo, castExpression.operand);
+				DataType operandType = getExpressionType(context, castExpression.operand);
 				addCastInsns(replacementInsns, operandType, castExpression.castType);
 			}
 
 			@Override
 			public void visitFieldExpression(FieldExpression fieldExpression) {
-				String fieldDesc = Utils.getDescriptor(fieldExpression.fieldType == null ? groupInfo.dataType : fieldExpression.fieldType);
+				String fieldDesc = DataTypeUtils.getDescriptor(getFieldDataType(context, fieldExpression));
 				if (fieldExpression.isStatic) {
 					String fieldOwner = fieldExpression.className.replace('.', '/');
 					replacementInsns.add(new FieldInsnNode(Opcodes.GETSTATIC, fieldOwner, fieldExpression.fieldName, fieldDesc));
@@ -279,7 +280,7 @@ public final class ExpressionGenerator {
 
 				unaryExpression.operand.accept(this);
 
-				DataType operandType = getExpressionType(groupInfo, unaryExpression.operand);
+				DataType operandType = getExpressionType(context, unaryExpression.operand);
 				//noinspection ConstantValue
 				Object ignored = switch (unaryExpression.operator) {
 					case NEGATE -> {
@@ -316,7 +317,7 @@ public final class ExpressionGenerator {
 					replacementInsns.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "java/lang/StringBuilder", "<init>", "()V", false));
 					for (Expression expression : stuffToConcatenate) {
 						expression.accept(this);
-						String sbDesc = "(" + Utils.getDescriptor(getExpressionType(groupInfo, expression)) + ")Ljava/lang/StringBuilder;";
+						String sbDesc = "(" + DataTypeUtils.getDescriptor(getExpressionType(context, expression)) + ")Ljava/lang/StringBuilder;";
 						replacementInsns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/StringBuilder", "append", sbDesc, false));
 					}
 					replacementInsns.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "java/lang/StringBuilder", "toString", "()Ljava/lang/String;", false));
@@ -325,7 +326,7 @@ public final class ExpressionGenerator {
 					StringBuilder concatType = new StringBuilder("(");
 					for (Expression expression : stuffToConcatenate) {
 						recipe.append('\1');
-						concatType.append(Utils.getDescriptor(getExpressionType(groupInfo, expression)));
+						concatType.append(DataTypeUtils.getDescriptor(getExpressionType(context, expression)));
 						expression.accept(this);
 					}
 					concatType.append(")Ljava/lang/String;");
@@ -338,7 +339,7 @@ public final class ExpressionGenerator {
 				}
 			}
 
-			private DataType restrictToIntegralType(DataType dataType) {
+			private static DataType restrictToIntegralType(DataType dataType) {
 				if (dataType == DataType.BYTE || dataType == DataType.SHORT || dataType == DataType.CHAR || dataType == DataType.INT) {
 					return DataType.INT;
 				} else {
@@ -346,7 +347,7 @@ public final class ExpressionGenerator {
 				}
 			}
 
-			private DataType restrictToNumberType(DataType dataType) {
+			private static DataType restrictToNumberType(DataType dataType) {
 				return switch (dataType) {
 					case BYTE, SHORT, CHAR, INT -> DataType.INT;
 					case LONG -> DataType.LONG;
@@ -356,12 +357,12 @@ public final class ExpressionGenerator {
 			}
 		});
 
-		addCastInsns(replacementInsns, getExpressionType(groupInfo, replacement), literalType);
+		addCastInsns(replacementInsns, getExpressionType(context, replacement), literalType);
 
 		context.getReplacementSet().addReplacement(targetInsn, replacementInsns);
 	}
 
-	private static Expression propagateExpectedTypeDown(GroupInfo groupInfo, Expression expression, DataType expectedType) {
+	private static Expression propagateExpectedTypeDown(IReplacementGenerator.IContext context, Expression expression, DataType expectedType) {
 		return expression.transform(new ExpressionTransformer() {
 			private DataType myExpectedType = expectedType;
 
@@ -373,9 +374,9 @@ public final class ExpressionGenerator {
 				}
 
 				boolean isShift = binaryExpression.operator == BinaryExpression.Operator.BIT_SHIFT_LEFT || binaryExpression.operator == BinaryExpression.Operator.BIT_SHIFT_RIGHT || binaryExpression.operator == BinaryExpression.Operator.BIT_SHIFT_RIGHT_UNSIGNED;
-				DataType leftType = getExpressionType(groupInfo, binaryExpression.lhs);
-				DataType rightType = getExpressionType(groupInfo, binaryExpression.rhs);
-				DataType overallType = getBinaryExpressionType(getBinaryExpressionType(leftType, rightType), myExpectedType);
+				DataType leftType = getExpressionType(context, binaryExpression.lhs);
+				DataType rightType = getExpressionType(context, binaryExpression.rhs);
+				DataType overallType = ExpressionEvaluator.getBinaryResultType(ExpressionEvaluator.getBinaryResultType(leftType, rightType), myExpectedType);
 
 				myExpectedType = overallType;
 				Expression lhs = binaryExpression.lhs.transform(this);
@@ -392,7 +393,7 @@ public final class ExpressionGenerator {
 
 			@Override
 			public Expression transformLiteralExpression(LiteralExpression literalExpression) {
-				return new LiteralExpression(objectToLiteral(castLiteral(literalToObject(literalExpression.literal), myExpectedType, false)));
+				return new LiteralExpression(objectToLiteral(DataTypeUtils.cast(literalToObject(literalExpression.literal), myExpectedType)));
 			}
 		});
 	}
@@ -496,20 +497,6 @@ public final class ExpressionGenerator {
 		return isNullCheck ? insn : null;
 	}
 
-	private static DataType getBinaryExpressionType(DataType leftType, DataType rightType) {
-		if (leftType == DataType.STRING || rightType == DataType.STRING) {
-			return DataType.STRING;
-		} else if (leftType == DataType.DOUBLE || rightType == DataType.DOUBLE) {
-			return DataType.DOUBLE;
-		} else if (leftType == DataType.FLOAT || rightType == DataType.FLOAT) {
-			return DataType.FLOAT;
-		} else if (leftType == DataType.LONG || rightType == DataType.LONG) {
-			return DataType.LONG;
-		} else {
-			return DataType.INT;
-		}
-	}
-
 	private static DataType getUnaryExpressionType(DataType operandType) {
 		if (operandType == DataType.BYTE || operandType == DataType.SHORT || operandType == DataType.CHAR) {
 			return DataType.INT;
@@ -518,7 +505,7 @@ public final class ExpressionGenerator {
 		}
 	}
 
-	static DataType getExpressionType(GroupInfo groupInfo, Expression expression) {
+	private static DataType getExpressionType(IReplacementGenerator.IContext context, Expression expression) {
 		DataType[] result = {null};
 		expression.accept(new ExpressionVisitor() {
 			@Override
@@ -527,7 +514,7 @@ public final class ExpressionGenerator {
 				DataType leftSide = result[0];
 				binaryExpression.rhs.accept(this);
 				DataType rightSide = result[0];
-				result[0] = getBinaryExpressionType(leftSide, rightSide);
+				result[0] = ExpressionEvaluator.getBinaryResultType(leftSide, rightSide);
 			}
 
 			@Override
@@ -537,10 +524,7 @@ public final class ExpressionGenerator {
 
 			@Override
 			public void visitFieldExpression(FieldExpression fieldExpression) {
-				result[0] = fieldExpression.fieldType;
-				if (result[0] == null) {
-					result[0] = groupInfo.dataType;
-				}
+				result[0] = getFieldDataType(context, fieldExpression);
 			}
 
 			@Override
@@ -566,34 +550,6 @@ public final class ExpressionGenerator {
 		return result[0];
 	}
 
-	@Nullable
-	@Contract("_, _, false -> !null")
-	public static Object castLiteral(Object literal, DataType destType, boolean requireExact) {
-		return switch (destType) {
-			case BYTE, SHORT, CHAR, INT -> {
-				int result = ((Number) literal).intValue();
-				boolean exactCast = result == ((Number) literal).doubleValue();
-				yield exactCast || !requireExact ? result : null;
-			}
-			case LONG -> {
-				long result = ((Number) literal).longValue();
-				boolean exactCast = !Utils.isFloatingPoint(literal) || result == ((Number) literal).doubleValue();
-				yield exactCast || !requireExact ? result : null;
-			}
-			case FLOAT -> {
-				float result = ((Number) literal).floatValue();
-				boolean exactCast = Utils.isFloatingPoint(literal) ? Double.compare(result, ((Number) literal).doubleValue()) == 0 : (long) result == ((Number) literal).longValue();
-				yield exactCast || !requireExact ? result : null;
-			}
-			case DOUBLE -> {
-				double result = ((Number) literal).doubleValue();
-				boolean exactCast = Utils.isFloatingPoint(literal) || (long) result == ((Number) literal).longValue();
-				yield exactCast || !requireExact ? result : null;
-			}
-			case STRING, CLASS -> literal;
-		};
-	}
-
 	private static Object literalToObject(Literal literal) {
 		return switch (literal) {
 			case Literal.Integer(int value, int ignored) -> value;
@@ -615,6 +571,19 @@ public final class ExpressionGenerator {
 			case String s -> new Literal.String(s);
 			default -> throw new AssertionError("Unexpected literal type: " + object.getClass().getName());
 		};
+	}
+
+	private static DataType getFieldDataType(IReplacementGenerator.IContext context, FieldExpression fieldExpression) {
+		if (fieldExpression.fieldType != null) {
+			return fieldExpression.fieldType;
+		}
+
+		IConstantResolver.ResolvedConstant resolvedConstant = context.getConstantResolver().resolveConstant(fieldExpression.className.replace('.', '/'), fieldExpression.fieldName);
+		if (resolvedConstant == null) {
+			throw new UnpickSyntaxException("Could not resolve constant " + fieldExpression.className + "." + fieldExpression.fieldName);
+		}
+
+		return DataTypeUtils.asmTypeToDataType(resolvedConstant.type());
 	}
 
 	@Nullable

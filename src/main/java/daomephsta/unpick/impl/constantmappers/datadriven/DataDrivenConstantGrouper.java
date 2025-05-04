@@ -6,8 +6,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,7 +16,6 @@ import java.util.logging.Logger;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.VisibleForTesting;
-import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Frame;
@@ -37,6 +34,7 @@ import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.Expression;
 import daomephsta.unpick.impl.AbstractInsnNodes;
+import daomephsta.unpick.impl.DataTypeUtils;
 import daomephsta.unpick.impl.constantmappers.datadriven.data.ConstantReplacementInfo;
 import daomephsta.unpick.impl.constantmappers.datadriven.data.Data;
 import daomephsta.unpick.impl.constantmappers.datadriven.data.GroupInfo;
@@ -185,61 +183,40 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		}
 
 		Object literal = AbstractInsnNodes.getLiteralValue(target);
-		DataType literalType;
-		List<DataType> compatibleTypes;
-		switch (literal) {
-			case Integer ignored -> {
-				literalType = DataType.INT;
-				compatibleTypes = Collections.singletonList(DataType.INT);
-			}
-			case Long ignored -> {
-				literalType = DataType.LONG;
-				compatibleTypes = Arrays.asList(DataType.LONG, DataType.INT);
-			}
-			case Float ignored -> {
-				literalType = DataType.FLOAT;
-				compatibleTypes = Arrays.asList(DataType.FLOAT, DataType.LONG, DataType.INT);
-			}
-			case Double ignored -> {
-				literalType = DataType.DOUBLE;
-				compatibleTypes = Arrays.asList(DataType.DOUBLE, DataType.FLOAT, DataType.LONG, DataType.INT);
-			}
-			case String ignored -> {
-				literalType = DataType.STRING;
-				compatibleTypes = Collections.singletonList(DataType.STRING);
-			}
-			case Type ignored -> {
-				literalType = DataType.CLASS;
-				compatibleTypes = Collections.singletonList(DataType.CLASS);
-			}
+		DataType literalType = DataTypeUtils.getDataType(literal);
+		List<DataType> compatibleTypes = switch (literalType) {
+			case LONG -> List.of(DataType.LONG, DataType.INT);
+			case FLOAT -> List.of(DataType.FLOAT, DataType.LONG, DataType.INT);
+			case DOUBLE -> List.of(DataType.DOUBLE, DataType.FLOAT, DataType.LONG, DataType.INT);
 			case null -> {
 				// use dataflow to figure out whether this is a null string constant, class constant or neither
 				AbstractInsnNode nextInsn = AbstractInsnNodes.nextInstruction(target);
 				if (nextInsn == null) {
-					return;
+					yield null;
 				}
 				Frame<IReplacementGenerator.IDataflowValue> frame = context.getDataflowFrame(nextInsn);
 				if (frame == null) {
-					return;
+					yield null;
 				}
 				Set<DataType> typeInterpretations = frame.getStack(frame.getStackSize() - 1).getTypeInterpretations();
 				if (typeInterpretations.contains(DataType.STRING)) {
 					literalType = DataType.STRING;
-					compatibleTypes = Collections.singletonList(DataType.STRING);
+					yield List.of(DataType.STRING);
 				} else if (typeInterpretations.contains(DataType.CLASS)) {
 					literalType = DataType.CLASS;
-					compatibleTypes = Collections.singletonList(DataType.CLASS);
+					yield List.of(DataType.CLASS);
 				} else {
-					return;
+					yield null;
 				}
 			}
-			default -> {
-				return;
-			}
+			default -> List.of(literalType);
+		};
+		if (compatibleTypes == null) {
+			return;
 		}
 
 		for (DataType compatibleType : compatibleTypes) {
-			Object castedLiteral = ExpressionGenerator.castLiteral(literal, toConstantKeyType(compatibleType), true);
+			Object castedLiteral = DataTypeUtils.tryCastExact(literal, DataTypeUtils.widenNarrowTypes(compatibleType));
 			if (castedLiteral == null && literal != null) {
 				continue;
 			}
@@ -267,63 +244,27 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		}
 
 		Object literal = AbstractInsnNodes.getLiteralValue(target);
-		DataType literalType;
-		switch (literal) {
-			case Integer ignored -> {
-				literalType = DataType.INT;
-				if (groupInfo.dataType != DataType.INT) {
-					return;
-				}
+		DataType literalType = DataTypeUtils.getDataType(literal);
+		if (literal == null) {
+			if (DataTypeUtils.isPrimitive(groupInfo.dataType)) {
+				return;
 			}
-			case Long ignored -> {
-				literalType = DataType.LONG;
-				if (groupInfo.dataType != DataType.INT && groupInfo.dataType != DataType.LONG) {
-					return;
-				}
-			}
-			case Float ignored -> {
-				literalType = DataType.FLOAT;
-				if (groupInfo.dataType != DataType.INT && groupInfo.dataType != DataType.LONG && groupInfo.dataType != DataType.FLOAT) {
-					return;
-				}
-			}
-			case Double ignored -> {
-				literalType = DataType.DOUBLE;
-				if (groupInfo.dataType != DataType.INT && groupInfo.dataType != DataType.LONG && groupInfo.dataType != DataType.FLOAT && groupInfo.dataType != DataType.DOUBLE) {
-					return;
-				}
-			}
-			case String ignored -> {
-				literalType = DataType.STRING;
-				if (groupInfo.dataType != DataType.STRING) {
-					return;
-				}
-			}
-			case Type ignored -> {
-				literalType = DataType.CLASS;
-				if (groupInfo.dataType != DataType.CLASS) {
-					return;
-				}
-			}
-			case null -> {
-				literalType = groupInfo.dataType;
-				if (groupInfo.dataType != DataType.STRING && groupInfo.dataType != DataType.CLASS) {
-					return;
-				}
-			}
-			default -> {
+		} else {
+			if (!DataTypeUtils.isAssignable(literalType, groupInfo.dataType)) {
 				return;
 			}
 		}
 
-		Object castedLiteral = ExpressionGenerator.castLiteral(literal, toConstantKeyType(literalType), true);
+		Object castedLiteral = DataTypeUtils.tryCastExact(literal, groupInfo.dataType);
 		if (castedLiteral == null && literal != null) {
 			return;
 		}
 
-		if (groupInfo.flags && castedLiteral != null && !castedLiteral.equals(0L) && !castedLiteral.equals(-1L)) {
+		Long longLiteral = (Long) DataTypeUtils.tryCastExact(literal, DataType.LONG);
+
+		if (groupInfo.flags && DataTypeUtils.isAssignable(DataType.LONG, literalType) && longLiteral != null && !longLiteral.equals(0L) && !longLiteral.equals(-1L)) {
 			DataType narrowedLiteralType = getNarrowedLiteralType(context, target, literalType, literal);
-			Expression flagsExpression = ExpressionGenerator.generateFlagsExpression(context, groupInfo, (Long) castedLiteral, literalType, narrowedLiteralType);
+			Expression flagsExpression = ExpressionGenerator.generateFlagsExpression(context, groupInfo, longLiteral, literalType, narrowedLiteralType);
 			if (flagsExpression != null) {
 				ExpressionGenerator.replaceWithExpression(context, groupInfo, flagsExpression, narrowedLiteralType);
 			}
@@ -399,13 +340,5 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 	private static String getPackageName(String className) {
 		int dotIndex = className.lastIndexOf('.');
 		return dotIndex == -1 ? null : className.substring(0, dotIndex);
-	}
-
-	private static DataType toConstantKeyType(DataType dataType) {
-		return switch (dataType) {
-			case BYTE, SHORT, CHAR, INT, LONG -> DataType.LONG;
-			case FLOAT, DOUBLE -> DataType.DOUBLE;
-			case STRING, CLASS -> dataType;
-		};
 	}
 }

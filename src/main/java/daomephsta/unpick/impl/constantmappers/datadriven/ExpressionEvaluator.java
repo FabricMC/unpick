@@ -8,6 +8,7 @@ import org.objectweb.asm.Type;
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
+import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.BinaryExpression;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.CastExpression;
@@ -15,7 +16,7 @@ import daomephsta.unpick.constantmappers.datadriven.tree.expr.ExpressionVisitor;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.LiteralExpression;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.UnaryExpression;
-import daomephsta.unpick.impl.Utils;
+import daomephsta.unpick.impl.DataTypeUtils;
 
 public final class ExpressionEvaluator extends ExpressionVisitor {
 	private final IConstantResolver constantResolver;
@@ -40,13 +41,17 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 		binaryExpression.rhs.accept(this);
 		Object right = result;
 
+		DataType leftType = DataTypeUtils.getDataType(left);
+		DataType rightType = DataTypeUtils.getDataType(right);
+		DataType resultType = getBinaryResultType(leftType, rightType);
+
 		result = switch (binaryExpression.operator) {
-			case BIT_OR -> downcastPrimitive(upcastAsLong(left) | upcastAsLong(right), left, right);
-			case BIT_XOR -> downcastPrimitive(upcastAsLong(left) ^ upcastAsLong(right), left, right);
-			case BIT_AND -> downcastPrimitive(upcastAsLong(left) & upcastAsLong(right), left, right);
-			case BIT_SHIFT_LEFT -> downcastPrimitive(upcastAsLong(left) << upcastAsLong(right), left, right);
-			case BIT_SHIFT_RIGHT -> downcastPrimitive(upcastAsLong(left) >> upcastAsLong(right), left, right);
-			case BIT_SHIFT_RIGHT_UNSIGNED -> downcastPrimitive(upcastAsLongUnsigned(left) >>> upcastAsLong(right), left, right);
+			case BIT_OR -> DataTypeUtils.cast(upcastAsLong(left) | upcastAsLong(right), resultType);
+			case BIT_XOR -> DataTypeUtils.cast(upcastAsLong(left) ^ upcastAsLong(right), resultType);
+			case BIT_AND -> DataTypeUtils.cast(upcastAsLong(left) & upcastAsLong(right), resultType);
+			case BIT_SHIFT_LEFT -> DataTypeUtils.cast(upcastAsLong(left) << upcastAsLong(right), resultType);
+			case BIT_SHIFT_RIGHT -> DataTypeUtils.cast(upcastAsLong(left) >> upcastAsLong(right), resultType);
+			case BIT_SHIFT_RIGHT_UNSIGNED -> DataTypeUtils.cast(upcastAsLongUnsigned(left) >>> upcastAsLong(right), resultType);
 			case ADD -> {
 				if (left instanceof String) {
 					yield left + asString(right);
@@ -56,9 +61,9 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 					Long leftInteger = upcastAsLongOrNull(left);
 					Long rightInteger = upcastAsLongOrNull(right);
 					if (leftInteger != null && rightInteger != null) {
-						yield downcastPrimitive(leftInteger + rightInteger, left, right);
+						yield DataTypeUtils.cast(leftInteger + rightInteger, resultType);
 					} else {
-						yield downcastPrimitive(upcastAsDouble(left) + upcastAsDouble(right), left, right);
+						yield DataTypeUtils.cast(upcastAsDouble(left) + upcastAsDouble(right), resultType);
 					}
 				}
 			}
@@ -66,18 +71,18 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 				Long leftInteger = upcastAsLongOrNull(left);
 				Long rightInteger = upcastAsLongOrNull(right);
 				if (leftInteger != null && rightInteger != null) {
-					yield downcastPrimitive(leftInteger - rightInteger, left, right);
+					yield DataTypeUtils.cast(leftInteger - rightInteger, resultType);
 				} else {
-					yield downcastPrimitive(upcastAsDouble(left) - upcastAsDouble(right), left, right);
+					yield DataTypeUtils.cast(upcastAsDouble(left) - upcastAsDouble(right), resultType);
 				}
 			}
 			case MULTIPLY -> {
 				Long leftInteger = upcastAsLongOrNull(left);
 				Long rightInteger = upcastAsLongOrNull(right);
 				if (leftInteger != null && rightInteger != null) {
-					yield downcastPrimitive(leftInteger * rightInteger, left, right);
+					yield DataTypeUtils.cast(leftInteger * rightInteger, resultType);
 				} else {
-					yield downcastPrimitive(upcastAsDouble(left) * upcastAsDouble(right), left, right);
+					yield DataTypeUtils.cast(upcastAsDouble(left) * upcastAsDouble(right), resultType);
 				}
 			}
 			case DIVIDE -> {
@@ -87,9 +92,9 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 					if (rightInteger == 0) {
 						throw new UnpickSyntaxException("Cannot divide " + leftInteger + " by zero");
 					}
-					yield downcastPrimitive(leftInteger / rightInteger, left, right);
+					yield DataTypeUtils.cast(leftInteger / rightInteger, resultType);
 				} else {
-					yield downcastPrimitive(upcastAsDouble(left) / upcastAsDouble(right), left, right);
+					yield DataTypeUtils.cast(upcastAsDouble(left) / upcastAsDouble(right), resultType);
 				}
 			}
 			case MODULO -> {
@@ -99,9 +104,9 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 					if (rightInteger == 0) {
 						throw new UnpickSyntaxException("Cannot divide " + leftInteger + " by zero");
 					}
-					yield downcastPrimitive(leftInteger % rightInteger, left, right);
+					yield DataTypeUtils.cast(leftInteger % rightInteger, resultType);
 				} else {
-					yield downcastPrimitive(upcastAsDouble(left) % upcastAsDouble(right), left, right);
+					yield DataTypeUtils.cast(upcastAsDouble(left) % upcastAsDouble(right), resultType);
 				}
 			}
 		};
@@ -110,22 +115,7 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 	@Override
 	public void visitCastExpression(CastExpression castExpression) {
 		castExpression.operand.accept(this);
-		Number operand = switch (result) {
-			case Number number -> number;
-			case Character character -> (int) character;
-			case null, default ->
-					throw new UnpickSyntaxException("Cannot interpret " + asString(result) + " as a number");
-		};
-		result = switch (castExpression.castType) {
-			case BYTE -> operand.byteValue();
-			case SHORT -> operand.shortValue();
-			case CHAR -> (char) operand.intValue();
-			case INT -> operand.intValue();
-			case LONG -> operand.longValue();
-			case FLOAT -> operand.floatValue();
-			case DOUBLE -> operand.doubleValue();
-			default -> throw new UnpickSyntaxException("Cannot cast " + asString(result) + " to " + castExpression.castType);
-		};
+		result = DataTypeUtils.cast(result, castExpression.castType);
 	}
 
 	@Override
@@ -136,7 +126,7 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 		if (resolvedConstant == null) {
 			throw new UnpickSyntaxException("Could not resolve constant field " + fieldExpression.className + "." + fieldExpression.fieldName);
 		}
-		if (fieldExpression.fieldType != null && fieldExpression.fieldType != Utils.asmTypeToDataType(resolvedConstant.type())) {
+		if (fieldExpression.fieldType != null && fieldExpression.fieldType != DataTypeUtils.asmTypeToDataType(resolvedConstant.type())) {
 			throw new UnpickSyntaxException("Resolved field " + fieldExpression.className + "." + fieldExpression.fieldName + " has different type than expected");
 		}
 		if (fieldExpression.isStatic != resolvedConstant.isStatic()) {
@@ -161,16 +151,17 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 	@Override
 	public void visitUnaryExpression(UnaryExpression unaryExpression) {
 		unaryExpression.operand.accept(this);
+		DataType resultType = DataTypeUtils.widenNarrowTypes(DataTypeUtils.getDataType(result));
 		result = switch (unaryExpression.operator) {
 			case NEGATE -> {
 				Long integer = upcastAsLongOrNull(result);
 				if (integer != null) {
-					yield downcastPrimitive(-integer, result);
+					yield DataTypeUtils.cast(-integer, resultType);
 				} else {
-					yield downcastPrimitive(-upcastAsDouble(result), result);
+					yield DataTypeUtils.cast(-upcastAsDouble(result), resultType);
 				}
 			}
-			case BIT_NOT -> downcastPrimitive(~upcastAsLong(result), result);
+			case BIT_NOT -> DataTypeUtils.cast(~upcastAsLong(result), resultType);
 		};
 	}
 
@@ -184,14 +175,10 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 
 	@Nullable
 	private static Long upcastAsLongOrNull(Object value) {
-		return switch (value) {
-			case Character c -> (long) c;
-			case Integer i -> i.longValue();
-			case Short s -> s.longValue();
-			case Byte b -> b.longValue();
-			case Long l -> l;
-			case null, default -> null;
-		};
+		if (!DataTypeUtils.isAssignable(DataType.LONG, DataTypeUtils.getDataType(value))) {
+			return null;
+		}
+		return (Long) DataTypeUtils.cast(value, DataType.LONG);
 	}
 
 	private long upcastAsLongUnsigned(Object value) {
@@ -209,12 +196,21 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 
 	@Nullable
 	private static Double upcastAsDoubleOrNull(Object value) {
-		return switch (value) {
-			case Double doubleValue -> doubleValue;
-			case Character character -> (double) character;
-			case Number number -> number.doubleValue();
-			case null, default -> null;
-		};
+		if (!DataTypeUtils.isAssignable(DataType.DOUBLE, DataTypeUtils.getDataType(value))) {
+			return null;
+		}
+		return (Double) DataTypeUtils.cast(value, DataType.DOUBLE);
+	}
+
+	public static DataType getBinaryResultType(DataType type1, DataType type2) {
+		if (type1 == DataType.STRING || type2 == DataType.STRING) {
+			return DataType.STRING;
+		} else if (DataTypeUtils.isPrimitive(type1) && DataTypeUtils.isPrimitive(type2)) {
+			return DataTypeUtils.widenNarrowTypes(DataTypeUtils.getCommonSuperType(type1, type2));
+		} else {
+			// return something arbitrary, the appropriate error will be thrown when trying to convert an operand to a number
+			return type1;
+		}
 	}
 
 	private String asString(Object value) {
@@ -234,45 +230,5 @@ public final class ExpressionEvaluator extends ExpressionVisitor {
 		} else {
 			return String.valueOf(value);
 		}
-	}
-
-	private static Object downcastPrimitive(Object value, Object expectedType) {
-		Long integer = upcastAsLongOrNull(value);
-		if (integer != null) {
-			if (expectedType instanceof Long) {
-				return integer;
-			} else {
-				return integer.intValue();
-			}
-		}
-		Double doubleValue = Objects.requireNonNull(upcastAsDoubleOrNull(value), "Input is not a primitive");
-		return switch (expectedType) {
-			case Long ignored -> doubleValue.longValue();
-			case Float ignored -> doubleValue.floatValue();
-			case Double ignored -> doubleValue;
-			case null, default -> doubleValue.intValue();
-		};
-	}
-
-	private static Object downcastPrimitive(Object value, Object expectedType1, Object expectedType2) {
-		if (expectedType1 instanceof Double) {
-			return downcastPrimitive(value, expectedType1);
-		}
-		if (expectedType2 instanceof Double) {
-			return downcastPrimitive(value, expectedType2);
-		}
-		if (expectedType1 instanceof Float) {
-			return downcastPrimitive(value, expectedType1);
-		}
-		if (expectedType2 instanceof Float) {
-			return downcastPrimitive(value, expectedType2);
-		}
-		if (expectedType1 instanceof Long) {
-			return downcastPrimitive(value, expectedType1);
-		}
-		if (expectedType2 instanceof Long) {
-			return downcastPrimitive(value, expectedType2);
-		}
-		return downcastPrimitive(value, expectedType1);
 	}
 }

@@ -41,7 +41,7 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue {
 
 	@Override
 	public int getSize() {
-		return dataType.getSize();
+		return dataType == null ? 1 : dataType.getSize();
 	}
 
 	@Override
@@ -86,7 +86,7 @@ public class UnpickValue implements IReplacementGenerator.IDataflowValue {
 	}
 
 	void addTypeInterpretationFromType(Type type) {
-		DataType dataType = Utils.asmTypeToDataType(type);
+		DataType dataType = DataTypeUtils.asmTypeToDataType(type);
 		if (dataType != null) {
 			typeInterpretations.add(dataType);
 		}

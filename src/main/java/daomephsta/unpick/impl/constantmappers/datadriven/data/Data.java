@@ -22,7 +22,7 @@ import daomephsta.unpick.constantmappers.datadriven.tree.expr.Expression;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.ExpressionTransformer;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.ExpressionVisitor;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
-import daomephsta.unpick.impl.Utils;
+import daomephsta.unpick.impl.DataTypeUtils;
 import daomephsta.unpick.impl.constantmappers.datadriven.ExpressionEvaluator;
 
 public final class Data extends UnpickV3Visitor {
@@ -83,19 +83,10 @@ public final class Data extends UnpickV3Visitor {
 			for (Expression nonWildcardExpression : replaceWildcardIfNecessary(expression, groupDefinition.dataType(), groupDisplayName)) {
 				ExpressionEvaluator evaluator = new ExpressionEvaluator(constantResolver, inheritanceChecker);
 				nonWildcardExpression.accept(evaluator);
-				Object cst = evaluator.getResult();
+				Object value = DataTypeUtils.cast(evaluator.getResult(), groupDefinition.dataType());
 
-				cst = switch (cst) {
-					case Float f -> f.doubleValue();
-					case Character c -> (long) c;
-					case Byte b -> b.longValue();
-					case Short s -> s.longValue();
-					case Integer i -> i.longValue();
-					case null, default -> cst;
-				};
-
-				if (existingScopedInfo.constantReplacementMap.put(cst, new ConstantReplacementInfo(groupDefinition.strict(), nonWildcardExpression)) != null) {
-					throw new UnpickSyntaxException("Duplicate constant in group " + groupDisplayName + ": " + cst);
+				if (existingScopedInfo.constantReplacementMap.put(value, new ConstantReplacementInfo(groupDefinition.strict(), nonWildcardExpression)) != null) {
+					throw new UnpickSyntaxException("Duplicate constant in group " + groupDisplayName + ": " + value);
 				}
 			}
 		}
@@ -118,32 +109,14 @@ public final class Data extends UnpickV3Visitor {
 				return;
 			}
 
-			DataType resolvedConstantType = Utils.asmTypeToDataType(resolvedConstant.type());
+			DataType resolvedConstantType = DataTypeUtils.asmTypeToDataType(resolvedConstant.type());
 			if (wildcardExpr.fieldType != null) {
 				if (resolvedConstantType != wildcardExpr.fieldType) {
 					return;
 				}
 			} else {
-				if (resolvedConstantType != groupType) {
-					if (resolvedConstantType == DataType.STRING || resolvedConstantType == DataType.CLASS || groupType == DataType.STRING || groupType == DataType.CLASS) {
-						return;
-					}
-					switch (groupType) {
-						case INT:
-							if (resolvedConstantType == DataType.LONG) {
-								return;
-							}
-							// fallthrough
-						case LONG:
-							if (resolvedConstantType == DataType.FLOAT) {
-								return;
-							}
-							// fallthrough
-						case FLOAT:
-							if (resolvedConstantType == DataType.DOUBLE) {
-								return;
-							}
-					}
+				if (!DataTypeUtils.isAssignable(groupType, resolvedConstantType)) {
+					return;
 				}
 			}
 

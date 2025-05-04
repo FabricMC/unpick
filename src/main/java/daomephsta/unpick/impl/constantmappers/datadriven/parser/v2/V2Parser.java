@@ -73,8 +73,7 @@ public final class V2Parser implements Visitor {
 
 	private void visitConstantDefinition(boolean flags, String groupId, String owner, String name, @Nullable String descriptor) {
 		DataType dataType;
-		boolean explicitType = descriptor != null;
-		if (explicitType) {
+		if (descriptor != null) {
 			dataType = parseType(descriptor, lineNumber);
 		} else {
 			IConstantResolver.ResolvedConstant constant = constantResolver.resolveConstant(owner, name);
@@ -91,7 +90,7 @@ public final class V2Parser implements Visitor {
 						new FieldExpression(
 								owner.replace('/', '.'),
 								name,
-								explicitType ? dataType : null,
+								null,
 								true
 						)
 				);

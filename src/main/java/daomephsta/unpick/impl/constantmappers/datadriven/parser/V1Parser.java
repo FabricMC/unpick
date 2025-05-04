@@ -81,8 +81,7 @@ public final class V1Parser {
 		String name = tokens[3];
 		DataType dataType;
 
-		boolean explicitType = tokens.length > 4;
-		if (explicitType) {
+		if (tokens.length > 4) {
 			dataType = V2Parser.parseType(tokens[5], lineNumber);
 		} else {
 			IConstantResolver.ResolvedConstant constant = constantResolver.resolveConstant(owner, name);
@@ -99,7 +98,7 @@ public final class V1Parser {
 						new FieldExpression(
 								owner.replace('/', '.'),
 								name,
-								explicitType ? dataType : null,
+								null,
 								true
 						)
 				);

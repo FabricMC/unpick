@@ -6,12 +6,9 @@ import java.lang.reflect.Array;
 import java.util.function.Consumer;
 
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
 import org.objectweb.asm.util.Printer;
 import org.objectweb.asm.util.Textifier;
 import org.objectweb.asm.util.TraceMethodVisitor;
-
-import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 
 public final class Utils {
 	private Utils() {
@@ -53,37 +50,5 @@ public final class Utils {
 		System.arraycopy(first, 0, newArray, 0, first.length);
 		System.arraycopy(second, 0, newArray, first.length, second.length);
 		return newArray;
-	}
-
-	public static DataType asmTypeToDataType(Type type) {
-		return switch (type.getSort()) {
-			case Type.BYTE -> DataType.BYTE;
-			case Type.SHORT -> DataType.SHORT;
-			case Type.INT -> DataType.INT;
-			case Type.LONG -> DataType.LONG;
-			case Type.FLOAT -> DataType.FLOAT;
-			case Type.DOUBLE -> DataType.DOUBLE;
-			case Type.CHAR -> DataType.CHAR;
-			case Type.OBJECT -> switch (type.getInternalName()) {
-				case "java/lang/String" -> DataType.STRING;
-				case "java/lang/Class" -> DataType.CLASS;
-				default -> null;
-			};
-			default -> null;
-		};
-	}
-
-	public static String getDescriptor(DataType dataType) {
-		return switch (dataType) {
-			case BYTE -> "B";
-			case SHORT -> "S";
-			case INT -> "I";
-			case LONG -> "J";
-			case FLOAT -> "F";
-			case DOUBLE -> "D";
-			case CHAR -> "C";
-			case STRING -> "Ljava/lang/String;";
-			case CLASS -> "Ljava/lang/Class;";
-		};
 	}
 }

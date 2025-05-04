@@ -17,7 +17,7 @@ public class UnpickV2Remapper implements Visitor {
 	private static final Pattern OBJECT_SIGNATURE_FINDER = Pattern.compile("L([a-zA-Z0-9$_\\/]+);");
 	private final Map<String, String> classMappings;
 	private final Map<MemberKey, String> methodMappings;
-	private final Map<MemberKey, String> fieldMappings;
+	private final Map<FieldKey, String> fieldMappings;
 	private final Visitor delegate;
 
 	/**
@@ -28,7 +28,7 @@ public class UnpickV2Remapper implements Visitor {
 	 * @param delegate the visitor that should visit the remapped target method definitions.
 	 * All other visitor methods only delegate to the delegate visitor.
 	 */
-	public UnpickV2Remapper(Map<String, String> classMappings, Map<MemberKey, String> methodMappings, Map<MemberKey, String> fieldMappings, Visitor delegate) {
+	public UnpickV2Remapper(Map<String, String> classMappings, Map<MemberKey, String> methodMappings, Map<FieldKey, String> fieldMappings, Visitor delegate) {
 		this.classMappings = classMappings;
 		this.methodMappings = methodMappings;
 		this.fieldMappings = fieldMappings;
@@ -43,8 +43,8 @@ public class UnpickV2Remapper implements Visitor {
 		return methodMappings.getOrDefault(new MemberKey(owner, name, descriptor), name);
 	}
 
-	private String remapField(String owner, String name, String descriptor) {
-		return fieldMappings.getOrDefault(new MemberKey(owner, name, descriptor), name);
+	private String remapField(String owner, String name) {
+		return fieldMappings.getOrDefault(new FieldKey(owner, name), name);
 	}
 
 	private String remapDescriptor(String descriptor) {
@@ -83,7 +83,7 @@ public class UnpickV2Remapper implements Visitor {
 	public void visitSimpleConstantDefinition(String group, String owner, String name, String value, String descriptor) {
 		//Reassigning the parameters tends to cause bugs
 		String remappedOwner = remapClass(owner);
-		String remappedName = remapField(owner, name, descriptor);
+		String remappedName = remapField(owner, name);
 		String remappedDescriptor = remapDescriptor(descriptor);
 
 		delegate.visitSimpleConstantDefinition(group, remappedOwner, remappedName, value, remappedDescriptor);
@@ -92,7 +92,7 @@ public class UnpickV2Remapper implements Visitor {
 	public void visitFlagConstantDefinition(String group, String owner, String name, String value, String descriptor) {
 		//Reassigning the parameters tends to cause bugs
 		String remappedOwner = remapClass(owner);
-		String remappedName = remapField(owner, name, descriptor);
+		String remappedName = remapField(owner, name);
 		String remappedDescriptor = remapDescriptor(descriptor);
 
 		delegate.visitFlagConstantDefinition(group, remappedOwner, remappedName, value, remappedDescriptor);
@@ -100,5 +100,8 @@ public class UnpickV2Remapper implements Visitor {
 
 	public void endVisit() {
 		delegate.endVisit();
+	}
+
+	public record FieldKey(String owner, String name) {
 	}
 }
