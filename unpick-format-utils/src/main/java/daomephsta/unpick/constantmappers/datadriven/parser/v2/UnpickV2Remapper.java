@@ -20,13 +20,6 @@ public class UnpickV2Remapper implements Visitor {
 	private final Map<MemberKey, String> fieldMappings;
 	private final Visitor delegate;
 
-	private UnpickV2Remapper(@SuppressWarnings("unused") Object disambiguator, Map<String, String> classMappings, Map<MemberKey, String> methodMappings, Map<MemberKey, String> fieldMappings, Visitor delegate) {
-		this.classMappings = classMappings;
-		this.methodMappings = methodMappings;
-		this.fieldMappings = fieldMappings;
-		this.delegate = delegate;
-	}
-
 	/**
 	 * Creates a new {@link UnpickV2Remapper}.
 	 * @param classMappings a mapping of old class names to new class names.
@@ -35,8 +28,11 @@ public class UnpickV2Remapper implements Visitor {
 	 * @param delegate the visitor that should visit the remapped target method definitions.
 	 * All other visitor methods only delegate to the delegate visitor.
 	 */
-	public static UnpickV2Remapper create(Map<String, String> classMappings, Map<MemberKey, String> methodMappings, Map<MemberKey, String> fieldMappings, Visitor delegate) {
-		return new UnpickV2Remapper(null, classMappings, methodMappings, fieldMappings, delegate);
+	public UnpickV2Remapper(@SuppressWarnings("unused") Object disambiguator, Map<String, String> classMappings, Map<MemberKey, String> methodMappings, Map<MemberKey, String> fieldMappings, Visitor delegate) {
+		this.classMappings = classMappings;
+		this.methodMappings = methodMappings;
+		this.fieldMappings = fieldMappings;
+		this.delegate = delegate;
 	}
 
 	private String remapClass(String name) {
