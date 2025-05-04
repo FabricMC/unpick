@@ -30,7 +30,7 @@ public class TestUtils {
 		ClassNode clazz = readClass(TEST_DATA, className);
 		ClassNode expectedClass = readClass(TEST_DATA_EXPECTED, className);
 
-		IClassResolver classResolver = ClassResolvers.fromPath(TEST_DATA).chain(ClassResolvers.classpath());
+		IClassResolver classResolver = ClassResolvers.fromDirectory(TEST_DATA).chain(ClassResolvers.classpath());
 		ConstantUninliner.builder()
 				.grouper(new DataDrivenConstantGrouper(classResolver.asConstantResolver(), classResolver.asInheritanceChecker(), dataProvider))
 				.classResolver(classResolver)

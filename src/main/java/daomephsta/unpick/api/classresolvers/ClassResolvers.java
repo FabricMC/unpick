@@ -19,7 +19,7 @@ public final class ClassResolvers {
 		return new ClasspathClassResolver(classLoader);
 	}
 
-	public static IClassResolver fromPath(Path root) {
+	public static IClassResolver fromDirectory(Path root) {
 		return new PathClassResolver(root);
 	}
 
