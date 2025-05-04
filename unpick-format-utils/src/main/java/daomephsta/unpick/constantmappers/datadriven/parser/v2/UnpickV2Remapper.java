@@ -28,7 +28,7 @@ public class UnpickV2Remapper implements Visitor {
 	 * @param delegate the visitor that should visit the remapped target method definitions.
 	 * All other visitor methods only delegate to the delegate visitor.
 	 */
-	public UnpickV2Remapper(@SuppressWarnings("unused") Object disambiguator, Map<String, String> classMappings, Map<MemberKey, String> methodMappings, Map<MemberKey, String> fieldMappings, Visitor delegate) {
+	public UnpickV2Remapper(Map<String, String> classMappings, Map<MemberKey, String> methodMappings, Map<MemberKey, String> fieldMappings, Visitor delegate) {
 		this.classMappings = classMappings;
 		this.methodMappings = methodMappings;
 		this.fieldMappings = fieldMappings;
