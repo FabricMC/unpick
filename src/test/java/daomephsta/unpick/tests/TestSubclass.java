@@ -1,8 +1,5 @@
 package daomephsta.unpick.tests;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.junit.jupiter.api.Test;
 
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
@@ -18,9 +15,9 @@ public class TestSubclass {
 			data.visitGroupDefinition(GroupDefinition.Builder.named(DataType.INT, "group")
 					.constant(new FieldExpression("pkg.Constants", "INT_CONST", null, true))
 					.build());
-			Map<Integer, String> paramGroups = new HashMap<>();
-			paramGroups.put(0, "group");
-			data.visitTargetMethod(new TargetMethod("pkg.TestSubclass", "test", "(I)V", paramGroups, null));
+			data.visitTargetMethod(TargetMethod.Builder.builder("pkg.TestSubclass", "test", "(I)V")
+					.paramGroup(0, "group")
+					.build());
 		});
 	}
 }

@@ -36,10 +36,6 @@ public record TargetMethod(
 					.returnGroup(method.returnGroup());
 		}
 
-		public Builder paramGroup(int index) {
-			return paramGroup(index, null);
-		}
-
 		public Builder paramGroup(int index, String group) {
 			this.paramGroups.put(index, group);
 			return this;

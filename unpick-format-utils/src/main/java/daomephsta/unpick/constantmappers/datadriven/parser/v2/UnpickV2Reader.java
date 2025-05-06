@@ -23,7 +23,7 @@ import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException
  */
 public class UnpickV2Reader implements Closeable {
 	private static final Pattern WHITESPACE_SPLITTER = Pattern.compile("\\s");
-	private final Reader definitionsStream;
+	private final Reader definitionsReader;
 
 	private TargetMethodDefinitionVisitor lastTargetMethodVisitor = null;
 
@@ -36,8 +36,8 @@ public class UnpickV2Reader implements Closeable {
 		this(new InputStreamReader(definitionsStream));
 	}
 
-	public UnpickV2Reader(Reader definitionsStream) {
-		this.definitionsStream = definitionsStream;
+	public UnpickV2Reader(Reader definitionsReader) {
+		this.definitionsReader = definitionsReader;
 	}
 
 	private static final Set<String> TARGET_METHOD_ARGS = Stream.of("param", "return").collect(toSet());
@@ -46,7 +46,7 @@ public class UnpickV2Reader implements Closeable {
 	 * @param visitor the visitor
 	 */
 	public void accept(Visitor visitor) {
-		try (LineNumberReader reader = new LineNumberReader(definitionsStream)) {
+		try (LineNumberReader reader = new LineNumberReader(definitionsReader)) {
 			Iterator<String[]> lineTokensIter = reader.lines()
 					.skip(1) //Skip version
 					.map(s -> stripComment(s.trim()))
@@ -149,7 +149,7 @@ public class UnpickV2Reader implements Closeable {
 
 	@Override
 	public void close() throws IOException {
-		definitionsStream.close();
+		definitionsReader.close();
 	}
 
 	private static final TargetMethodDefinitionVisitor DEFAULT = new TargetMethodDefinitionVisitor() {

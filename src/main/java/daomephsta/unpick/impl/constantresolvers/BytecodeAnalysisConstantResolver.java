@@ -33,18 +33,17 @@ import daomephsta.unpick.impl.AbstractInsnNodes;
  * @author Daomephsta
  */
 public class BytecodeAnalysisConstantResolver implements IConstantResolver {
-	static final Set<Type> VALID_CONSTANT_TYPES = new HashSet<>();
-	static {
-		VALID_CONSTANT_TYPES.add(Type.BYTE_TYPE);
-		VALID_CONSTANT_TYPES.add(Type.SHORT_TYPE);
-		VALID_CONSTANT_TYPES.add(Type.CHAR_TYPE);
-		VALID_CONSTANT_TYPES.add(Type.INT_TYPE);
-		VALID_CONSTANT_TYPES.add(Type.LONG_TYPE);
-		VALID_CONSTANT_TYPES.add(Type.FLOAT_TYPE);
-		VALID_CONSTANT_TYPES.add(Type.DOUBLE_TYPE);
-		VALID_CONSTANT_TYPES.add(Type.getObjectType("java/lang/String"));
-		VALID_CONSTANT_TYPES.add(Type.getObjectType("java/lang/Class"));
-	}
+	static final Set<Type> VALID_CONSTANT_TYPES = Set.of(
+			Type.BYTE_TYPE,
+			Type.SHORT_TYPE,
+			Type.CHAR_TYPE,
+			Type.INT_TYPE,
+			Type.LONG_TYPE,
+			Type.FLOAT_TYPE,
+			Type.DOUBLE_TYPE,
+			Type.getObjectType("java/lang/String"),
+			Type.getObjectType("java/lang/Class")
+	);
 
 	private final ConcurrentMap<String, Map<String, ResolvedConstant>> constantDataCache = new ConcurrentHashMap<>();
 	private final IClassResolver classResolver;
