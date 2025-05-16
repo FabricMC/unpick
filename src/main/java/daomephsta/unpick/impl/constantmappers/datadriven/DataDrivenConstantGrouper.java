@@ -77,18 +77,8 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		reader.reset();
 
 		switch (versionHeader) {
-			case "v1" -> {
-				if (constantResolver == null) {
-					throw new UnpickSyntaxException(1, "Unpick V1 format is no longer supported");
-				}
-				V1Parser.parse(logger, reader, constantResolver, data);
-			}
-			case "v2" -> {
-				if (constantResolver == null) {
-					throw new UnpickSyntaxException(1, "Unpick V2 format is no longer supported");
-				}
-				V2Parser.parse(logger, reader, constantResolver, data);
-			}
+			case "v1" -> V1Parser.parse(logger, reader, constantResolver, data);
+			case "v2" -> V2Parser.parse(logger, reader, constantResolver, data);
 			case "unpick v3" -> new UnpickV3Reader(reader).accept(data);
 			default ->
 				throw new UnpickSyntaxException(1, "Unknown version or missing version header: " + versionHeader);
