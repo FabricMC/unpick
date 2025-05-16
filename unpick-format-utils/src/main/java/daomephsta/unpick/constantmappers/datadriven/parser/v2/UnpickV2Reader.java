@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
+import java.io.Reader;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Set;
@@ -22,7 +23,7 @@ import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException
  */
 public class UnpickV2Reader implements Closeable {
 	private static final Pattern WHITESPACE_SPLITTER = Pattern.compile("\\s");
-	private final InputStream definitionsStream;
+	private final Reader definitionsReader;
 
 	private TargetMethodDefinitionVisitor lastTargetMethodVisitor = null;
 
@@ -32,7 +33,11 @@ public class UnpickV2Reader implements Closeable {
 	 * <a href="https://github.com/Daomephsta/unpick/wiki/Unpick-Format">.unpick v2 format</a>
 	 */
 	public UnpickV2Reader(InputStream definitionsStream) {
-		this.definitionsStream = definitionsStream;
+		this(new InputStreamReader(definitionsStream));
+	}
+
+	public UnpickV2Reader(Reader definitionsReader) {
+		this.definitionsReader = definitionsReader;
 	}
 
 	private static final Set<String> TARGET_METHOD_ARGS = Stream.of("param", "return").collect(toSet());
@@ -41,7 +46,7 @@ public class UnpickV2Reader implements Closeable {
 	 * @param visitor the visitor
 	 */
 	public void accept(Visitor visitor) {
-		try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(definitionsStream))) {
+		try (LineNumberReader reader = new LineNumberReader(definitionsReader)) {
 			Iterator<String[]> lineTokensIter = reader.lines()
 					.skip(1) //Skip version
 					.map(s -> stripComment(s.trim()))
@@ -60,24 +65,11 @@ public class UnpickV2Reader implements Closeable {
 						lastTargetMethodVisitor = null;
 					}
 					switch (tokens[0]) {
-						case "constant":
-							visitSimpleConstantDefinition(visitor, tokens, reader.getLineNumber());
-							break;
-
-						case "flag":
-							visitFlagConstantDefinition(visitor, tokens, reader.getLineNumber());
-							break;
-
-						case "param":
-							visitParameterConstantGroupDefinition(visitor, tokens, reader.getLineNumber());
-							break;
-
-						case "return":
-							visitReturnConstantGroupDefinition(visitor, tokens, reader.getLineNumber());
-							break;
-
-						default:
-							throw new UnpickSyntaxException("\nUnknown start token Tokens: " + Arrays.toString(tokens));
+						case "constant" -> visitSimpleConstantDefinition(visitor, tokens, reader.getLineNumber());
+						case "flag" -> visitFlagConstantDefinition(visitor, tokens, reader.getLineNumber());
+						case "param" -> visitParameterConstantGroupDefinition(visitor, tokens, reader.getLineNumber());
+						case "return" -> visitReturnConstantGroupDefinition(visitor, tokens, reader.getLineNumber());
+						default -> throw new UnpickSyntaxException("\nUnknown start token Tokens: " + Arrays.toString(tokens));
 					}
 				}
 			}
@@ -157,7 +149,7 @@ public class UnpickV2Reader implements Closeable {
 
 	@Override
 	public void close() throws IOException {
-		definitionsStream.close();
+		definitionsReader.close();
 	}
 
 	private static final TargetMethodDefinitionVisitor DEFAULT = new TargetMethodDefinitionVisitor() {

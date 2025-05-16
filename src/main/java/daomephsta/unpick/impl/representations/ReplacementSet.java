@@ -7,9 +7,10 @@ import java.util.stream.Collectors;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.InsnList;
 
+import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
 import daomephsta.unpick.impl.Utils;
 
-public class ReplacementSet {
+public class ReplacementSet implements IReplacementGenerator.IReplacementSet {
 	private final InsnList target;
 	private final Map<AbstractInsnNode, InsnList> replacements = new HashMap<>();
 
@@ -17,12 +18,7 @@ public class ReplacementSet {
 		this.target = target;
 	}
 
-	public void addReplacement(AbstractInsnNode oldNode, AbstractInsnNode newNode) {
-		InsnList newNodes = new InsnList();
-		newNodes.add(newNode);
-		addReplacement(oldNode, newNodes);
-	}
-
+	@Override
 	public void addReplacement(AbstractInsnNode oldNode, InsnList newNodes) {
 		if (replacements.putIfAbsent(oldNode, newNodes) != null) {
 			throw new IllegalArgumentException("Replacement already defined for " + Utils.visitableToString(oldNode::accept).trim());

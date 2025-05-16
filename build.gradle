@@ -6,6 +6,10 @@ plugins {
 	id 'com.diffplug.spotless' version '7.0.2'
 }
 
+repositories {
+	mavenCentral()
+}
+
 allprojects {
 	apply plugin: 'java-library'
 	apply plugin: 'maven-publish'
@@ -27,6 +31,7 @@ allprojects {
 		api 'org.ow2.asm:asm-tree:9.6'
 		implementation 'org.ow2.asm:asm-commons:9.6'
 		implementation 'org.ow2.asm:asm-util:9.6'
+		compileOnly 'org.jetbrains:annotations:24.0.0'
 
 		// Use JUnit test framework
 		testImplementation platform('org.junit:junit-bom:5.10.1')
@@ -34,6 +39,7 @@ allprojects {
 		testImplementation 'org.junit.jupiter:junit-jupiter-params'
 		testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
 		testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+		testCompileOnly 'org.jetbrains:annotations:24.0.0'
 	}
 
 	test {
@@ -43,15 +49,13 @@ allprojects {
 	tasks.withType(JavaCompile).configureEach {
 		it.options.encoding = "UTF-8"
 
-		if (JavaVersion.current().isJava9Compatible()) {
-			it.options.release = 8
-		}
+		it.options.release = 21
 	}
 
 	java {
 		withSourcesJar()
-		sourceCompatibility = 1.8
-		targetCompatibility = 1.8
+		sourceCompatibility = 21
+		targetCompatibility = 21
 	}
 
 	task javadocJar(type: Jar, dependsOn: javadoc) {
@@ -76,23 +80,25 @@ allprojects {
 		}
 	}
 
-	publishing {
-		repositories {
-			if (ENV.MAVEN_URL) {
-				repositories.maven {
-					name "fabric"
-					url ENV.MAVEN_URL
-					credentials {
-						username ENV.MAVEN_USERNAME
-						password ENV.MAVEN_PASSWORD
+	if (!project.name.startsWith('test-data')) {
+		publishing {
+			repositories {
+				if (ENV.MAVEN_URL) {
+					repositories.maven {
+						name "fabric"
+						url ENV.MAVEN_URL
+						credentials {
+							username ENV.MAVEN_USERNAME
+							password ENV.MAVEN_PASSWORD
+						}
 					}
 				}
 			}
-		}
-		publications {
-			mavenJava(MavenPublication) {
-				from components.java
-				artifact(javadocJar)
+			publications {
+				mavenJava(MavenPublication) {
+					from components.java
+					artifact(javadocJar)
+				}
 			}
 		}
 	}
@@ -100,4 +106,11 @@ allprojects {
 
 dependencies {
 	implementation project(':unpick-format-utils')
+}
+
+test {
+	dependsOn tasks.getByPath(':test-data:classes')
+	dependsOn tasks.getByPath(':test-data-expected:classes')
+	systemProperties testData: project(':test-data').sourceSets.main.java.destinationDirectory.get().asFile.absolutePath,
+		testDataExpected: project(':test-data-expected').sourceSets.main.java.destinationDirectory.get().asFile.absolutePath
 }

@@ -124,8 +124,9 @@
         <module name="AnnotationLocation"/>
         <module name="MissingOverride"/>
 
-        <!-- By default this allows catch blocks with only comments -->
-        <module name="EmptyCatchBlock"/>
+        <module name="EmptyCatchBlock">
+            <property name="exceptionVariableName" value="ignore"/>
+        </module>
 
         <module name="MultipleVariableDeclarations"/>
 

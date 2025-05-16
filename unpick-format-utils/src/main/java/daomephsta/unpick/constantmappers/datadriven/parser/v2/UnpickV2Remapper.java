@@ -1,12 +1,10 @@
 package daomephsta.unpick.constantmappers.datadriven.parser.v2;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import daomephsta.unpick.constantmappers.datadriven.parser.FieldKey;
-import daomephsta.unpick.constantmappers.datadriven.parser.MethodKey;
+import daomephsta.unpick.constantmappers.datadriven.parser.MemberKey;
 import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.TargetMethodDefinitionVisitor;
 import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.Visitor;
 
@@ -18,7 +16,7 @@ import daomephsta.unpick.constantmappers.datadriven.parser.v2.UnpickV2Reader.Vis
 public class UnpickV2Remapper implements Visitor {
 	private static final Pattern OBJECT_SIGNATURE_FINDER = Pattern.compile("L([a-zA-Z0-9$_\\/]+);");
 	private final Map<String, String> classMappings;
-	private final Map<MethodKey, String> methodMappings;
+	private final Map<MemberKey, String> methodMappings;
 	private final Map<FieldKey, String> fieldMappings;
 	private final Visitor delegate;
 
@@ -26,22 +24,11 @@ public class UnpickV2Remapper implements Visitor {
 	 * Creates a new {@link UnpickV2Remapper}.
 	 * @param classMappings a mapping of old class names to new class names.
 	 * @param methodMappings a mapping of old method names, owner classes, and descriptors; to new method names.
+	 * @param fieldMappings a mapping of old field names and owner classes, and descriptors; to new field names.
 	 * @param delegate the visitor that should visit the remapped target method definitions.
 	 * All other visitor methods only delegate to the delegate visitor.
 	 */
-	public UnpickV2Remapper(Map<String, String> classMappings, Map<MethodKey, String> methodMappings, Visitor delegate) {
-		this(classMappings, methodMappings, Collections.emptyMap(), delegate);
-	}
-
-	/**
-	 * Creates a new {@link UnpickV2Remapper}.
-	 * @param classMappings a mapping of old class names to new class names.
-	 * @param methodMappings a mapping of old method names, owner classes, and descriptors; to new method names.
-	 * @param fieldMappings a mapping of old field names and owner classes to new field names.
-	 * @param delegate the visitor that should visit the remapped target method definitions.
-	 * All other visitor methods only delegate to the delegate visitor.
-	 */
-	public UnpickV2Remapper(Map<String, String> classMappings, Map<MethodKey, String> methodMappings, Map<FieldKey, String> fieldMappings, Visitor delegate) {
+	public UnpickV2Remapper(Map<String, String> classMappings, Map<MemberKey, String> methodMappings, Map<FieldKey, String> fieldMappings, Visitor delegate) {
 		this.classMappings = classMappings;
 		this.methodMappings = methodMappings;
 		this.fieldMappings = fieldMappings;
@@ -53,7 +40,7 @@ public class UnpickV2Remapper implements Visitor {
 	}
 
 	private String remapMethod(String owner, String name, String descriptor) {
-		return methodMappings.getOrDefault(new MethodKey(owner, name, descriptor), name);
+		return methodMappings.getOrDefault(new MemberKey(owner, name, descriptor), name);
 	}
 
 	private String remapField(String owner, String name) {
@@ -113,5 +100,8 @@ public class UnpickV2Remapper implements Visitor {
 
 	public void endVisit() {
 		delegate.endVisit();
+	}
+
+	public record FieldKey(String owner, String name) {
 	}
 }

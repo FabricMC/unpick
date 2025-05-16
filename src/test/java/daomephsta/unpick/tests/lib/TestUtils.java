@@ -1,52 +1,56 @@
 package daomephsta.unpick.tests.lib;
 
-import static org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.RETURN;
-
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.function.Consumer;
 
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
+import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.ClassNode;
 
-import daomephsta.unpick.impl.InstructionFactory;
-import daomephsta.unpick.impl.LiteralType;
-import daomephsta.unpick.impl.Utils;
-import daomephsta.unpick.tests.lib.MethodMocker.MockMethod;
+import daomephsta.unpick.api.ConstantUninliner;
+import daomephsta.unpick.api.classresolvers.ClassResolvers;
+import daomephsta.unpick.api.classresolvers.IClassResolver;
+import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
+import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
 
 public class TestUtils {
-	public static void printVisitable(Consumer<MethodVisitor> visitable) {
-		System.out.println(Utils.visitableToString(visitable));
-	}
+	private static final Path TEST_DATA = Paths.get(System.getProperty("testData"));
+	private static final Path TEST_DATA_EXPECTED = Paths.get(System.getProperty("testDataExpected"));
 
-	public static MockMethod mockInvokeStatic(Class<?> methodOwner, String methodName, String methodDescriptor, Object constant) {
-		Type expectedType = Type.getArgumentTypes(methodDescriptor)[0];
-		Type actualType = LiteralType.from(constant.getClass()).getType();
-		if (!expectedType.equals(actualType)) {
-			throw new IllegalArgumentException(String.format("Expected constant of type %s, actual type %s",
-					expectedType.getClassName(), actualType.getClassName()));
-		}
-
-		return MethodMocker.mock(void.class, mv -> {
-			InstructionFactory.pushesValue(mv, constant);
-			mv.visitMethodInsn(INVOKESTATIC, methodOwner.getName().replace('.', '/'), methodName, methodDescriptor, false);
-			mv.visitInsn(RETURN);
+	public static void runTest(String className, Consumer<UnpickV3Visitor> dataProvider) {
+		runTest(className, dataProvider, clazz -> {
 		});
 	}
 
-	public static void dumpClassNode(ClassNode clazz, File dumpPath, String dumpName) {
-		ClassWriter cw = new ClassWriter(0);
-		clazz.accept(cw);
-		dumpPath.mkdirs();
-		try (OutputStream out = new FileOutputStream(new File(dumpPath, dumpName + ".class"))) {
-			out.write(cw.toByteArray());
+	public static void runTest(String className, Consumer<UnpickV3Visitor> dataProvider, Consumer<ClassNode> classPostProcessor) {
+		ClassNode clazz = readClass(TEST_DATA, className);
+		ClassNode expectedClass = readClass(TEST_DATA_EXPECTED, className);
+
+		IClassResolver classResolver = ClassResolvers.fromDirectory(TEST_DATA).chain(ClassResolvers.classpath());
+		ConstantUninliner.builder()
+				.grouper(new DataDrivenConstantGrouper(classResolver.asConstantResolver(), classResolver.asInheritanceChecker(), dataProvider))
+				.classResolver(classResolver)
+				.build()
+				.transform(clazz);
+
+		classPostProcessor.accept(clazz);
+		classPostProcessor.accept(expectedClass);
+
+		ASMAssertions.assertClassEquals(expectedClass, clazz);
+	}
+
+	private static ClassNode readClass(Path testDataDir, String className) {
+		try (InputStream in = Files.newInputStream(testDataDir.resolve(className + ".class"))) {
+			ClassNode node = new ClassNode();
+			ClassReader reader = new ClassReader(in);
+			reader.accept(node, 0);
+			return node;
 		} catch (IOException e) {
-			e.printStackTrace();
+			throw new UncheckedIOException(e);
 		}
 	}
 }

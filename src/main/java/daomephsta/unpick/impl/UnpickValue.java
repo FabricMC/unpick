@@ -1,63 +1,95 @@
 package daomephsta.unpick.impl;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
+import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.analysis.SourceValue;
-import org.objectweb.asm.tree.analysis.Value;
 
-public class UnpickValue implements Value {
-	private final SourceValue sourceValue;
+import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
+import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
+
+public class UnpickValue implements IReplacementGenerator.IDataflowValue {
+	private final Type dataType;
 	private Set<Integer> parameterSources;
-	private Set<MethodUsage> methodUsages;
+	private Set<IReplacementGenerator.IParameterUsage> parameterUsages;
 	private Set<AbstractInsnNode> usages;
+	private Set<DataType> typeInterpretations;
 
-	public UnpickValue(SourceValue sourceValue) {
-		this.sourceValue = sourceValue;
+	public UnpickValue(Type dataType) {
+		this.dataType = dataType;
 		this.parameterSources = new HashSet<>();
-		this.methodUsages = new HashSet<>();
+		this.parameterUsages = new HashSet<>();
 		this.usages = new HashSet<>();
+		this.typeInterpretations = new HashSet<>();
+		if (dataType != null) {
+			this.addTypeInterpretationFromType(dataType);
+		}
 	}
 
-	public UnpickValue(SourceValue sourceValue, UnpickValue cloneOf) {
-		this.sourceValue = sourceValue;
+	public UnpickValue(Type dataType, UnpickValue cloneOf) {
+		this.dataType = dataType;
 		this.parameterSources = cloneOf.getParameterSources();
-		this.methodUsages = cloneOf.getMethodUsages();
+		this.parameterUsages = cloneOf.getParameterUsages();
 		this.usages = cloneOf.getUsages();
+		this.typeInterpretations = cloneOf.getTypeInterpretations();
+		if (dataType != null) {
+			this.addTypeInterpretationFromType(dataType);
+		}
 	}
 
 	@Override
 	public int getSize() {
-		return sourceValue.getSize();
+		return dataType == null ? 1 : dataType.getSize();
 	}
 
-	public SourceValue getSourceValue() {
-		return sourceValue;
+	@Override
+	public Type getDataType() {
+		return dataType;
 	}
 
+	@Override
 	public Set<Integer> getParameterSources() {
 		return parameterSources;
 	}
 
-	public Set<MethodUsage> getMethodUsages() {
-		return methodUsages;
+	@Override
+	public Set<IReplacementGenerator.IParameterUsage> getParameterUsages() {
+		return parameterUsages;
 	}
 
+	@Override
 	public Set<AbstractInsnNode> getUsages() {
 		return usages;
+	}
+
+	@Override
+	public Set<DataType> getTypeInterpretations() {
+		return typeInterpretations;
 	}
 
 	void setParameterSources(Set<Integer> parameterSources) {
 		this.parameterSources = parameterSources;
 	}
 
-	void setMethodUsages(Set<MethodUsage> methodUsages) {
-		this.methodUsages = methodUsages;
+	void setParameterUsages(Set<IReplacementGenerator.IParameterUsage> parameterUsages) {
+		this.parameterUsages = parameterUsages;
 	}
 
 	void setUsages(Set<AbstractInsnNode> usages) {
 		this.usages = usages;
+	}
+
+	void setTypeInterpretations(Set<DataType> typeInterpretations) {
+		this.typeInterpretations = typeInterpretations;
+	}
+
+	void addTypeInterpretationFromType(Type type) {
+		DataType dataType = DataTypeUtils.asmTypeToDataType(type);
+		if (dataType != null) {
+			typeInterpretations.add(dataType);
+		}
 	}
 
 	@Override
@@ -71,40 +103,46 @@ public class UnpickValue implements Value {
 
 		UnpickValue that = (UnpickValue) o;
 
-		if (!sourceValue.equals(that.sourceValue)) {
+		if (!Objects.equals(dataType, that.dataType)) {
 			return false;
 		}
 		if (!parameterSources.equals(that.parameterSources)) {
 			return false;
 		}
-		if (!methodUsages.equals(that.methodUsages)) {
+		if (!parameterUsages.equals(that.parameterUsages)) {
 			return false;
 		}
-		return usages.equals(that.usages);
+		if (!usages.equals(that.usages)) {
+			return false;
+		}
+		return typeInterpretations.equals(that.typeInterpretations);
 	}
 
 	@Override
 	public int hashCode() {
-		int result = sourceValue.hashCode();
+		int result = Objects.hashCode(dataType);
 		result = 31 * result + parameterSources.hashCode();
-		result = 31 * result + methodUsages.hashCode();
+		result = 31 * result + parameterUsages.hashCode();
 		result = 31 * result + usages.hashCode();
+		result = 31 * result + typeInterpretations.hashCode();
 		return result;
 	}
 
-	public static class MethodUsage {
+	public static class ParameterUsage implements IReplacementGenerator.IParameterUsage {
 		private final AbstractInsnNode methodInvocation;
 		private final int paramIndex;
 
-		public MethodUsage(AbstractInsnNode methodInvocation, int paramIndex) {
+		public ParameterUsage(AbstractInsnNode methodInvocation, int paramIndex) {
 			this.methodInvocation = methodInvocation;
 			this.paramIndex = paramIndex;
 		}
 
+		@Override
 		public AbstractInsnNode getMethodInvocation() {
 			return methodInvocation;
 		}
 
+		@Override
 		public int getParamIndex() {
 			return paramIndex;
 		}
@@ -118,7 +156,7 @@ public class UnpickValue implements Value {
 				return false;
 			}
 
-			MethodUsage that = (MethodUsage) o;
+			ParameterUsage that = (ParameterUsage) o;
 
 			if (paramIndex != that.paramIndex) {
 				return false;
