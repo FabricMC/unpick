@@ -81,13 +81,13 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 				if (constantResolver == null) {
 					throw new UnpickSyntaxException(1, "Unpick V1 format is no longer supported");
 				}
-				V1Parser.parse(reader, constantResolver, data);
+				V1Parser.parse(logger, reader, constantResolver, data);
 			}
 			case "v2" -> {
 				if (constantResolver == null) {
 					throw new UnpickSyntaxException(1, "Unpick V2 format is no longer supported");
 				}
-				V2Parser.parse(reader, constantResolver, data);
+				V2Parser.parse(logger, reader, constantResolver, data);
 			}
 			case "unpick v3" -> new UnpickV3Reader(reader).accept(data);
 			default ->
