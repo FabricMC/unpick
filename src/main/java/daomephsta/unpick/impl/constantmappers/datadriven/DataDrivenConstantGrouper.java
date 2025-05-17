@@ -45,6 +45,8 @@ import daomephsta.unpick.impl.constantmappers.datadriven.parser.v2.V2Parser;
  * @author Daomephsta
  */
 public class DataDrivenConstantGrouper implements IConstantGrouper {
+	private static final int MAX_VERSION_HEADER_LENGTH = "unpick v3".length();
+
 	private final Logger logger;
 	private final IConstantResolver constantResolver;
 	private final IInheritanceChecker inheritanceChecker;
@@ -72,8 +74,11 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 
 	public void loadData(Reader mappingSource) throws IOException {
 		BufferedReader reader = new BufferedReader(mappingSource);
-		reader.mark(11);
+		reader.mark(MAX_VERSION_HEADER_LENGTH + 2);
 		String versionHeader = reader.readLine();
+		if (versionHeader.length() > MAX_VERSION_HEADER_LENGTH) {
+			throw new UnpickSyntaxException(1, "Unknown version or missing version header: " + versionHeader);
+		}
 		reader.reset();
 
 		switch (versionHeader) {
