@@ -5,6 +5,7 @@ import java.io.Reader;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.IntSupplier;
+import java.util.logging.Logger;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -20,18 +21,20 @@ import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
 import daomephsta.unpick.impl.constantmappers.datadriven.data.Data;
 
 public final class V2Parser implements Visitor {
+	private final Logger logger;
 	private final IConstantResolver constantResolver;
 	private final Data data;
 	private int lineNumber;
 
-	private V2Parser(IConstantResolver constantResolver, Data data) {
+	private V2Parser(Logger logger, IConstantResolver constantResolver, Data data) {
+		this.logger = logger;
 		this.constantResolver = constantResolver;
 		this.data = data;
 	}
 
-	public static void parse(Reader mappingSource, IConstantResolver constantResolver, Data data) throws IOException {
+	public static void parse(Logger logger, Reader mappingSource, IConstantResolver constantResolver, Data data) throws IOException {
 		try (UnpickV2Reader unpickDefinitions = new UnpickV2Reader(mappingSource)) {
-			unpickDefinitions.accept(new V2Parser(constantResolver, data));
+			unpickDefinitions.accept(new V2Parser(logger, constantResolver, data));
 		}
 	}
 
@@ -78,7 +81,8 @@ public final class V2Parser implements Visitor {
 		} else {
 			IConstantResolver.ResolvedConstant constant = constantResolver.resolveConstant(owner, name);
 			if (constant == null) {
-				throw new UnpickSyntaxException(lineNumber, "Constant '" + owner + "." + name + "' not found");
+				logger.warning(() -> "Constant '" + owner + "." + name + "' not found");
+				return;
 			}
 			dataType = parseType(constant.type().getDescriptor(), lineNumber);
 		}
