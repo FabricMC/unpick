@@ -7,7 +7,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 import java.util.regex.Pattern;
+
+import org.jetbrains.annotations.Nullable;
 
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
@@ -24,7 +27,7 @@ public final class V1Parser {
 
 	private static final Pattern WHITESPACE_SPLITTER = Pattern.compile("\\s");
 
-	public static void parse(Reader mappingSource, IConstantResolver constantResolver, Data data) throws IOException {
+	public static void parse(Logger logger, Reader mappingSource, IConstantResolver constantResolver, Data data) throws IOException {
 		try (LineNumberReader reader = new LineNumberReader(mappingSource)) {
 			reader.readLine(); // skip version
 
@@ -41,10 +44,18 @@ public final class V1Parser {
 				}
 
 				switch (tokens[0]) {
-					case "constant" ->
-							data.visitGroupDefinition(parseGroupDefinition(false, constantResolver, tokens, reader.getLineNumber()));
-					case "flag" ->
-							data.visitGroupDefinition(parseGroupDefinition(true, constantResolver, tokens, reader.getLineNumber()));
+					case "constant" -> {
+						GroupDefinition group = parseGroupDefinition(logger, false, constantResolver, tokens, reader.getLineNumber());
+						if (group != null) {
+							data.visitGroupDefinition(group);
+						}
+					}
+					case "flag" -> {
+						GroupDefinition group = parseGroupDefinition(logger, true, constantResolver, tokens, reader.getLineNumber());
+						if (group != null) {
+							data.visitGroupDefinition(group);
+						}
+					}
 					case "unpick" ->
 							data.visitTargetMethod(parseTargetMethodDefinition(tokens, reader.getLineNumber()));
 					default ->
@@ -71,7 +82,8 @@ public final class V1Parser {
 		return result.toArray(new String[0]);
 	}
 
-	private static GroupDefinition parseGroupDefinition(boolean flags, IConstantResolver constantResolver, String[] tokens, int lineNumber) {
+	@Nullable
+	private static GroupDefinition parseGroupDefinition(Logger logger, boolean flags, IConstantResolver constantResolver, String[] tokens, int lineNumber) {
 		if (tokens.length != 4 && tokens.length != 6) {
 			throw new UnpickSyntaxException(lineNumber, "Unexpected token count. Expected 4 or 6. Found " + tokens.length);
 		}
@@ -86,7 +98,8 @@ public final class V1Parser {
 		} else {
 			IConstantResolver.ResolvedConstant constant = constantResolver.resolveConstant(owner, name);
 			if (constant == null) {
-				throw new UnpickSyntaxException(lineNumber, "Cannot resolve constant " + owner + "." + name);
+				logger.warning(() -> "Cannot resolve constant " + owner + "." + name);
+				return null;
 			}
 			dataType = V2Parser.parseType(constant.type().getDescriptor(), lineNumber);
 		}

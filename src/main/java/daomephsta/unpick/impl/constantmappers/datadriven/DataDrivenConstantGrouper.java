@@ -2,9 +2,7 @@ package daomephsta.unpick.impl.constantmappers.datadriven;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -47,55 +45,61 @@ import daomephsta.unpick.impl.constantmappers.datadriven.parser.v2.V2Parser;
  * @author Daomephsta
  */
 public class DataDrivenConstantGrouper implements IConstantGrouper {
-	private static final Logger LOGGER = Logger.getLogger("unpick");
+	private static final int MAX_VERSION_HEADER_LENGTH = "unpick v3".length();
 
+	private final Logger logger;
+	private final IConstantResolver constantResolver;
 	private final IInheritanceChecker inheritanceChecker;
 	private final Data data;
 	private final Map<MemberKey, TargetMethod> targetMethodCache = new ConcurrentHashMap<>();
 	private final Set<MemberKey> noTargetMethodCache = ConcurrentHashMap.newKeySet();
 	private final ConstantGroup defaultGroup = new ConstantGroup("<default>", this::replaceDefault);
 
-	public DataDrivenConstantGrouper(IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker, InputStream... mappingSources) {
+	public DataDrivenConstantGrouper(Logger logger, IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker) {
+		this.logger = logger;
+		this.constantResolver = constantResolver;
 		this.inheritanceChecker = inheritanceChecker;
 		this.data = new Data(constantResolver, inheritanceChecker);
-		for (InputStream mappingSource : mappingSources) {
-			BufferedReader reader = new BufferedReader(new InputStreamReader(mappingSource, StandardCharsets.UTF_8));
-			try {
-				reader.mark(11);
-				String versionHeader = reader.readLine();
-				reader.reset();
-
-				switch (versionHeader) {
-					case "v1" -> {
-						if (constantResolver == null) {
-							throw new UnpickSyntaxException(1, "Unpick V1 format is no longer supported");
-						}
-						V1Parser.parse(reader, constantResolver, data);
-					}
-					case "v2" -> {
-						if (constantResolver == null) {
-							throw new UnpickSyntaxException(1, "Unpick V2 format is no longer supported");
-						}
-						V2Parser.parse(reader, constantResolver, data);
-					}
-					case "unpick v3" -> new UnpickV3Reader(reader).accept(data);
-					default ->
-							throw new UnpickSyntaxException(1, "Unknown version or missing version header: " + versionHeader);
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-
-		LOGGER.info(() -> String.format("Loaded %d constant groups, %d target fields and %d target methods", data.defaultGroups.size() + data.groups.size(), data.targetFields.size(), data.targetMethods.size()));
 	}
 
 	@ApiStatus.Internal
 	@VisibleForTesting
 	public DataDrivenConstantGrouper(IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker, Consumer<UnpickV3Visitor> dataProvider) {
+		this.logger = Logger.getLogger("unpick");
+		this.constantResolver = constantResolver;
 		this.inheritanceChecker = inheritanceChecker;
 		this.data = new Data(constantResolver, inheritanceChecker);
 		dataProvider.accept(data);
+	}
+
+	public void loadData(Reader mappingSource) throws IOException {
+		BufferedReader reader = new BufferedReader(mappingSource);
+		reader.mark(MAX_VERSION_HEADER_LENGTH + 2);
+		String versionHeader = reader.readLine();
+		if (versionHeader.length() > MAX_VERSION_HEADER_LENGTH) {
+			throw new UnpickSyntaxException(1, "Unknown version or missing version header: " + versionHeader);
+		}
+		reader.reset();
+
+		switch (versionHeader) {
+			case "v1" -> V1Parser.parse(logger, reader, constantResolver, data);
+			case "v2" -> V2Parser.parse(logger, reader, constantResolver, data);
+			case "unpick v3" -> new UnpickV3Reader(reader).accept(data);
+			default ->
+				throw new UnpickSyntaxException(1, "Unknown version or missing version header: " + versionHeader);
+		}
+	}
+
+	public int groupCount() {
+		return data.defaultGroups.size() + data.groups.size();
+	}
+
+	public int targetFieldCount() {
+		return data.targetFields.size();
+	}
+
+	public int targetMethodCount() {
+		return data.targetMethods.size();
 	}
 
 	@Override
