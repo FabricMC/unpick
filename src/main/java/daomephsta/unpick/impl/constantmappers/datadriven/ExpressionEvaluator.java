@@ -1,5 +1,7 @@
 package daomephsta.unpick.impl.constantmappers.datadriven;
 
+// spotless:off (https://github.com/diffplug/spotless/issues/2492)
+
 import java.util.Objects;
 
 import org.jetbrains.annotations.Nullable;
