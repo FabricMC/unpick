@@ -18,23 +18,26 @@ import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
+import daomephsta.unpick.impl.Utils;
 import daomephsta.unpick.impl.constantmappers.datadriven.data.Data;
 
 public final class V2Parser implements Visitor {
 	private final Logger logger;
+	private final boolean lenient;
 	private final IConstantResolver constantResolver;
 	private final Data data;
 	private int lineNumber;
 
-	private V2Parser(Logger logger, IConstantResolver constantResolver, Data data) {
+	private V2Parser(Logger logger, boolean lenient, IConstantResolver constantResolver, Data data) {
 		this.logger = logger;
+		this.lenient = lenient;
 		this.constantResolver = constantResolver;
 		this.data = data;
 	}
 
-	public static void parse(Logger logger, Reader mappingSource, IConstantResolver constantResolver, Data data) throws IOException {
+	public static void parse(Logger logger, boolean lenient, Reader mappingSource, IConstantResolver constantResolver, Data data) throws IOException {
 		try (UnpickV2Reader unpickDefinitions = new UnpickV2Reader(mappingSource)) {
-			unpickDefinitions.accept(new V2Parser(logger, constantResolver, data));
+			unpickDefinitions.accept(new V2Parser(logger, lenient, constantResolver, data));
 		}
 	}
 
@@ -81,7 +84,7 @@ public final class V2Parser implements Visitor {
 		} else {
 			IConstantResolver.ResolvedConstant constant = constantResolver.resolveConstant(owner, name);
 			if (constant == null) {
-				logger.warning(() -> "Constant '" + owner + "." + name + "' not found");
+				Utils.throwOrWarn(logger, lenient, () -> "Constant '" + owner + "." + name + "' not found");
 				return;
 			}
 			dataType = parseType(constant.type().getDescriptor(), lineNumber);

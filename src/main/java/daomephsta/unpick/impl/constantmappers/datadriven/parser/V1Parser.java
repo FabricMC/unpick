@@ -18,6 +18,7 @@ import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
+import daomephsta.unpick.impl.Utils;
 import daomephsta.unpick.impl.constantmappers.datadriven.data.Data;
 import daomephsta.unpick.impl.constantmappers.datadriven.parser.v2.V2Parser;
 
@@ -27,7 +28,7 @@ public final class V1Parser {
 
 	private static final Pattern WHITESPACE_SPLITTER = Pattern.compile("\\s");
 
-	public static void parse(Logger logger, Reader mappingSource, IConstantResolver constantResolver, Data data) throws IOException {
+	public static void parse(Logger logger, boolean lenient, Reader mappingSource, IConstantResolver constantResolver, Data data) throws IOException {
 		try (LineNumberReader reader = new LineNumberReader(mappingSource)) {
 			reader.readLine(); // skip version
 
@@ -45,13 +46,13 @@ public final class V1Parser {
 
 				switch (tokens[0]) {
 					case "constant" -> {
-						GroupDefinition group = parseGroupDefinition(logger, false, constantResolver, tokens, reader.getLineNumber());
+						GroupDefinition group = parseGroupDefinition(logger, lenient, false, constantResolver, tokens, reader.getLineNumber());
 						if (group != null) {
 							data.visitGroupDefinition(group);
 						}
 					}
 					case "flag" -> {
-						GroupDefinition group = parseGroupDefinition(logger, true, constantResolver, tokens, reader.getLineNumber());
+						GroupDefinition group = parseGroupDefinition(logger, lenient, true, constantResolver, tokens, reader.getLineNumber());
 						if (group != null) {
 							data.visitGroupDefinition(group);
 						}
@@ -83,7 +84,7 @@ public final class V1Parser {
 	}
 
 	@Nullable
-	private static GroupDefinition parseGroupDefinition(Logger logger, boolean flags, IConstantResolver constantResolver, String[] tokens, int lineNumber) {
+	private static GroupDefinition parseGroupDefinition(Logger logger, boolean lenient, boolean flags, IConstantResolver constantResolver, String[] tokens, int lineNumber) {
 		if (tokens.length != 4 && tokens.length != 6) {
 			throw new UnpickSyntaxException(lineNumber, "Unexpected token count. Expected 4 or 6. Found " + tokens.length);
 		}
@@ -98,7 +99,7 @@ public final class V1Parser {
 		} else {
 			IConstantResolver.ResolvedConstant constant = constantResolver.resolveConstant(owner, name);
 			if (constant == null) {
-				logger.warning(() -> "Cannot resolve constant " + owner + "." + name);
+				Utils.throwOrWarn(logger, lenient, () -> "Cannot resolve constant " + owner + "." + name);
 				return null;
 			}
 			dataType = V2Parser.parseType(constant.type().getDescriptor(), lineNumber);

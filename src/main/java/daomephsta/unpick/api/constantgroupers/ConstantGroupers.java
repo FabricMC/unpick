@@ -21,6 +21,7 @@ public final class ConstantGroupers {
 
 	public static final class DataDrivenBuilder {
 		private Logger logger;
+		private boolean lenient = false;
 		private IConstantResolver constantResolver;
 		private IInheritanceChecker inheritanceChecker;
 		private String methodWhichInitializedResult;
@@ -32,6 +33,12 @@ public final class ConstantGroupers {
 		public DataDrivenBuilder logger(Logger logger) {
 			ensureGrouperNotInitialized("logger");
 			this.logger = logger;
+			return this;
+		}
+
+		public DataDrivenBuilder lenient(boolean lenient) {
+			ensureGrouperNotInitialized("lenient");
+			this.lenient = lenient;
 			return this;
 		}
 
@@ -88,7 +95,7 @@ public final class ConstantGroupers {
 			}
 			if (result == null) {
 				methodWhichInitializedResult = methodName;
-				result = new DataDrivenConstantGrouper(logger, constantResolver, inheritanceChecker);
+				result = new DataDrivenConstantGrouper(logger, lenient, constantResolver, inheritanceChecker);
 			}
 		}
 	}

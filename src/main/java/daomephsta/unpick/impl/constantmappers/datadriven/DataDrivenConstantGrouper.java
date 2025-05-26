@@ -48,6 +48,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 	private static final int MAX_VERSION_HEADER_LENGTH = "unpick v3".length();
 
 	private final Logger logger;
+	private final boolean lenient;
 	private final IConstantResolver constantResolver;
 	private final IInheritanceChecker inheritanceChecker;
 	private final Data data;
@@ -55,20 +56,22 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 	private final Set<MemberKey> noTargetMethodCache = ConcurrentHashMap.newKeySet();
 	private final ConstantGroup defaultGroup = new ConstantGroup("<default>", this::replaceDefault);
 
-	public DataDrivenConstantGrouper(Logger logger, IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker) {
+	public DataDrivenConstantGrouper(Logger logger, boolean lenient, IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker) {
 		this.logger = logger;
+		this.lenient = lenient;
 		this.constantResolver = constantResolver;
 		this.inheritanceChecker = inheritanceChecker;
-		this.data = new Data(constantResolver, inheritanceChecker);
+		this.data = new Data(logger, lenient, constantResolver, inheritanceChecker);
 	}
 
 	@ApiStatus.Internal
 	@VisibleForTesting
 	public DataDrivenConstantGrouper(IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker, Consumer<UnpickV3Visitor> dataProvider) {
 		this.logger = Logger.getLogger("unpick");
+		this.lenient = false;
 		this.constantResolver = constantResolver;
 		this.inheritanceChecker = inheritanceChecker;
-		this.data = new Data(constantResolver, inheritanceChecker);
+		this.data = new Data(this.logger, false, constantResolver, inheritanceChecker);
 		dataProvider.accept(data);
 	}
 
@@ -82,8 +85,8 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		reader.reset();
 
 		switch (versionHeader) {
-			case "v1" -> V1Parser.parse(logger, reader, constantResolver, data);
-			case "v2" -> V2Parser.parse(logger, reader, constantResolver, data);
+			case "v1" -> V1Parser.parse(logger, lenient, reader, constantResolver, data);
+			case "v2" -> V2Parser.parse(logger, lenient, reader, constantResolver, data);
 			case "unpick v3" -> new UnpickV3Reader(reader).accept(data);
 			default ->
 				throw new UnpickSyntaxException(1, "Unknown version or missing version header: " + versionHeader);
