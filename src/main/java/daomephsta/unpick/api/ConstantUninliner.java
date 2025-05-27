@@ -67,7 +67,7 @@ public final class ConstantUninliner {
 	}
 
 	public void transformMethod(ClassNode methodOwner, MethodNode method) {
-		logger.log(Level.INFO, String.format("Processing %s.%s%s", methodOwner.name, method.name, method.desc));
+		logger.log(Level.FINEST, () -> String.format("Processing %s.%s%s", methodOwner.name, method.name, method.desc));
 		try {
 			ReplacementSet replacementSet = new ReplacementSet(method.instructions);
 			Frame<UnpickValue>[] frames = new Analyzer<>(new UnpickInterpreter(method, inheritanceChecker)).analyze(methodOwner.name, method);
