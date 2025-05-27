@@ -5,6 +5,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -23,9 +24,12 @@ import daomephsta.unpick.constantmappers.datadriven.tree.expr.ExpressionTransfor
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.ExpressionVisitor;
 import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
 import daomephsta.unpick.impl.DataTypeUtils;
+import daomephsta.unpick.impl.Utils;
 import daomephsta.unpick.impl.constantmappers.datadriven.ExpressionEvaluator;
 
 public final class Data extends UnpickV3Visitor {
+	private final Logger logger;
+	private final boolean lenient;
 	public final IConstantResolver constantResolver;
 	public final IInheritanceChecker inheritanceChecker;
 	public final Map<DataType, GroupInfo> defaultGroups = new EnumMap<>(DataType.class);
@@ -33,7 +37,9 @@ public final class Data extends UnpickV3Visitor {
 	public final Map<MemberKey, TargetField> targetFields = new HashMap<>();
 	public final Map<MemberKey, TargetMethod> targetMethods = new HashMap<>();
 
-	public Data(IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker) {
+	public Data(Logger logger, boolean lenient, IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker) {
+		this.logger = logger;
+		this.lenient = lenient;
 		this.constantResolver = constantResolver;
 		this.inheritanceChecker = inheritanceChecker;
 	}
@@ -86,7 +92,7 @@ public final class Data extends UnpickV3Visitor {
 				Object value = DataTypeUtils.cast(evaluator.getResult(), groupDefinition.dataType());
 
 				if (existingScopedInfo.constantReplacementMap.put(value, new ConstantReplacementInfo(groupDefinition.strict(), nonWildcardExpression)) != null) {
-					throw new UnpickSyntaxException("Duplicate constant in group " + groupDisplayName + ": " + value);
+					Utils.throwOrWarn(logger, lenient, () -> "Duplicate constant in group " + groupDisplayName + ": " + value);
 				}
 			}
 		}

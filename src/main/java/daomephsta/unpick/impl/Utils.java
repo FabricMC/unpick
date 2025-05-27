@@ -4,11 +4,15 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Array;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.logging.Logger;
 
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.util.Printer;
 import org.objectweb.asm.util.Textifier;
 import org.objectweb.asm.util.TraceMethodVisitor;
+
+import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
 
 public final class Utils {
 	private Utils() {
@@ -50,5 +54,13 @@ public final class Utils {
 		System.arraycopy(first, 0, newArray, 0, first.length);
 		System.arraycopy(second, 0, newArray, first.length, second.length);
 		return newArray;
+	}
+
+	public static void throwOrWarn(Logger logger, boolean warn, Supplier<String> message) {
+		if (warn) {
+			logger.warning(message);
+		} else {
+			throw new UnpickSyntaxException(message.get());
+		}
 	}
 }
