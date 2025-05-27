@@ -52,10 +52,12 @@ public final class Data extends UnpickV3Visitor {
 		String groupDisplayName = groupDefinition.name() == null ? "<default>" : groupDefinition.name();
 
 		if (existingInfo.flags != groupDefinition.flags()) {
-			throw new UnpickSyntaxException("Flags mismatch for group " + groupDisplayName);
+			Utils.throwOrWarn(logger, lenient, () -> "Flags mismatch for group " + groupDisplayName);
+			return;
 		}
 		if (existingInfo.dataType != groupDefinition.dataType()) {
-			throw new UnpickSyntaxException("Data type mismatch for group " + groupDisplayName);
+			Utils.throwOrWarn(logger, lenient, () -> "Data type mismatch for group " + groupDisplayName);
+			return;
 		}
 
 		if (groupDefinition.scopes().isEmpty()) {
@@ -166,7 +168,7 @@ public final class Data extends UnpickV3Visitor {
 	@Override
 	public void visitTargetField(TargetField targetField) {
 		if (targetFields.put(new MemberKey(targetField.className(), targetField.fieldName(), targetField.fieldDesc()), targetField) != null) {
-			throw new UnpickSyntaxException("Duplicate target field: " + targetField.className() + "." + targetField.fieldName());
+			Utils.throwOrWarn(logger, lenient, () -> "Duplicate target field: " + targetField.className() + "." + targetField.fieldName());
 		}
 	}
 
@@ -182,14 +184,15 @@ public final class Data extends UnpickV3Visitor {
 		Map<Integer, String> paramGroups = new HashMap<>(existingTargetMethod.paramGroups());
 		targetMethod.paramGroups().forEach((paramIndex, groupName) -> {
 			if (paramGroups.put(paramIndex, groupName) != null) {
-				throw new UnpickSyntaxException("Duplicate param group: " + targetMethod.className() + "." + targetMethod.methodName() + targetMethod.methodDesc() + " " + paramIndex);
+				Utils.throwOrWarn(logger, lenient, () -> "Duplicate param group: " + targetMethod.className() + "." + targetMethod.methodName() + targetMethod.methodDesc() + " " + paramIndex);
 			}
 		});
 
 		String returnGroup;
 		if (targetMethod.returnGroup() != null) {
 			if (existingTargetMethod.returnGroup() != null) {
-				throw new UnpickSyntaxException("Duplicate return group: " + targetMethod.className() + "." + targetMethod.methodName() + targetMethod.methodDesc());
+				Utils.throwOrWarn(logger, lenient, () -> "Duplicate return group: " + targetMethod.className() + "." + targetMethod.methodName() + targetMethod.methodDesc());
+				return;
 			}
 			returnGroup = targetMethod.returnGroup();
 		} else {
