@@ -16,7 +16,8 @@ public record GroupDefinition(
 		DataType dataType,
 		@Nullable String name,
 		List<Expression> constants,
-		@Nullable GroupFormat format
+		@Nullable GroupFormat format,
+		@Nullable String docs
 ) {
 	@ApiStatus.Internal
 	public GroupDefinition {
@@ -32,6 +33,8 @@ public record GroupDefinition(
 		private final List<Expression> constants = new ArrayList<>();
 		@Nullable
 		private GroupFormat format;
+		@Nullable
+		private String docs;
 
 		private Builder(DataType dataType, @Nullable String name) {
 			this.dataType = dataType;
@@ -50,7 +53,8 @@ public record GroupDefinition(
 			Builder builder = new Builder(definition.dataType(), definition.name())
 					.scopes(definition.scopes())
 					.constants(definition.constants())
-					.format(definition.format());
+					.format(definition.format())
+					.docs(definition.docs());
 			builder.flags = definition.flags();
 			builder.strict = definition.strict();
 			return builder;
@@ -103,8 +107,13 @@ public record GroupDefinition(
 			return this;
 		}
 
+		public Builder docs(String docs) {
+			this.docs = docs;
+			return this;
+		}
+
 		public GroupDefinition build() {
-			return new GroupDefinition(scopes, flags, strict, dataType, name, constants, format);
+			return new GroupDefinition(scopes, flags, strict, dataType, name, constants, format, docs);
 		}
 	}
 }

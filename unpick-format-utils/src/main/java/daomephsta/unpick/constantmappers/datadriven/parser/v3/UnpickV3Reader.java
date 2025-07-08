@@ -56,6 +56,8 @@ public final class UnpickV3Reader implements AutoCloseable {
 	private int lastTokenLine;
 	private int lastTokenColumn;
 	private TokenType lastTokenType;
+	@Nullable
+	private String lastDocs;
 	private String nextToken;
 	private ParseState nextTokenState;
 	private String nextToken2;
@@ -112,6 +114,7 @@ public final class UnpickV3Reader implements AutoCloseable {
 	}
 
 	private GroupDefinition parseGroupDefinition() throws IOException {
+		String docs = lastDocs;
 		DataType dataType = parseDataType();
 		if (!isDataTypeValidInGroup(dataType)) {
 			throw parseError("Data type not allowed in group: " + dataType);
@@ -187,7 +190,7 @@ public final class UnpickV3Reader implements AutoCloseable {
 			}
 		}
 
-		return new GroupDefinition(scopes, flags, strict, dataType, name, constants, format);
+		return new GroupDefinition(scopes, flags, strict, dataType, name, constants, format, docs);
 	}
 
 	private static boolean isDataTypeValidInGroup(DataType type) {
@@ -481,14 +484,7 @@ public final class UnpickV3Reader implements AutoCloseable {
 		throw parseError("Integer out of bounds");
 	}
 
-	private static final class ParsedInteger {
-		final int value;
-		final int radix;
-
-		private ParsedInteger(int value, int radix) {
-			this.value = value;
-			this.radix = radix;
-		}
+	private record ParsedInteger(int value, int radix) {
 	}
 
 	private ParsedLong parseLong(String string, boolean negative) throws UnpickSyntaxException {
@@ -526,14 +522,7 @@ public final class UnpickV3Reader implements AutoCloseable {
 		throw parseError("Long out of bounds");
 	}
 
-	private static final class ParsedLong {
-		final long value;
-		final int radix;
-
-		private ParsedLong(long value, int radix) {
-			this.value = value;
-			this.radix = radix;
-		}
+	private record ParsedLong(long value, int radix) {
 	}
 
 	private float parseFloat(String string, boolean negative) throws UnpickSyntaxException {
@@ -675,13 +664,16 @@ public final class UnpickV3Reader implements AutoCloseable {
 			return null;
 		}
 
+		// start doc comment anew if the previous token type isn't whitespace
+		if (lastTokenType != TokenType.NEWLINE && lastTokenType != TokenType.INDENT) {
+			lastDocs = null;
+		}
+
 		// newline token (skipping comment and whitespace)
 		while (column < line.length() && Character.isWhitespace(line.charAt(column))) {
 			column++;
 		}
-		if (column < line.length() && line.charAt(column) == '#') {
-			column = line.length();
-		}
+		processCommentIfPresent();
 		if (column == line.length() && lastTokenType != TokenType.NEWLINE) {
 			lastTokenColumn = column;
 			lastTokenLine = reader.getLineNumber();
@@ -692,7 +684,8 @@ public final class UnpickV3Reader implements AutoCloseable {
 		// skip whitespace and comments, handle indent token
 		boolean seenIndent = false;
 		while (true) {
-			if (column == line.length() || line.charAt(column) == '#') {
+			processCommentIfPresent();
+			if (column == line.length()) {
 				seenIndent = false;
 				line = reader.readLine();
 				column = 0;
@@ -771,6 +764,30 @@ public final class UnpickV3Reader implements AutoCloseable {
 
 		lastTokenType = TokenType.OPERATOR;
 		return line.substring(lastTokenColumn, column);
+	}
+
+	private void processCommentIfPresent() {
+		if (column >= line.length() || line.charAt(column) != '#') {
+			return;
+		}
+		column++;
+
+		// handle doc comments
+		if (column < line.length() && line.charAt(column) == ':') {
+			do {
+				column++;
+			} while (column < line.length() && Character.isWhitespace(line.charAt(column)));
+			if (lastDocs == null) {
+				lastDocs = "";
+			} else {
+				lastDocs += "\n";
+			}
+			lastDocs += line.substring(column);
+		} else {
+			lastDocs = null;
+		}
+
+		column = line.length();
 	}
 
 	private boolean skipFieldDescriptor(boolean startOfToken) throws UnpickSyntaxException {
@@ -1070,17 +1087,21 @@ public final class UnpickV3Reader implements AutoCloseable {
 		private final int lastTokenLine;
 		private final int lastTokenColumn;
 		private final TokenType lastTokenType;
+		@Nullable
+		private final String lastDocs;
 
 		ParseState(UnpickV3Reader reader) {
 			this.lastTokenLine = reader.lastTokenLine;
 			this.lastTokenColumn = reader.lastTokenColumn;
 			this.lastTokenType = reader.lastTokenType;
+			this.lastDocs = reader.lastDocs;
 		}
 
 		void restore(UnpickV3Reader reader) {
 			reader.lastTokenLine = lastTokenLine;
 			reader.lastTokenColumn = lastTokenColumn;
 			reader.lastTokenType = lastTokenType;
+			reader.lastDocs = lastDocs;
 		}
 	}
 
