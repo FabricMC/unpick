@@ -42,6 +42,12 @@ public final class UnpickV3Writer extends UnpickV3Visitor {
 	public void visitGroupDefinition(GroupDefinition groupDefinition) {
 		output.append(LINE_SEPARATOR);
 
+		if (groupDefinition.docs() != null) {
+			for (String docLine : groupDefinition.docs().split("\n", -1)) {
+				output.append("#: ").append(docLine).append(LINE_SEPARATOR);
+			}
+		}
+
 		output.append("group ");
 		writeDataType(groupDefinition.dataType());
 
