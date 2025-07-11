@@ -1,16 +1,23 @@
 package daomephsta.unpick.api;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Handle;
+import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
@@ -43,6 +50,7 @@ public final class ConstantUninliner {
 	private final IClassResolver classResolver;
 	private final IConstantResolver constantResolver;
 	private final IInheritanceChecker inheritanceChecker;
+	private final Map<String, String> samOwnerCache = new ConcurrentHashMap<>();
 
 	private ConstantUninliner(Logger logger, IConstantGrouper grouper, IClassResolver classResolver, IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker) {
 		this.grouper = grouper;
@@ -57,114 +65,272 @@ public final class ConstantUninliner {
 	}
 
 	/**
-	 * Unlines all inlined values in the specified class.
+	 * Uninlines all inlined values in the specified class.
 	 * @param classNode the class to transform, as a ClassNode.
 	 */
 	public void transform(ClassNode classNode) {
+		Map<String, MethodNode> methods = new HashMap<>();
+		Map<String, Frame<UnpickValue>[]> frames = new HashMap<>();
+
 		for (MethodNode method : classNode.methods) {
-			transformMethod(classNode, method);
+			String methodKey = getMethodKey(method);
+			methods.put(methodKey, method);
+			frames.put(methodKey, analyzeMethod(classNode, method));
+		}
+
+		Map<String, List<LambdaUsage>> lambdaUsages = indexLambdaUsages(classNode);
+
+		List<ReplacementSet> replacements = new ArrayList<>();
+
+		for (MethodNode method : classNode.methods) {
+			ReplacementSet replacementsForMethod = transformMethod(
+					classNode,
+					method,
+					new MethodTransformContext(
+							methods,
+							frames,
+							lambdaUsages,
+							new HashSet<>()
+					)
+			);
+			if (replacementsForMethod != null) {
+				replacements.add(replacementsForMethod);
+			}
+		}
+
+		replacements.forEach(ReplacementSet::apply);
+	}
+
+	/**
+	 * Uninlines all values in a specific method. Note that this doesn't do any multi-method analysis, such as for
+	 * lambdas, so {@link #transform} is preferred wherever possible.
+	 *
+	 * @param methodOwner the owner class of this method.
+	 * @param method the method to transform.
+	 */
+	public void transformMethod(ClassNode methodOwner, MethodNode method) {
+		Frame<UnpickValue>[] frames = analyzeMethod(methodOwner, method);
+		if (frames != null) {
+			ReplacementSet replacements = transformMethod(
+					methodOwner,
+					method,
+					new MethodTransformContext(
+							Map.of(getMethodKey(method), method),
+							Map.of(getMethodKey(method), frames),
+							Map.of(),
+							new HashSet<>()
+					)
+			);
+			Objects.requireNonNull(replacements, () -> "No replacements for analyzed method " + getMethodKey(method) + "?!");
+			replacements.apply();
 		}
 	}
 
-	public void transformMethod(ClassNode methodOwner, MethodNode method) {
-		logger.log(Level.FINEST, () -> String.format("Processing %s.%s%s", methodOwner.name, method.name, method.desc));
-		try {
-			ReplacementSet replacementSet = new ReplacementSet(method.instructions);
-			Frame<UnpickValue>[] frames = new Analyzer<>(new UnpickInterpreter(method, inheritanceChecker)).analyze(methodOwner.name, method);
+	private ReplacementSet transformMethod(ClassNode methodOwner, MethodNode method, MethodTransformContext transformContext) {
+		Frame<UnpickValue>[] frames = transformContext.frames.get(getMethodKey(method));
+		if (frames == null) {
+			return null;
+		}
 
-			Map<AbstractInsnNode, ConstantGroup> groups = new HashMap<>();
-			Set<AbstractInsnNode> ungrouped = new HashSet<>();
+		logger.log(Level.FINEST, () -> String.format("Transforming method %s.%s%s", methodOwner.name, method.name, method.desc));
+		ReplacementSet replacementSet = new ReplacementSet(method.instructions);
 
-			for (int index = 0; index < method.instructions.size(); index++) {
-				AbstractInsnNode insn = method.instructions.get(index);
-				if (AbstractInsnNodes.hasLiteralValue(insn) && !ungrouped.contains(insn)) {
-					Frame<UnpickValue> frame = index + 1 >= frames.length ? null : frames[index + 1];
-					if (frame != null) {
-						UnpickValue unpickValue = frame.getStack(frame.getStackSize() - 1);
-						ConstantGroup group = groups.get(insn);
+		Map<AbstractInsnNode, ConstantGroup> groups = new HashMap<>();
+		Set<AbstractInsnNode> ungrouped = new HashSet<>();
+
+		for (int index = 0; index < method.instructions.size(); index++) {
+			AbstractInsnNode insn = method.instructions.get(index);
+			if (AbstractInsnNodes.hasLiteralValue(insn) && !ungrouped.contains(insn)) {
+				Frame<UnpickValue> frame = index + 1 >= frames.length ? null : frames[index + 1];
+				if (frame != null) {
+					UnpickValue unpickValue = frame.getStack(frame.getStackSize() - 1);
+					ConstantGroup group = groups.get(insn);
+					if (group == null) {
+						group = findGroup(methodOwner.name, method, unpickValue, transformContext);
 						if (group == null) {
-							group = findGroup(methodOwner.name, method, unpickValue);
-							if (group == null) {
-								ungrouped.addAll(unpickValue.getUsages());
-							} else {
-								for (AbstractInsnNode usage : unpickValue.getUsages()) {
-									groups.put(usage, group);
-								}
+							ungrouped.addAll(unpickValue.getUsages());
+						} else {
+							for (AbstractInsnNode usage : unpickValue.getUsages()) {
+								groups.put(usage, group);
 							}
 						}
+					}
 
-						if (group != null && !isAssigningToConstant(insn)) {
-							Context context = new Context(classResolver, constantResolver, inheritanceChecker, replacementSet, methodOwner, method, insn, frames, logger);
-							group.apply(context);
-						}
+					if (group != null && !isAssigningToConstant(insn)) {
+						Context context = new Context(classResolver, constantResolver, inheritanceChecker, replacementSet, methodOwner, method, insn, frames, logger);
+						group.apply(context);
 					}
 				}
 			}
+		}
 
-			replacementSet.apply();
+		return replacementSet;
+	}
+
+	@Nullable
+	private Frame<UnpickValue>[] analyzeMethod(ClassNode methodOwner, MethodNode method) {
+		logger.log(Level.FINEST, () -> String.format("Running dataflow on %s.%s%s", methodOwner.name, method.name, method.desc));
+		try {
+			return new Analyzer<>(new UnpickInterpreter(method, inheritanceChecker)).analyze(methodOwner.name, method);
 		} catch (AnalyzerException e) {
-			logger.log(Level.WARNING, String.format("Processing %s.%s%s failed", methodOwner.name, method.name, method.desc), e);
+			logger.log(Level.WARNING, String.format("Dataflow on %s.%s%s failed", methodOwner.name, method.name, method.desc), e);
+			return null;
 		}
 	}
 
 	@Nullable
-	private ConstantGroup findGroup(String methodOwner, MethodNode method, UnpickValue unpickValue) {
-		ConstantGroup group = null;
-
-		for (int parameterSource : unpickValue.getParameterSources()) {
-			ConstantGroup g = grouper.getMethodParameterGroup(methodOwner, method.name, method.desc, parameterSource);
-			if (g != null) {
-				if (group != null && !g.getName().equals(group.getName())) {
-					ConstantGroup group_f = group;
-					logger.log(Level.WARNING, () -> String.format("Conflicting groups %s and %s competing for the same constant", g.getName(), group_f.getName()));
-					return null;
-				}
-				group = g;
-			}
+	private ConstantGroup findGroup(String methodOwner, MethodNode method, UnpickValue unpickValue, MethodTransformContext context) {
+		if (!context.checkedMethods.add(getMethodKey(method))) {
+			// protect against infinite recursion
+			return null;
 		}
 
-		for (IReplacementGenerator.IParameterUsage paramUsage : unpickValue.getParameterUsages()) {
-			ConstantGroup g = processParameterUsage(paramUsage);
-			if (g != null) {
-				if (group != null && !g.getName().equals(group.getName())) {
-					ConstantGroup group_f = group;
-					logger.log(Level.WARNING, () -> String.format("Conflicting groups %s and %s competing for the same constant", g.getName(), group_f.getName()));
-					return null;
-				}
-				group = g;
-			}
-		}
+		try {
+			ConstantGroup group = null;
 
-		for (AbstractInsnNode usage : unpickValue.getUsages()) {
-			ConstantGroup g = processUsage(methodOwner, method, usage);
-			if (g != null) {
-				if (group != null && !g.getName().equals(group.getName())) {
-					ConstantGroup group_f = group;
-					logger.log(Level.WARNING, () -> String.format("Conflicting groups %s and %s competing for the same constant", g.getName(), group_f.getName()));
-					return null;
+			for (int parameterSource : unpickValue.getParameterSources()) {
+				ConstantGroup g = processParameterSource(methodOwner, method, parameterSource, context);
+				if (g != null) {
+					if (group != null && !g.getName().equals(group.getName())) {
+						warnGroupConflict(g, group);
+						return null;
+					}
+					group = g;
 				}
-				group = g;
 			}
-		}
 
+			for (IReplacementGenerator.IParameterUsage paramUsage : unpickValue.getParameterUsages()) {
+				ConstantGroup g = processParameterUsage(methodOwner, paramUsage, context);
+				if (g != null) {
+					if (group != null && !g.getName().equals(group.getName())) {
+						warnGroupConflict(g, group);
+						return null;
+					}
+					group = g;
+				}
+			}
+
+			for (AbstractInsnNode usage : unpickValue.getUsages()) {
+				ConstantGroup g = processUsage(methodOwner, method, usage, context);
+				if (g != null) {
+					if (group != null && !g.getName().equals(group.getName())) {
+						warnGroupConflict(g, group);
+						return null;
+					}
+					group = g;
+				}
+			}
+
+			if (group != null) {
+				return group;
+			}
+
+			return grouper.getDefaultGroup();
+		} finally {
+			context.checkedMethods.remove(getMethodKey(method));
+		}
+	}
+
+	@Nullable
+	private ConstantGroup processParameterSource(String methodOwner, MethodNode method, int parameterSource, MethodTransformContext context) {
+		ConstantGroup group = grouper.getMethodParameterGroup(methodOwner, method.name, method.desc, parameterSource);
 		if (group != null) {
 			return group;
 		}
 
-		return grouper.getDefaultGroup();
+		List<LambdaUsage> lambdaUsagesForMethod = context.lambdaUsages.get(getMethodKey(method));
+		if (lambdaUsagesForMethod != null) {
+			for (LambdaUsage lambdaUsage : lambdaUsagesForMethod) {
+				Frame<UnpickValue>[] containingMethodFrames = context.frames.get(getMethodKey(lambdaUsage.method));
+				if (containingMethodFrames == null) {
+					continue;
+				}
+
+				Frame<UnpickValue> frame = containingMethodFrames[lambdaUsage.method.instructions.indexOf(lambdaUsage.indy)];
+				if (frame == null) {
+					continue;
+				}
+
+				int numCaptures = Type.getArgumentCount(lambdaUsage.indy.desc);
+				if (!isStaticLambdaInvocation(lambdaUsage.indy)) {
+					// don't count "this" as a capture for non-static lambdas, even though it is one in the bytecode
+					numCaptures--;
+				}
+
+				if (parameterSource < numCaptures) {
+					// Parameter is a lambda capture
+					UnpickValue lambdaCapture = frame.getStack(frame.getStackSize() - numCaptures + parameterSource);
+					if (lambdaCapture != null) {
+						ConstantGroup g = findGroup(methodOwner, lambdaUsage.method, lambdaCapture, context);
+						if (g != null) {
+							if (group != null && !g.getName().equals(group.getName())) {
+								warnGroupConflict(g, group);
+								return null;
+							}
+							group = g;
+						}
+					}
+				} else {
+					// Parameter is an inherent parameter of the functional interface
+					String samName = lambdaUsage.indy.name;
+					String samDesc = ((Type) lambdaUsage.indy.bsmArgs[0]).getDescriptor();
+					String samOwner = getSamOwner(Type.getReturnType(lambdaUsage.indy.desc).getInternalName(), samName, samDesc);
+					if (samOwner != null) {
+						ConstantGroup g = grouper.getMethodParameterGroup(samOwner, samName, samDesc, parameterSource - numCaptures);
+						if (g != null) {
+							if (group != null && !g.getName().equals(group.getName())) {
+								warnGroupConflict(g, group);
+								return null;
+							}
+							group = g;
+						}
+					}
+				}
+			}
+		}
+
+		return group;
 	}
 
 	@Nullable
-	private ConstantGroup processParameterUsage(IReplacementGenerator.IParameterUsage paramUsage) {
-		if (paramUsage.getMethodInvocation().getOpcode() == Opcodes.INVOKEDYNAMIC) {
-			InvokeDynamicInsnNode invokeDynamicInsn = (InvokeDynamicInsnNode) paramUsage.getMethodInvocation();
+	private ConstantGroup processParameterUsage(String methodOwner, IReplacementGenerator.IParameterUsage paramUsage, MethodTransformContext context) {
+		if (paramUsage.getMethodInvocation() instanceof InvokeDynamicInsnNode indy) {
+			if ("java/lang/invoke/LambdaMetafactory".equals(indy.bsm.getOwner())) {
+				Handle lambdaMethod = (Handle) indy.bsmArgs[1];
+				int paramIndex = isStaticLambdaInvocation(indy) ? paramUsage.getParamIndex() : paramUsage.getParamIndex() - 1;
+				ConstantGroup group = grouper.getMethodParameterGroup(lambdaMethod.getOwner(), lambdaMethod.getName(), lambdaMethod.getDesc(), paramIndex);
+				if (group != null) {
+					return group;
+				}
+				if (!lambdaMethod.getOwner().equals(methodOwner)) {
+					return null;
+				}
 
-			if ("java/lang/invoke/LambdaMetafactory".equals(invokeDynamicInsn.bsm.getOwner()) && "metafactory".equals(invokeDynamicInsn.bsm.getName())) {
-				Handle lambdaMethod = (Handle) invokeDynamicInsn.bsmArgs[1];
-				int kind = lambdaMethod.getTag();
-				boolean hasThis = kind != Opcodes.H_GETSTATIC && kind != Opcodes.H_PUTSTATIC && kind != Opcodes.H_INVOKESTATIC && kind != Opcodes.H_NEWINVOKESPECIAL;
-				int paramIndex = hasThis ? paramUsage.getParamIndex() - 1 : paramUsage.getParamIndex();
-				return grouper.getMethodParameterGroup(lambdaMethod.getOwner(), lambdaMethod.getName(), lambdaMethod.getDesc(), paramIndex);
+				String lambdaKey = getMethodKey(lambdaMethod);
+				Frame<UnpickValue>[] lambdaFrames = context.frames.get(lambdaKey);
+				if (lambdaFrames == null || lambdaFrames.length == 0) {
+					return null;
+				}
+
+				Frame<UnpickValue> firstLambdaFrame = lambdaFrames[0];
+				if (firstLambdaFrame == null) {
+					return null;
+				}
+
+				int localIndex = lambdaMethod.getTag() == Opcodes.H_INVOKESTATIC ? 0 : 1;
+				Type[] lambdaArgs = Type.getArgumentTypes(lambdaMethod.getDesc());
+				for (int i = 0; i < lambdaArgs.length; i++) {
+					if (i == paramIndex) {
+						break;
+					}
+					localIndex += lambdaArgs[i].getSize();
+				}
+				UnpickValue lambdaParam = firstLambdaFrame.getLocal(localIndex);
+				if (lambdaParam == null) {
+					return null;
+				}
+
+				return findGroup(methodOwner, context.methods.get(lambdaKey), lambdaParam, context);
 			}
 
 			return null;
@@ -175,7 +341,7 @@ public final class ConstantUninliner {
 	}
 
 	@Nullable
-	private ConstantGroup processUsage(String methodOwner, MethodNode enclosingMethod, AbstractInsnNode usage) {
+	private ConstantGroup processUsage(String methodOwner, MethodNode enclosingMethod, AbstractInsnNode usage, MethodTransformContext context) {
 		if (usage.getType() == AbstractInsnNode.FIELD_INSN) {
 			FieldInsnNode fieldInsn = (FieldInsnNode) usage;
 			return grouper.getFieldGroup(fieldInsn.owner, fieldInsn.name, fieldInsn.desc);
@@ -188,7 +354,32 @@ public final class ConstantUninliner {
 		}
 
 		if (usage.getOpcode() >= Opcodes.IRETURN && usage.getOpcode() <= Opcodes.RETURN) {
-			return grouper.getMethodReturnGroup(methodOwner, enclosingMethod.name, enclosingMethod.desc);
+			ConstantGroup group = grouper.getMethodReturnGroup(methodOwner, enclosingMethod.name, enclosingMethod.desc);
+			if (group != null) {
+				return group;
+			}
+
+			List<LambdaUsage> lambdaUsages = context.lambdaUsages.get(getMethodKey(enclosingMethod));
+			if (lambdaUsages != null) {
+				for (LambdaUsage lambdaUsage : lambdaUsages) {
+					String samName = lambdaUsage.indy.name;
+					String samDesc = ((Type) lambdaUsage.indy.bsmArgs[0]).getDescriptor();
+					String samOwner = getSamOwner(Type.getReturnType(lambdaUsage.indy.desc).getInternalName(), samName, samDesc);
+					if (samOwner == null) {
+						continue;
+					}
+					ConstantGroup g = grouper.getMethodReturnGroup(samOwner, samName, samDesc);
+					if (g != null) {
+						if (group != null && !g.getName().equals(group.getName())) {
+							warnGroupConflict(g, group);
+							return null;
+						}
+						group = g;
+					}
+				}
+
+				return group;
+			}
 		}
 
 		return null;
@@ -207,6 +398,110 @@ public final class ConstantUninliner {
 		// is our field a constant?
 		IConstantResolver.ResolvedConstant resolvedConstant = constantResolver.resolveConstant(fieldInsn.owner, fieldInsn.name);
 		return resolvedConstant != null && fieldInsn.desc.equals(resolvedConstant.type().getDescriptor());
+	}
+
+	private static Map<String, List<LambdaUsage>> indexLambdaUsages(ClassNode classNode) {
+		Set<String> syntheticMethods = new HashSet<>();
+		for (MethodNode method : classNode.methods) {
+			if ((method.access & Opcodes.ACC_SYNTHETIC) != 0) {
+				syntheticMethods.add(getMethodKey(method));
+			}
+		}
+
+		Map<String, List<LambdaUsage>> lambdaUsages = new HashMap<>();
+		for (MethodNode method : classNode.methods) {
+			for (AbstractInsnNode insn : method.instructions) {
+				if (insn instanceof InvokeDynamicInsnNode indy && "java/lang/invoke/LambdaMetafactory".equals(indy.bsm.getOwner())) {
+					Handle lambdaMethod = (Handle) indy.bsmArgs[1];
+					String lambdaKey = getMethodKey(lambdaMethod);
+					if (lambdaMethod.getOwner().equals(classNode.name) && syntheticMethods.contains(lambdaKey)) {
+						lambdaUsages.computeIfAbsent(lambdaKey, k -> new ArrayList<>(1))
+								.add(new LambdaUsage(method, indy));
+					}
+				}
+			}
+		}
+
+		return lambdaUsages;
+	}
+
+	private static boolean isStaticLambdaInvocation(InvokeDynamicInsnNode insn) {
+		int kind = ((Handle) insn.bsmArgs[1]).getTag();
+		return kind == Opcodes.H_GETSTATIC || kind == Opcodes.H_PUTSTATIC || kind == Opcodes.H_INVOKESTATIC || kind == Opcodes.H_NEWINVOKESPECIAL;
+	}
+
+	@Nullable
+	private String getSamOwner(String itfName, String samMethodName, String samMethodDesc) {
+		return samOwnerCache.computeIfAbsent(itfName, k -> getSamOwnerInner(k, samMethodName, samMethodDesc, new HashSet<>()));
+	}
+
+	@Nullable
+	private String getSamOwnerInner(String itfName, String samMethodName, String samMethodDesc, Set<String> seen) {
+		if (!seen.add(itfName)) {
+			return null;
+		}
+
+		if (classContainsMethod(itfName, samMethodName, samMethodDesc)) {
+			return itfName;
+		}
+
+		IInheritanceChecker.ClassInfo classInfo = inheritanceChecker.getClassInfo(itfName);
+		if (classInfo == null) {
+			return null;
+		}
+
+		for (String itf : classInfo.interfaces()) {
+			String owner = getSamOwnerInner(itf, samMethodName, samMethodDesc, seen);
+			if (owner != null) {
+				return owner;
+			}
+		}
+
+		return null;
+	}
+
+	private boolean classContainsMethod(String internalName, String methodName, String methodDesc) {
+		ClassReader reader = classResolver.resolveClass(internalName);
+		if (reader == null) {
+			return false;
+		}
+
+		boolean[] found = {false};
+
+		reader.accept(new ClassVisitor(Opcodes.ASM9) {
+			@Override
+			public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+				if (name.equals(methodName) && descriptor.equals(methodDesc)) {
+					found[0] = true;
+				}
+				return super.visitMethod(access, name, descriptor, signature, exceptions);
+			}
+		}, ClassReader.SKIP_CODE);
+
+		return found[0];
+	}
+
+	private static String getMethodKey(MethodNode method) {
+		return method.name + method.desc;
+	}
+
+	private static String getMethodKey(Handle handle) {
+		return handle.getName() + handle.getDesc();
+	}
+
+	private void warnGroupConflict(ConstantGroup group1, ConstantGroup group2) {
+		logger.log(Level.WARNING, () -> String.format("Conflicting groups %s and %s competing for the same constant", group1.getName(), group2.getName()));
+	}
+
+	private record MethodTransformContext(
+			Map<String, MethodNode> methods,
+			Map<String, Frame<UnpickValue>[]> frames,
+			Map<String, List<LambdaUsage>> lambdaUsages,
+			Set<String> checkedMethods
+	) {
+	}
+
+	private record LambdaUsage(MethodNode method, InvokeDynamicInsnNode indy) {
 	}
 
 	public static final class Builder {

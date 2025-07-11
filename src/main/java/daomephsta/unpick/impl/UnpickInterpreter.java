@@ -211,6 +211,12 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 	@Override
 	public UnpickValue newParameterValue(boolean isInstanceMethod, int local, Type type) {
 		UnpickValue value = newValue(type);
+
+		if (isInstanceMethod && local == 0) {
+			// don't add a parameter source for the "this" parameter
+			return value;
+		}
+
 		int localIndex = isInstanceMethod ? 1 : 0;
 		int paramIndex = 0;
 		for (Type argument : Type.getArgumentTypes(method.desc)) {
