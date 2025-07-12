@@ -7,15 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Handle;
-import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -50,7 +46,6 @@ public final class ConstantUninliner {
 	private final IClassResolver classResolver;
 	private final IConstantResolver constantResolver;
 	private final IInheritanceChecker inheritanceChecker;
-	private final Map<String, String> samOwnerCache = new ConcurrentHashMap<>();
 
 	private ConstantUninliner(Logger logger, IConstantGrouper grouper, IClassResolver classResolver, IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker) {
 		this.grouper = grouper;
@@ -272,18 +267,16 @@ public final class ConstantUninliner {
 					}
 				} else {
 					// Parameter is an inherent parameter of the functional interface
+					String samOwner = Type.getReturnType(lambdaUsage.indy.desc).getInternalName();
 					String samName = lambdaUsage.indy.name;
 					String samDesc = ((Type) lambdaUsage.indy.bsmArgs[0]).getDescriptor();
-					String samOwner = getSamOwner(Type.getReturnType(lambdaUsage.indy.desc).getInternalName(), samName, samDesc);
-					if (samOwner != null) {
-						ConstantGroup g = grouper.getMethodParameterGroup(samOwner, samName, samDesc, parameterSource - numCaptures);
-						if (g != null) {
-							if (group != null && !g.getName().equals(group.getName())) {
-								warnGroupConflict(g, group);
-								return null;
-							}
-							group = g;
+					ConstantGroup g = grouper.getMethodParameterGroup(samOwner, samName, samDesc, parameterSource - numCaptures);
+					if (g != null) {
+						if (group != null && !g.getName().equals(group.getName())) {
+							warnGroupConflict(g, group);
+							return null;
 						}
+						group = g;
 					}
 				}
 			}
@@ -362,12 +355,9 @@ public final class ConstantUninliner {
 			List<LambdaUsage> lambdaUsages = context.lambdaUsages.get(getMethodKey(enclosingMethod));
 			if (lambdaUsages != null) {
 				for (LambdaUsage lambdaUsage : lambdaUsages) {
+					String samOwner = Type.getReturnType(lambdaUsage.indy.desc).getInternalName();
 					String samName = lambdaUsage.indy.name;
 					String samDesc = ((Type) lambdaUsage.indy.bsmArgs[0]).getDescriptor();
-					String samOwner = getSamOwner(Type.getReturnType(lambdaUsage.indy.desc).getInternalName(), samName, samDesc);
-					if (samOwner == null) {
-						continue;
-					}
 					ConstantGroup g = grouper.getMethodReturnGroup(samOwner, samName, samDesc);
 					if (g != null) {
 						if (group != null && !g.getName().equals(group.getName())) {
@@ -428,57 +418,6 @@ public final class ConstantUninliner {
 	private static boolean isStaticLambdaInvocation(InvokeDynamicInsnNode insn) {
 		int kind = ((Handle) insn.bsmArgs[1]).getTag();
 		return kind == Opcodes.H_GETSTATIC || kind == Opcodes.H_PUTSTATIC || kind == Opcodes.H_INVOKESTATIC || kind == Opcodes.H_NEWINVOKESPECIAL;
-	}
-
-	@Nullable
-	private String getSamOwner(String itfName, String samMethodName, String samMethodDesc) {
-		return samOwnerCache.computeIfAbsent(itfName, k -> getSamOwnerInner(k, samMethodName, samMethodDesc, new HashSet<>()));
-	}
-
-	@Nullable
-	private String getSamOwnerInner(String itfName, String samMethodName, String samMethodDesc, Set<String> seen) {
-		if (!seen.add(itfName)) {
-			return null;
-		}
-
-		if (classContainsMethod(itfName, samMethodName, samMethodDesc)) {
-			return itfName;
-		}
-
-		IInheritanceChecker.ClassInfo classInfo = inheritanceChecker.getClassInfo(itfName);
-		if (classInfo == null) {
-			return null;
-		}
-
-		for (String itf : classInfo.interfaces()) {
-			String owner = getSamOwnerInner(itf, samMethodName, samMethodDesc, seen);
-			if (owner != null) {
-				return owner;
-			}
-		}
-
-		return null;
-	}
-
-	private boolean classContainsMethod(String internalName, String methodName, String methodDesc) {
-		ClassReader reader = classResolver.resolveClass(internalName);
-		if (reader == null) {
-			return false;
-		}
-
-		boolean[] found = {false};
-
-		reader.accept(new ClassVisitor(Opcodes.ASM9) {
-			@Override
-			public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-				if (name.equals(methodName) && descriptor.equals(methodDesc)) {
-					found[0] = true;
-				}
-				return super.visitMethod(access, name, descriptor, signature, exceptions);
-			}
-		}, ClassReader.SKIP_CODE);
-
-		return found[0];
 	}
 
 	private static String getMethodKey(MethodNode method) {
