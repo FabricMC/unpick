@@ -146,6 +146,11 @@ public final class ConstantUninliner {
 						ConstantGroup group = groups.get(insn);
 						if (group == null) {
 							group = findGroup(methodOwner.name, method, unpickValue, transformContext);
+
+							if (group == null) {
+								group = grouper.getDefaultGroup();
+							}
+
 							if (group == null) {
 								ungrouped.addAll(unpickValue.getUsages());
 							} else {
@@ -195,7 +200,7 @@ public final class ConstantUninliner {
 				ConstantGroup g = processParameterSource(methodOwner, method, parameterSource, context);
 				if (g != null) {
 					if (group != null && !g.getName().equals(group.getName())) {
-						warnGroupConflict(g, group);
+						warnGroupConflict(g, group, methodOwner, method);
 						return null;
 					}
 					group = g;
@@ -206,7 +211,7 @@ public final class ConstantUninliner {
 				ConstantGroup g = processParameterUsage(methodOwner, paramUsage, context);
 				if (g != null) {
 					if (group != null && !g.getName().equals(group.getName())) {
-						warnGroupConflict(g, group);
+						warnGroupConflict(g, group, methodOwner, method);
 						return null;
 					}
 					group = g;
@@ -217,18 +222,14 @@ public final class ConstantUninliner {
 				ConstantGroup g = processUsage(methodOwner, method, usage, context);
 				if (g != null) {
 					if (group != null && !g.getName().equals(group.getName())) {
-						warnGroupConflict(g, group);
+						warnGroupConflict(g, group, methodOwner, method);
 						return null;
 					}
 					group = g;
 				}
 			}
 
-			if (group != null) {
-				return group;
-			}
-
-			return grouper.getDefaultGroup();
+			return group;
 		} finally {
 			context.checkedMethods.remove(getMethodKey(method));
 		}
@@ -267,7 +268,7 @@ public final class ConstantUninliner {
 						ConstantGroup g = findGroup(methodOwner, lambdaUsage.method, lambdaCapture, context);
 						if (g != null) {
 							if (group != null && !g.getName().equals(group.getName())) {
-								warnGroupConflict(g, group);
+								warnGroupConflict(g, group, methodOwner, method);
 								return null;
 							}
 							group = g;
@@ -281,7 +282,7 @@ public final class ConstantUninliner {
 					ConstantGroup g = grouper.getMethodParameterGroup(samOwner, samName, samDesc, parameterSource - numCaptures);
 					if (g != null) {
 						if (group != null && !g.getName().equals(group.getName())) {
-							warnGroupConflict(g, group);
+							warnGroupConflict(g, group, methodOwner, method);
 							return null;
 						}
 						group = g;
@@ -376,7 +377,7 @@ public final class ConstantUninliner {
 					ConstantGroup g = grouper.getMethodReturnGroup(samOwner, samName, samDesc);
 					if (g != null) {
 						if (group != null && !g.getName().equals(group.getName())) {
-							warnGroupConflict(g, group);
+							warnGroupConflict(g, group, methodOwner, enclosingMethod);
 							return null;
 						}
 						group = g;
@@ -448,8 +449,8 @@ public final class ConstantUninliner {
 		return handle.getName() + handle.getDesc();
 	}
 
-	private void warnGroupConflict(ConstantGroup group1, ConstantGroup group2) {
-		logger.log(Level.WARNING, () -> String.format("Conflicting groups %s and %s competing for the same constant", group1.getName(), group2.getName()));
+	private void warnGroupConflict(ConstantGroup group1, ConstantGroup group2, String methodOwner, MethodNode enclosingMethod) {
+		logger.log(Level.WARNING, () -> String.format("Conflicting groups %s and %s competing for the same constant in method %s.%s%s", group1.getName(), group2.getName(), methodOwner, enclosingMethod.name, enclosingMethod.desc));
 	}
 
 	private record MethodTransformContext(
