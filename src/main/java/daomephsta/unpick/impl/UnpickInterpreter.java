@@ -280,8 +280,13 @@ public class UnpickInterpreter extends Interpreter<UnpickValue> implements Opcod
 			case CHECKCAST -> value.addTypeInterpretationFromType(Type.getObjectType(((TypeInsnNode) insn).desc));
 		}
 
+		boolean inputIsSameValueAsOutput = switch (insn.getOpcode()) {
+			case INEG, LNEG, FNEG, DNEG, I2L, I2F, I2D, L2I, L2F, L2D, F2I, F2L, F2D, D2I, D2L, D2F, I2B, I2C, I2S, CHECKCAST -> true;
+			default -> false;
+		};
+
 		Type type = getType(typeTracker.unaryOperation(insn, typeTracker.newValue(value.getDataType())));
-		UnpickValue newValue = new UnpickValue(type, value);
+		UnpickValue newValue = inputIsSameValueAsOutput ? new UnpickValue(type, value) : new UnpickValue(type);
 		if (insn.getType() == AbstractInsnNode.FIELD_INSN || insn.getType() == AbstractInsnNode.JUMP_INSN || (insn.getOpcode() >= IRETURN && insn.getOpcode() <= RETURN)) {
 			newValue.getUsages().add(insn);
 		}

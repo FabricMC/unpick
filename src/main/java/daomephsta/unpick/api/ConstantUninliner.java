@@ -21,7 +21,6 @@ import org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Analyzer;
-import org.objectweb.asm.tree.analysis.AnalyzerException;
 import org.objectweb.asm.tree.analysis.Frame;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
@@ -116,50 +115,59 @@ public final class ConstantUninliner {
 							new HashSet<>()
 					)
 			);
-			Objects.requireNonNull(replacements, () -> "No replacements for analyzed method " + getMethodKey(method) + "?!");
-			replacements.apply();
+			if (replacements != null) {
+				replacements.apply();
+			} else {
+				logger.log(Level.WARNING, () -> "No replacements for analyzed method " + getMethodKey(method) + "?!");
+			}
 		}
 	}
 
+	@Nullable
 	private ReplacementSet transformMethod(ClassNode methodOwner, MethodNode method, MethodTransformContext transformContext) {
-		Frame<UnpickValue>[] frames = transformContext.frames.get(getMethodKey(method));
-		if (frames == null) {
-			return null;
-		}
+		try {
+			Frame<UnpickValue>[] frames = transformContext.frames.get(getMethodKey(method));
+			if (frames == null) {
+				return null;
+			}
 
-		logger.log(Level.FINEST, () -> String.format("Transforming method %s.%s%s", methodOwner.name, method.name, method.desc));
-		ReplacementSet replacementSet = new ReplacementSet(method.instructions);
+			logger.log(Level.FINEST, () -> String.format("Transforming method %s.%s%s", methodOwner.name, method.name, method.desc));
+			ReplacementSet replacementSet = new ReplacementSet(method.instructions);
 
-		Map<AbstractInsnNode, ConstantGroup> groups = new HashMap<>();
-		Set<AbstractInsnNode> ungrouped = new HashSet<>();
+			Map<AbstractInsnNode, ConstantGroup> groups = new HashMap<>();
+			Set<AbstractInsnNode> ungrouped = new HashSet<>();
 
-		for (int index = 0; index < method.instructions.size(); index++) {
-			AbstractInsnNode insn = method.instructions.get(index);
-			if (AbstractInsnNodes.hasLiteralValue(insn) && !ungrouped.contains(insn)) {
-				Frame<UnpickValue> frame = index + 1 >= frames.length ? null : frames[index + 1];
-				if (frame != null) {
-					UnpickValue unpickValue = frame.getStack(frame.getStackSize() - 1);
-					ConstantGroup group = groups.get(insn);
-					if (group == null) {
-						group = findGroup(methodOwner.name, method, unpickValue, transformContext);
+			for (int index = 0; index < method.instructions.size(); index++) {
+				AbstractInsnNode insn = method.instructions.get(index);
+				if (AbstractInsnNodes.hasLiteralValue(insn) && !ungrouped.contains(insn)) {
+					Frame<UnpickValue> frame = index + 1 >= frames.length ? null : frames[index + 1];
+					if (frame != null) {
+						UnpickValue unpickValue = frame.getStack(frame.getStackSize() - 1);
+						ConstantGroup group = groups.get(insn);
 						if (group == null) {
-							ungrouped.addAll(unpickValue.getUsages());
-						} else {
-							for (AbstractInsnNode usage : unpickValue.getUsages()) {
-								groups.put(usage, group);
+							group = findGroup(methodOwner.name, method, unpickValue, transformContext);
+							if (group == null) {
+								ungrouped.addAll(unpickValue.getUsages());
+							} else {
+								for (AbstractInsnNode usage : unpickValue.getUsages()) {
+									groups.put(usage, group);
+								}
 							}
 						}
-					}
 
-					if (group != null && !isAssigningToConstant(insn)) {
-						Context context = new Context(classResolver, constantResolver, inheritanceChecker, replacementSet, methodOwner, method, insn, frames, logger);
-						group.apply(context);
+						if (group != null && !isAssigningToConstant(insn)) {
+							Context context = new Context(classResolver, constantResolver, inheritanceChecker, replacementSet, methodOwner, method, insn, frames, logger);
+							group.apply(context);
+						}
 					}
 				}
 			}
-		}
 
-		return replacementSet;
+			return replacementSet;
+		} catch (Throwable e) {
+			logger.log(Level.WARNING, String.format("Failed to transform method %s.%s%s", methodOwner.name, method.name, method.desc), e);
+			return null;
+		}
 	}
 
 	@Nullable
@@ -167,7 +175,7 @@ public final class ConstantUninliner {
 		logger.log(Level.FINEST, () -> String.format("Running dataflow on %s.%s%s", methodOwner.name, method.name, method.desc));
 		try {
 			return new Analyzer<>(new UnpickInterpreter(method, inheritanceChecker)).analyze(methodOwner.name, method);
-		} catch (AnalyzerException e) {
+		} catch (Throwable e) {
 			logger.log(Level.WARNING, String.format("Dataflow on %s.%s%s failed", methodOwner.name, method.name, method.desc), e);
 			return null;
 		}
@@ -290,7 +298,14 @@ public final class ConstantUninliner {
 		if (paramUsage.getMethodInvocation() instanceof InvokeDynamicInsnNode indy) {
 			if ("java/lang/invoke/LambdaMetafactory".equals(indy.bsm.getOwner())) {
 				Handle lambdaMethod = (Handle) indy.bsmArgs[1];
-				int paramIndex = isStaticLambdaInvocation(indy) ? paramUsage.getParamIndex() : paramUsage.getParamIndex() - 1;
+				boolean staticLambdaInvocation = isStaticLambdaInvocation(indy);
+				if (!staticLambdaInvocation && paramUsage.getParamIndex() == 0) {
+					// Lambda parameter is the instance parameter, which is possible through e.g. method references or
+					// other types assigned to the ACONST_NULL instruction which gets tracked. Since unpick has no way
+					// to target the instance parameter we will ignore it in this case.
+					return null;
+				}
+				int paramIndex = staticLambdaInvocation ? paramUsage.getParamIndex() : paramUsage.getParamIndex() - 1;
 				ConstantGroup group = grouper.getMethodParameterGroup(lambdaMethod.getOwner(), lambdaMethod.getName(), lambdaMethod.getDesc(), paramIndex);
 				if (group != null) {
 					return group;
@@ -390,29 +405,34 @@ public final class ConstantUninliner {
 		return resolvedConstant != null && fieldInsn.desc.equals(resolvedConstant.type().getDescriptor());
 	}
 
-	private static Map<String, List<LambdaUsage>> indexLambdaUsages(ClassNode classNode) {
-		Set<String> syntheticMethods = new HashSet<>();
-		for (MethodNode method : classNode.methods) {
-			if ((method.access & Opcodes.ACC_SYNTHETIC) != 0) {
-				syntheticMethods.add(getMethodKey(method));
+	private Map<String, List<LambdaUsage>> indexLambdaUsages(ClassNode classNode) {
+		try {
+			Set<String> syntheticMethods = new HashSet<>();
+			for (MethodNode method : classNode.methods) {
+				if ((method.access & Opcodes.ACC_SYNTHETIC) != 0) {
+					syntheticMethods.add(getMethodKey(method));
+				}
 			}
-		}
 
-		Map<String, List<LambdaUsage>> lambdaUsages = new HashMap<>();
-		for (MethodNode method : classNode.methods) {
-			for (AbstractInsnNode insn : method.instructions) {
-				if (insn instanceof InvokeDynamicInsnNode indy && "java/lang/invoke/LambdaMetafactory".equals(indy.bsm.getOwner())) {
-					Handle lambdaMethod = (Handle) indy.bsmArgs[1];
-					String lambdaKey = getMethodKey(lambdaMethod);
-					if (lambdaMethod.getOwner().equals(classNode.name) && syntheticMethods.contains(lambdaKey)) {
-						lambdaUsages.computeIfAbsent(lambdaKey, k -> new ArrayList<>(1))
-								.add(new LambdaUsage(method, indy));
+			Map<String, List<LambdaUsage>> lambdaUsages = new HashMap<>();
+			for (MethodNode method : classNode.methods) {
+				for (AbstractInsnNode insn : method.instructions) {
+					if (insn instanceof InvokeDynamicInsnNode indy && "java/lang/invoke/LambdaMetafactory".equals(indy.bsm.getOwner())) {
+						Handle lambdaMethod = (Handle) indy.bsmArgs[1];
+						String lambdaKey = getMethodKey(lambdaMethod);
+						if (lambdaMethod.getOwner().equals(classNode.name) && syntheticMethods.contains(lambdaKey)) {
+							lambdaUsages.computeIfAbsent(lambdaKey, k -> new ArrayList<>(1))
+									.add(new LambdaUsage(method, indy));
+						}
 					}
 				}
 			}
-		}
 
-		return lambdaUsages;
+			return lambdaUsages;
+		} catch (Throwable e) {
+			logger.log(Level.WARNING, "Error processing lambda usages for class " + classNode.name, e);
+			return Map.of();
+		}
 	}
 
 	private static boolean isStaticLambdaInvocation(InvokeDynamicInsnNode insn) {
