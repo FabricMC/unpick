@@ -21,6 +21,13 @@ import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
 import daomephsta.unpick.impl.DataTypeUtils;
 import daomephsta.unpick.impl.constantmappers.datadriven.data.Data;
 
+/**
+ * An {@link UnpickV3Visitor} which fully validates or lints its input. Note that it only performs checks so far as data
+ * that could be parsed from a valid unpick definition file. It will not check for example invalid type descriptor created
+ * via code.
+ *
+ * <p><strong>For full validation you must call {@link #finishValidation()} after everything has been visited</strong>.
+ */
 public abstract class ValidatingUnpickV3Visitor extends ForwardingUnpickV3Visitor {
 	private final IMemberChecker memberChecker;
 	private final Data data;
