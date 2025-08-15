@@ -4,11 +4,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
+import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
 import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
 
 public final class ConstantGroupers {
@@ -68,6 +70,12 @@ public final class ConstantGroupers {
 		public DataDrivenBuilder mappingSource(Reader mappingSource) throws IOException {
 			ensureGrouperInitialized("mappingSource");
 			result.loadData(mappingSource);
+			return this;
+		}
+
+		public DataDrivenBuilder mappingSource(Consumer<UnpickV3Visitor> dataProvider) {
+			ensureGrouperInitialized("mappingSource");
+			result.loadData(dataProvider);
 			return this;
 		}
 
