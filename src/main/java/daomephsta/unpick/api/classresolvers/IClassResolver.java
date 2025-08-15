@@ -7,6 +7,7 @@ import daomephsta.unpick.impl.Utils;
 import daomephsta.unpick.impl.classresolvers.ChainClassResolver;
 import daomephsta.unpick.impl.constantresolvers.BytecodeAnalysisConstantResolver;
 import daomephsta.unpick.impl.inheritancecheckers.BytecodeAnalysisInheritanceChecker;
+import daomephsta.unpick.impl.membercheckers.BytecodeAnalysisMemberChecker;
 
 /**
  * Resolves classes as {@link ClassReader}s, by their internal name.
@@ -26,6 +27,10 @@ public interface IClassResolver {
 
 	default IInheritanceChecker asInheritanceChecker() {
 		return new BytecodeAnalysisInheritanceChecker(this);
+	}
+
+	default IMemberChecker asMemberChecker() {
+		return new BytecodeAnalysisMemberChecker(this);
 	}
 
 	default IClassResolver chain(IClassResolver... others) {

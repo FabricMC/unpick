@@ -211,7 +211,7 @@ public final class DataTypeUtils {
 		};
 	}
 
-	private static String getTypeName(@Nullable DataType dataType) {
+	public static String getTypeName(@Nullable DataType dataType) {
 		return switch (dataType) {
 			case STRING -> "String";
 			case CLASS -> "Class";
