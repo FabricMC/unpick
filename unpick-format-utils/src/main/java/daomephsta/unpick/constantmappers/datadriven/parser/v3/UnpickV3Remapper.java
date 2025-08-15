@@ -3,6 +3,7 @@ package daomephsta.unpick.constantmappers.datadriven.parser.v3;
 import java.util.List;
 import java.util.stream.Stream;
 
+import daomephsta.unpick.constantmappers.datadriven.tree.ForwardingUnpickV3Visitor;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupScope;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetField;
@@ -14,18 +15,11 @@ import daomephsta.unpick.constantmappers.datadriven.tree.expr.FieldExpression;
 
 /**
  * Remaps all class, field, and method names in a .unpick v3 file. Visitor methods will be called on the downstream
- * visitor with the remapped names.
+ * visitor with the remapped names. <strong>All class names use "." format, not "/" format</strong>.
  */
-public abstract class UnpickV3Remapper extends UnpickV3Visitor {
-	private final UnpickV3Visitor downstream;
-
-	/**
-	 * Warning: class names use "." format, not "/" format. {@code classesInPackage} should contain all the classes in
-	 * each package, including unmapped ones. The classes in this map are unqualified by the package name (because the
-	 * package name is already in the key of the map entry).
-	 */
+public abstract class UnpickV3Remapper extends ForwardingUnpickV3Visitor {
 	public UnpickV3Remapper(UnpickV3Visitor downstream) {
-		this.downstream = downstream;
+		super(downstream);
 	}
 
 	@Override
@@ -54,7 +48,7 @@ public abstract class UnpickV3Remapper extends UnpickV3Visitor {
 				.map(constant -> constant.transform(new ExpressionRemapper()))
 				.toList();
 
-		downstream.visitGroupDefinition(GroupDefinition.Builder.from(groupDefinition).setScopes(scopes).setConstants(constants).build());
+		super.visitGroupDefinition(GroupDefinition.Builder.from(groupDefinition).setScopes(scopes).setConstants(constants).build());
 	}
 
 	@Override
@@ -62,7 +56,7 @@ public abstract class UnpickV3Remapper extends UnpickV3Visitor {
 		String className = mapClassName(targetField.className());
 		String fieldName = mapFieldName(targetField.className(), targetField.fieldName(), targetField.fieldDesc());
 		String fieldDesc = mapDescriptor(targetField.fieldDesc());
-		downstream.visitTargetField(new TargetField(className, fieldName, fieldDesc, targetField.groupName()));
+		super.visitTargetField(new TargetField(className, fieldName, fieldDesc, targetField.groupName()));
 	}
 
 	@Override
@@ -70,17 +64,37 @@ public abstract class UnpickV3Remapper extends UnpickV3Visitor {
 		String className = mapClassName(targetMethod.className());
 		String methodName = mapMethodName(targetMethod.className(), targetMethod.methodName(), targetMethod.methodDesc());
 		String methodDesc = mapDescriptor(targetMethod.methodDesc());
-		downstream.visitTargetMethod(new TargetMethod(className, methodName, methodDesc, targetMethod.paramGroups(), targetMethod.returnGroup()));
+		super.visitTargetMethod(new TargetMethod(className, methodName, methodDesc, targetMethod.paramGroups(), targetMethod.returnGroup()));
 	}
 
+	/**
+	 * Maps a class name. The input class name uses "." format not "/" format, and so should the output class name.
+	 */
 	protected abstract String mapClassName(String className);
 
+	/**
+	 * Maps a field name. The input class name uses "." format not "/" format. The descriptor is as normal (using "/" for class names).
+	 */
 	protected abstract String mapFieldName(String className, String fieldName, String fieldDesc);
 
+	/**
+	 * Maps a method name. The input class name uses "." format not "/" format. The descriptor is as normal (using "/" for class names).
+	 */
 	protected abstract String mapMethodName(String className, String methodName, String methodDesc);
 
+	/**
+	 * Returns a list of all unmapped classes in the given unmapped package. The package name uses "." format not "/" format,
+	 * and so should the output class names. The output class names should be fully qualified. Classes in subpackages are
+	 * not considered as inside the parent package for the purposes of this method. That is, if the class {@code foo.bar.Baz}
+	 * exists, then {@code getClassesInPackage("foo.bar")} should return that class, but {@code getClassesInPackage("foo")}
+	 * should not.
+	 */
 	protected abstract List<String> getClassesInPackage(String pkg);
 
+	/**
+	 * Gets the descriptor of a field given only its name and owner. The input class name uses "." format not "/" format.
+	 * The returned descriptor is as normal (using "/" for class names).
+	 */
 	protected abstract String getFieldDesc(String className, String fieldName);
 
 	private String mapDescriptor(String descriptor) {

@@ -11,9 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.VisibleForTesting;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Frame;
@@ -64,17 +62,6 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		this.data = new Data(logger, lenient, constantResolver, inheritanceChecker);
 	}
 
-	@ApiStatus.Internal
-	@VisibleForTesting
-	public DataDrivenConstantGrouper(IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker, Consumer<UnpickV3Visitor> dataProvider) {
-		this.logger = Logger.getLogger("unpick");
-		this.lenient = false;
-		this.constantResolver = constantResolver;
-		this.inheritanceChecker = inheritanceChecker;
-		this.data = new Data(this.logger, false, constantResolver, inheritanceChecker);
-		dataProvider.accept(data);
-	}
-
 	public void loadData(Reader mappingSource) throws IOException {
 		BufferedReader reader = new BufferedReader(mappingSource);
 		reader.mark(MAX_VERSION_HEADER_LENGTH + 2);
@@ -91,6 +78,10 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 			default ->
 				throw new UnpickSyntaxException(1, "Unknown version or missing version header: " + versionHeader);
 		}
+	}
+
+	public void loadData(Consumer<UnpickV3Visitor> dataProvider) {
+		dataProvider.accept(data);
 	}
 
 	public int groupCount() {

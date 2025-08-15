@@ -14,8 +14,8 @@ import org.objectweb.asm.tree.ClassNode;
 import daomephsta.unpick.api.ConstantUninliner;
 import daomephsta.unpick.api.classresolvers.ClassResolvers;
 import daomephsta.unpick.api.classresolvers.IClassResolver;
+import daomephsta.unpick.api.constantgroupers.ConstantGroupers;
 import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
-import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
 
 public class TestUtils {
 	private static final Path TEST_DATA = Paths.get(System.getProperty("testData"));
@@ -32,7 +32,10 @@ public class TestUtils {
 
 		IClassResolver classResolver = ClassResolvers.fromDirectory(TEST_DATA).chain(ClassResolvers.classpath());
 		ConstantUninliner.builder()
-				.grouper(new DataDrivenConstantGrouper(classResolver.asConstantResolver(), classResolver.asInheritanceChecker(), dataProvider))
+				.grouper(ConstantGroupers.dataDriven()
+						.classResolver(classResolver)
+						.mappingSource(dataProvider)
+						.build())
 				.classResolver(classResolver)
 				.build()
 				.transform(clazz);
