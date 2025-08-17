@@ -9,8 +9,10 @@ import org.objectweb.asm.ClassReader;
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
+import daomephsta.unpick.api.classresolvers.IMemberChecker;
 import daomephsta.unpick.impl.constantresolvers.ClasspathConstantResolver;
 import daomephsta.unpick.impl.inheritancecheckers.ClasspathInheritanceChecker;
+import daomephsta.unpick.impl.membercheckers.ClasspathMemberChecker;
 
 public class ClasspathClassResolver implements IClassResolver {
 	@Nullable
@@ -42,5 +44,10 @@ public class ClasspathClassResolver implements IClassResolver {
 	@Override
 	public IInheritanceChecker asInheritanceChecker() {
 		return new ClasspathInheritanceChecker(classLoader);
+	}
+
+	@Override
+	public IMemberChecker asMemberChecker() {
+		return new ClasspathMemberChecker(classLoader);
 	}
 }
