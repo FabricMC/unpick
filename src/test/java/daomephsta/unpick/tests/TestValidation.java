@@ -1,10 +1,10 @@
 package daomephsta.unpick.tests;
 
-import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.List;
 
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
@@ -210,29 +210,17 @@ public class TestValidation {
 	}
 
 	private static void testValidation(String fileText, @Nullable String expectedError) throws IOException {
-		try {
-			UnpickV3Reader reader = new UnpickV3Reader(new StringReader("unpick v3\n" + fileText));
-			ValidatingUnpickV3Visitor validator = new ValidatingUnpickV3Visitor(ClassResolvers.classpath()) {
-				@Override
-				public boolean packageExists(String packageName) {
-					return Thread.currentThread().getContextClassLoader().getDefinedPackage(packageName) != null;
-				}
-			};
-			reader.accept(validator);
-			validator.finishValidation();
-		} catch (UnpickSyntaxException e) {
-			if (expectedError == null) {
-				throw e;
+		UnpickV3Reader reader = new UnpickV3Reader(new StringReader("unpick v3\n" + fileText));
+		ValidatingUnpickV3Visitor validator = new ValidatingUnpickV3Visitor(ClassResolvers.classpath()) {
+			@Override
+			public boolean packageExists(String packageName) {
+				return Thread.currentThread().getContextClassLoader().getDefinedPackage(packageName) != null;
 			}
-			assertEquals(expectedError, e.getMessage());
-			return;
-		}
+		};
+		reader.accept(validator);
 
-		if (expectedError != null) {
-			assertionFailure()
-					.expected(expectedError)
-					.actual("<no error>")
-					.buildAndThrow();
-		}
+		List<UnpickSyntaxException> errors = validator.finishValidation();
+		String errorMessage = errors.isEmpty() ? null : errors.getFirst().getMessage();
+		assertEquals(expectedError, errorMessage);
 	}
 }
