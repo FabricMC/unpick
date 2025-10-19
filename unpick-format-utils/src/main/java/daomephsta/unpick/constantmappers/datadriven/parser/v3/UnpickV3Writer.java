@@ -9,6 +9,7 @@ import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupScope;
 import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
+import daomephsta.unpick.constantmappers.datadriven.tree.TargetAnnotation;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetField;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
@@ -28,7 +29,8 @@ import daomephsta.unpick.constantmappers.datadriven.tree.expr.UnaryExpression;
 public final class UnpickV3Writer extends UnpickV3Visitor {
 	private static final String LINE_SEPARATOR = System.lineSeparator();
 	private final String indent;
-	private final StringBuilder output = new StringBuilder("unpick v3").append(LINE_SEPARATOR);
+	private int version = 3;
+	private StringBuilder output;
 
 	public UnpickV3Writer() {
 		this("\t");
@@ -39,7 +41,17 @@ public final class UnpickV3Writer extends UnpickV3Visitor {
 	}
 
 	@Override
+	public void visitHeader(int version) {
+		if (output == null) {
+			this.version = version;
+			output = new StringBuilder("unpick v").append(version).append(LINE_SEPARATOR);
+		}
+	}
+
+	@Override
 	public void visitGroupDefinition(GroupDefinition groupDefinition) {
+		ensureHeaderWritten();
+
 		output.append(LINE_SEPARATOR);
 
 		if (groupDefinition.docs() != null) {
@@ -100,6 +112,8 @@ public final class UnpickV3Writer extends UnpickV3Visitor {
 
 	@Override
 	public void visitTargetField(TargetField targetField) {
+		ensureHeaderWritten();
+
 		output.append(LINE_SEPARATOR)
 				.append("target_field ")
 				.append(targetField.className())
@@ -114,6 +128,8 @@ public final class UnpickV3Writer extends UnpickV3Visitor {
 
 	@Override
 	public void visitTargetMethod(TargetMethod targetMethod) {
+		ensureHeaderWritten();
+
 		output.append(LINE_SEPARATOR)
 				.append("target_method ")
 				.append(targetMethod.className())
@@ -140,6 +156,22 @@ public final class UnpickV3Writer extends UnpickV3Visitor {
 					.append(targetMethod.returnGroup())
 					.append(LINE_SEPARATOR);
 		}
+	}
+
+	@Override
+	public void visitTargetAnnotation(TargetAnnotation targetAnnotation) {
+		ensureHeaderWritten();
+
+		if (version < 4) {
+			throw new IllegalStateException("Target annotations are not supported in unpick format version " + version);
+		}
+
+		output.append(LINE_SEPARATOR)
+				.append("target_annotation ")
+				.append(targetAnnotation.annotationName())
+				.append(" ")
+				.append(targetAnnotation.groupName())
+				.append(LINE_SEPARATOR);
 	}
 
 	private void writeRadixPrefix(int radix) {
@@ -223,7 +255,14 @@ public final class UnpickV3Writer extends UnpickV3Visitor {
 		};
 	}
 
+	private void ensureHeaderWritten() {
+		if (output == null) {
+			output = new StringBuilder("unpick v3").append(LINE_SEPARATOR);
+		}
+	}
+
 	public String getOutput() {
+		ensureHeaderWritten();
 		return output.toString();
 	}
 

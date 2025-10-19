@@ -74,7 +74,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		switch (versionHeader) {
 			case "v1" -> V1Parser.parse(logger, lenient, reader, constantResolver, data);
 			case "v2" -> V2Parser.parse(logger, lenient, reader, constantResolver, data);
-			case "unpick v3" -> new UnpickV3Reader(reader).accept(data);
+			case "unpick v3", "unpick v4" -> new UnpickV3Reader(reader).accept(data);
 			default ->
 				throw new UnpickSyntaxException(1, "Unknown version or missing version header: " + versionHeader);
 		}

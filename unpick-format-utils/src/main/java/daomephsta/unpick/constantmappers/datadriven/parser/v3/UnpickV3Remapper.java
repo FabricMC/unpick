@@ -6,6 +6,7 @@ import java.util.stream.Stream;
 import daomephsta.unpick.constantmappers.datadriven.tree.ForwardingUnpickV3Visitor;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupScope;
+import daomephsta.unpick.constantmappers.datadriven.tree.TargetAnnotation;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetField;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
@@ -65,6 +66,12 @@ public abstract class UnpickV3Remapper extends ForwardingUnpickV3Visitor {
 		String methodName = mapMethodName(targetMethod.className(), targetMethod.methodName(), targetMethod.methodDesc());
 		String methodDesc = mapDescriptor(targetMethod.methodDesc());
 		super.visitTargetMethod(new TargetMethod(className, methodName, methodDesc, targetMethod.paramGroups(), targetMethod.returnGroup()));
+	}
+
+	@Override
+	public void visitTargetAnnotation(TargetAnnotation targetAnnotation) {
+		String annotationName = mapClassName(targetAnnotation.annotationName());
+		super.visitTargetAnnotation(new TargetAnnotation(annotationName, targetAnnotation.groupName()));
 	}
 
 	/**

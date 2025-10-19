@@ -11,6 +11,13 @@ public abstract class ForwardingUnpickV3Visitor extends UnpickV3Visitor {
 	}
 
 	@Override
+	public void visitHeader(int version) {
+		if (downstream != null) {
+			downstream.visitHeader(version);
+		}
+	}
+
+	@Override
 	public void visitGroupDefinition(GroupDefinition groupDefinition) {
 		if (downstream != null) {
 			downstream.visitGroupDefinition(groupDefinition);
@@ -28,6 +35,13 @@ public abstract class ForwardingUnpickV3Visitor extends UnpickV3Visitor {
 	public void visitTargetMethod(TargetMethod targetMethod) {
 		if (downstream != null) {
 			downstream.visitTargetMethod(targetMethod);
+		}
+	}
+
+	@Override
+	public void visitTargetAnnotation(TargetAnnotation targetAnnotation) {
+		if (downstream != null) {
+			downstream.visitTargetAnnotation(targetAnnotation);
 		}
 	}
 }
