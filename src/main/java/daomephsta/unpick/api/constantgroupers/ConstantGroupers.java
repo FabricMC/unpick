@@ -10,6 +10,7 @@ import java.util.logging.Logger;
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
+import daomephsta.unpick.api.classresolvers.IMemberChecker;
 import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
 import daomephsta.unpick.impl.constantmappers.datadriven.DataDrivenConstantGrouper;
 
@@ -26,6 +27,7 @@ public final class ConstantGroupers {
 		private boolean lenient = false;
 		private IConstantResolver constantResolver;
 		private IInheritanceChecker inheritanceChecker;
+		private IMemberChecker memberChecker;
 		private String methodWhichInitializedResult;
 		private DataDrivenConstantGrouper result;
 
@@ -48,6 +50,7 @@ public final class ConstantGroupers {
 			ensureGrouperNotInitialized("classResolver");
 			this.constantResolver = classResolver.asConstantResolver();
 			this.inheritanceChecker = classResolver.asInheritanceChecker();
+			this.memberChecker = classResolver.asMemberChecker();
 			return this;
 		}
 
@@ -60,6 +63,12 @@ public final class ConstantGroupers {
 		public DataDrivenBuilder inheritanceChecker(IInheritanceChecker inheritanceChecker) {
 			ensureGrouperNotInitialized("inheritanceChecker");
 			this.inheritanceChecker = inheritanceChecker;
+			return this;
+		}
+
+		public DataDrivenBuilder memberChecker(IMemberChecker memberChecker) {
+			ensureGrouperNotInitialized("memberChecker");
+			this.memberChecker = memberChecker;
 			return this;
 		}
 
@@ -98,12 +107,15 @@ public final class ConstantGroupers {
 			if (inheritanceChecker == null) {
 				throw new IllegalStateException("Cannot call " + methodName + " without setting the inheritance checker");
 			}
+			if (memberChecker == null) {
+				throw new IllegalStateException("Cannot call " + methodName + " without setting the member checker");
+			}
 			if (logger == null) {
 				logger = Logger.getLogger("unpick");
 			}
 			if (result == null) {
 				methodWhichInitializedResult = methodName;
-				result = new DataDrivenConstantGrouper(logger, lenient, constantResolver, inheritanceChecker);
+				result = new DataDrivenConstantGrouper(logger, lenient, constantResolver, inheritanceChecker, memberChecker);
 			}
 		}
 	}

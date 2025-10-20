@@ -37,6 +37,7 @@ public final class Data extends UnpickV3Visitor {
 	public final Map<String, GroupInfo> groups = new HashMap<>();
 	public final Map<MemberKey, TargetField> targetFields = new HashMap<>();
 	public final Map<MemberKey, TargetMethod> targetMethods = new HashMap<>();
+	public final Map<String, TargetAnnotation> targetAnnotations = new HashMap<>();
 
 	public Data(Logger logger, boolean lenient, IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker) {
 		this.logger = logger;
@@ -212,6 +213,8 @@ public final class Data extends UnpickV3Visitor {
 
 	@Override
 	public void visitTargetAnnotation(TargetAnnotation targetAnnotation) {
-		// TODO
+		if (targetAnnotations.put(targetAnnotation.annotationName(), targetAnnotation) != null) {
+			Utils.throwOrWarn(logger, lenient, () -> "Duplicate target annotation: " + targetAnnotation.annotationName());
+		}
 	}
 }
