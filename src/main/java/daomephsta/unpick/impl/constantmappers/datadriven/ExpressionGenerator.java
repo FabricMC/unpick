@@ -604,13 +604,11 @@ public final class ExpressionGenerator {
 			return null;
 		}
 
-		ClassReader reader = context.getClassResolver().resolveClass(outerClassName);
-		if (reader == null) {
+		ClassNode outerClass = context.getClassResolver().resolveClassNodeCreating(outerClassName, ClassReader.SKIP_CODE);
+		if (outerClass == null) {
 			return null;
 		}
 
-		ClassNode outerClass = new ClassNode();
-		reader.accept(outerClass, ClassReader.SKIP_CODE);
 		boolean isInnerClassStatic = true;
 		if (outerClass.innerClasses != null) {
 			for (InnerClassNode innerClassNode : outerClass.innerClasses) {

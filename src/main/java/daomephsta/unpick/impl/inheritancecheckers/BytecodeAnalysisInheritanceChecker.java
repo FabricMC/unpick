@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.ClassNode;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
@@ -22,6 +23,11 @@ public class BytecodeAnalysisInheritanceChecker implements IInheritanceChecker {
 	@Nullable
 	public ClassInfo getClassInfo(String className) {
 		return classInfoCache.computeIfAbsent(className, name -> {
+			ClassNode node = classResolver.resolveClassNode(name, ClassReader.SKIP_CODE);
+			if (node != null) {
+				return new ClassInfo(node.superName, node.interfaces.toArray(new String[0]), (node.access & Opcodes.ACC_INTERFACE) != 0);
+			}
+
 			ClassReader reader = classResolver.resolveClass(name);
 			if (reader == null) {
 				return null;

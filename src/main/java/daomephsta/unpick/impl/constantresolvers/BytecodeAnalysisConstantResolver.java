@@ -19,6 +19,7 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.MethodInsnNode;
@@ -66,6 +67,12 @@ public class BytecodeAnalysisConstantResolver implements IConstantResolver {
 
 	@Nullable
 	protected Map<String, ResolvedConstant> extractConstants(String owner) {
+		ClassNode node = classResolver.resolveClassNode(owner, 0);
+		if (node != null) {
+			ResolvedConstantsBuilder builder = new ResolvedConstantsBuilder(owner);
+			node.accept(builder);
+			return builder.resolvedConstants;
+		}
 		ClassReader cr = classResolver.resolveClass(owner);
 		if (cr == null) {
 			return null;

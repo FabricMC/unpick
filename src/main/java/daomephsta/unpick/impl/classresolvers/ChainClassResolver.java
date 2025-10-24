@@ -2,6 +2,7 @@ package daomephsta.unpick.impl.classresolvers;
 
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.tree.ClassNode;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
@@ -29,6 +30,17 @@ public class ChainClassResolver implements IClassResolver {
 			}
 		}
 
+		return null;
+	}
+
+	@Override
+	public @Nullable ClassNode resolveClassNode(String internalName, int readerFlags) {
+		for (IClassResolver resolver : resolvers) {
+			ClassNode classNode = resolver.resolveClassNode(internalName, readerFlags);
+			if (classNode != null) {
+				return classNode;
+			}
+		}
 		return null;
 	}
 
