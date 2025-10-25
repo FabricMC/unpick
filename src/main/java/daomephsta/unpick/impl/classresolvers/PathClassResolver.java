@@ -7,6 +7,7 @@ import java.nio.file.Path;
 
 import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.tree.ClassNode;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 
@@ -19,9 +20,12 @@ public class PathClassResolver implements IClassResolver {
 
 	@Override
 	@Nullable
-	public ClassReader resolveClass(String internalName) {
+	public ClassNode resolveClass(String internalName) {
 		try (InputStream is = Files.newInputStream(root.resolve(internalName + ".class"))) {
-			return new ClassReader(is);
+			ClassReader classReader = new ClassReader(is);
+			ClassNode classNode = new ClassNode();
+			classReader.accept(classNode, ClassReader.SKIP_DEBUG);
+			return classNode;
 		} catch (IOException e) {
 			return null;
 		}
