@@ -11,6 +11,8 @@ import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 
 public class BytecodeAnalysisInheritanceChecker implements IInheritanceChecker {
+	private static final String[] EMPTY_ARRAY = new String[0];
+
 	private final IClassResolver classResolver;
 	private final ConcurrentMap<String, ClassInfo> classInfoCache = new ConcurrentHashMap<>();
 
@@ -27,7 +29,7 @@ public class BytecodeAnalysisInheritanceChecker implements IInheritanceChecker {
 				return null;
 			}
 
-			return new ClassInfo(node.superName, node.interfaces.toArray(new String[0]), (node.access & Opcodes.ACC_INTERFACE) != 0);
+			return new ClassInfo(node.superName, node.interfaces == null ? EMPTY_ARRAY : node.interfaces.toArray(new String[0]), (node.access & Opcodes.ACC_INTERFACE) != 0);
 		});
 	}
 }
