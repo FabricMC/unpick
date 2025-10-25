@@ -18,6 +18,7 @@ import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupFormat;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupScope;
 import daomephsta.unpick.constantmappers.datadriven.tree.Literal;
+import daomephsta.unpick.constantmappers.datadriven.tree.TargetAnnotation;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetField;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
@@ -51,6 +52,7 @@ public final class UnpickV3Reader implements AutoCloseable {
 	}
 
 	private final LineNumberReader reader;
+	private int version;
 	private String line;
 	private int column;
 	private int lastTokenLine;
@@ -69,12 +71,16 @@ public final class UnpickV3Reader implements AutoCloseable {
 
 	public void accept(UnpickV3Visitor visitor) throws IOException {
 		line = reader.readLine();
-		if (!"unpick v3".equals(line)) {
-			throw parseError("Missing version marker", 1, 0);
-		}
+		version = switch (line) {
+			case "unpick v3" -> 3;
+			case "unpick v4" -> 4;
+			case null, default -> throw parseError("Missing version marker", 1, 0);
+		};
 		column = line.length();
 
 		nextToken(); // newline
+
+		visitor.visitHeader(version);
 
 		while (true) {
 			String token = nextToken();
@@ -93,6 +99,7 @@ public final class UnpickV3Reader implements AutoCloseable {
 		switch (token) {
 			case "target_field" -> visitor.visitTargetField(parseTargetField());
 			case "target_method" -> visitor.visitTargetMethod(parseTargetMethod());
+			case "target_annotation" -> visitor.visitTargetAnnotation(parseTargetAnnotation());
 			case "group" -> visitor.visitGroupDefinition(parseGroupDefinition());
 			default -> throw expectedTokenError("unpick item", token);
 		}
@@ -406,6 +413,20 @@ public final class UnpickV3Reader implements AutoCloseable {
 		}
 
 		return new TargetMethod(className, methodName, methodDesc, paramGroups, returnGroup);
+	}
+
+	private TargetAnnotation parseTargetAnnotation() throws IOException {
+		if (version < 4) {
+			throw parseError("Target annotations are not supported in unpick format version " + version);
+		}
+
+		String annotationName = parseClassName();
+		String groupName = nextToken(TokenType.IDENTIFIER);
+		String token = nextToken();
+		if (lastTokenType != TokenType.NEWLINE && lastTokenType != TokenType.EOF) {
+			throw expectedTokenError("'\n'", token);
+		}
+		return new TargetAnnotation(annotationName, groupName);
 	}
 
 	private DataType parseDataType() throws IOException {

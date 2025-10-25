@@ -18,6 +18,7 @@ import org.objectweb.asm.tree.analysis.Frame;
 
 import daomephsta.unpick.api.classresolvers.IConstantResolver;
 import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
+import daomephsta.unpick.api.classresolvers.IMemberChecker;
 import daomephsta.unpick.api.constantgroupers.ConstantGroup;
 import daomephsta.unpick.api.constantgroupers.IConstantGrouper;
 import daomephsta.unpick.api.constantgroupers.IReplacementGenerator;
@@ -25,6 +26,7 @@ import daomephsta.unpick.constantmappers.datadriven.parser.MemberKey;
 import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
 import daomephsta.unpick.constantmappers.datadriven.parser.v3.UnpickV3Reader;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
+import daomephsta.unpick.constantmappers.datadriven.tree.TargetAnnotation;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetField;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
@@ -49,16 +51,19 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 	private final boolean lenient;
 	private final IConstantResolver constantResolver;
 	private final IInheritanceChecker inheritanceChecker;
+	private final IMemberChecker memberChecker;
 	private final Data data;
 	private final Map<MemberKey, TargetMethod> targetMethodCache = new ConcurrentHashMap<>();
 	private final Set<MemberKey> noTargetMethodCache = ConcurrentHashMap.newKeySet();
+	private final Map<MemberKey, String> resolvedMethodOwnerCache = new ConcurrentHashMap<>();
 	private final ConstantGroup defaultGroup = new ConstantGroup("<default>", this::replaceDefault);
 
-	public DataDrivenConstantGrouper(Logger logger, boolean lenient, IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker) {
+	public DataDrivenConstantGrouper(Logger logger, boolean lenient, IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker, IMemberChecker memberChecker) {
 		this.logger = logger;
 		this.lenient = lenient;
 		this.constantResolver = constantResolver;
 		this.inheritanceChecker = inheritanceChecker;
+		this.memberChecker = memberChecker;
 		this.data = new Data(logger, lenient, constantResolver, inheritanceChecker);
 	}
 
@@ -74,7 +79,7 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		switch (versionHeader) {
 			case "v1" -> V1Parser.parse(logger, lenient, reader, constantResolver, data);
 			case "v2" -> V2Parser.parse(logger, lenient, reader, constantResolver, data);
-			case "unpick v3" -> new UnpickV3Reader(reader).accept(data);
+			case "unpick v3", "unpick v4" -> new UnpickV3Reader(reader).accept(data);
 			default ->
 				throw new UnpickSyntaxException(1, "Unknown version or missing version header: " + versionHeader);
 		}
@@ -100,25 +105,60 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 	@Nullable
 	public ConstantGroup getFieldGroup(String fieldOwner, String fieldName, String fieldDescriptor) {
 		TargetField targetField = data.targetFields.get(new MemberKey(fieldOwner.replace('/', '.'), fieldName, fieldDescriptor));
-		return targetField == null ? null : getGroupByName(targetField.groupName());
+		if (targetField != null) {
+			return getGroupByName(targetField.groupName());
+		}
+
+		IMemberChecker.MemberInfo field = memberChecker.getField(fieldOwner, fieldName, fieldDescriptor);
+		if (field != null) {
+			String annotationGroup = getGroupFromAnnotations(field.annotations());
+			if (annotationGroup != null) {
+				return getGroupByName(annotationGroup);
+			}
+		}
+
+		return null;
 	}
 
 	@Override
 	@Nullable
 	public ConstantGroup getMethodReturnGroup(String methodOwner, String methodName, String methodDescriptor) {
 		TargetMethod targetMethod = findTargetMethod(methodOwner, methodName, methodDescriptor);
-		return targetMethod == null || targetMethod.returnGroup() == null ? null : getGroupByName(targetMethod.returnGroup());
+		if (targetMethod != null && targetMethod.returnGroup() != null) {
+			return getGroupByName(targetMethod.returnGroup());
+		}
+
+		IMemberChecker.MemberInfo method = memberChecker.getMethod(resolveMethodOwner(methodOwner, methodName, methodDescriptor), methodName, methodDescriptor);
+		if (method != null) {
+			String annotationGroup = getGroupFromAnnotations(method.annotations());
+			if (annotationGroup != null) {
+				return getGroupByName(annotationGroup);
+			}
+		}
+
+		return null;
 	}
 
 	@Override
 	@Nullable
 	public ConstantGroup getMethodParameterGroup(String methodOwner, String methodName, String methodDescriptor, int parameterIndex) {
 		TargetMethod targetMethod = findTargetMethod(methodOwner, methodName, methodDescriptor);
-		if (targetMethod == null) {
-			return null;
+		if (targetMethod != null) {
+			String groupName = targetMethod.paramGroups().get(parameterIndex);
+			if (groupName != null) {
+				return getGroupByName(groupName);
+			}
 		}
-		String groupName = targetMethod.paramGroups().get(parameterIndex);
-		return groupName == null ? null : getGroupByName(groupName);
+
+		IMemberChecker.ParameterInfo parameter = memberChecker.getParameter(resolveMethodOwner(methodOwner, methodName, methodDescriptor), methodName, methodDescriptor, parameterIndex);
+		if (parameter != null) {
+			String annotationGroup = getGroupFromAnnotations(parameter.annotations());
+			if (annotationGroup != null) {
+				return getGroupByName(annotationGroup);
+			}
+		}
+
+		return null;
 	}
 
 	private TargetMethod findTargetMethod(String methodOwner, String methodName, String methodDescriptor) {
@@ -158,6 +198,52 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 		}
 
 		return targetMethod;
+	}
+
+	private String resolveMethodOwner(String owner, String name, String desc) {
+		MemberKey memberKey = new MemberKey(owner, name, desc);
+		String resolvedOwner = resolvedMethodOwnerCache.get(memberKey);
+		if (resolvedOwner != null) {
+			return resolvedOwner;
+		}
+
+		if (memberChecker.getMethod(owner, name, desc) != null) {
+			resolvedOwner = owner;
+		} else {
+			IInheritanceChecker.ClassInfo classInfo = inheritanceChecker.getClassInfo(owner);
+			if (classInfo != null) {
+				if (classInfo.superClass() != null) {
+					resolvedOwner = resolveMethodOwner(classInfo.superClass(), name, desc);
+				}
+
+				if (resolvedOwner == null) {
+					for (String itf : classInfo.interfaces()) {
+						resolvedOwner = resolveMethodOwner(itf, name, desc);
+						if (resolvedOwner != null) {
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		if (resolvedOwner != null) {
+			resolvedMethodOwnerCache.put(memberKey, resolvedOwner);
+		}
+
+		return resolvedOwner;
+	}
+
+	@Nullable
+	private String getGroupFromAnnotations(List<String> annotations) {
+		for (String annotation : annotations) {
+			TargetAnnotation targetAnnotation = data.targetAnnotations.get(annotation.replace('/', '.'));
+			if (targetAnnotation != null) {
+				return targetAnnotation.groupName();
+			}
+		}
+
+		return null;
 	}
 
 	@Override

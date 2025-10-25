@@ -16,6 +16,7 @@ import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupScope;
+import daomephsta.unpick.constantmappers.datadriven.tree.TargetAnnotation;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetField;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
@@ -36,6 +37,7 @@ public final class Data extends UnpickV3Visitor {
 	public final Map<String, GroupInfo> groups = new HashMap<>();
 	public final Map<MemberKey, TargetField> targetFields = new HashMap<>();
 	public final Map<MemberKey, TargetMethod> targetMethods = new HashMap<>();
+	public final Map<String, TargetAnnotation> targetAnnotations = new HashMap<>();
 
 	public Data(Logger logger, boolean lenient, IConstantResolver constantResolver, IInheritanceChecker inheritanceChecker) {
 		this.logger = logger;
@@ -207,5 +209,12 @@ public final class Data extends UnpickV3Visitor {
 				returnGroup
 		);
 		targetMethods.put(key, merged);
+	}
+
+	@Override
+	public void visitTargetAnnotation(TargetAnnotation targetAnnotation) {
+		if (targetAnnotations.put(targetAnnotation.annotationName(), targetAnnotation) != null) {
+			Utils.throwOrWarn(logger, lenient, () -> "Duplicate target annotation: " + targetAnnotation.annotationName());
+		}
 	}
 }

@@ -67,6 +67,19 @@ public class ChainMemberChecker implements IMemberChecker {
 	}
 
 	@Override
+	@Nullable
+	public ParameterInfo getParameter(String className, String methodName, String methodDesc, int parameterIndex) {
+		for (IMemberChecker checker : checkers) {
+			ParameterInfo parameter = checker.getParameter(className, methodName, methodDesc, parameterIndex);
+			if (parameter != null) {
+				return parameter;
+			}
+		}
+
+		return null;
+	}
+
+	@Override
 	public IMemberChecker chain(IMemberChecker... others) {
 		return new ChainMemberChecker(Utils.concat(checkers, others));
 	}

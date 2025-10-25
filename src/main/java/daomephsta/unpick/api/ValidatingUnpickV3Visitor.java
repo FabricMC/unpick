@@ -8,7 +8,9 @@ import java.util.Map;
 import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.ClassNode;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IMemberChecker;
@@ -17,6 +19,7 @@ import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
 import daomephsta.unpick.constantmappers.datadriven.tree.ForwardingUnpickV3Visitor;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupDefinition;
 import daomephsta.unpick.constantmappers.datadriven.tree.GroupScope;
+import daomephsta.unpick.constantmappers.datadriven.tree.TargetAnnotation;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetField;
 import daomephsta.unpick.constantmappers.datadriven.tree.TargetMethod;
 import daomephsta.unpick.constantmappers.datadriven.tree.UnpickV3Visitor;
@@ -32,6 +35,7 @@ import daomephsta.unpick.impl.constantmappers.datadriven.data.Data;
  * errors.
  */
 public abstract class ValidatingUnpickV3Visitor extends ForwardingUnpickV3Visitor {
+	private final IClassResolver classResolver;
 	private final IMemberChecker memberChecker;
 	private final Data data;
 
@@ -46,6 +50,7 @@ public abstract class ValidatingUnpickV3Visitor extends ForwardingUnpickV3Visito
 
 	public ValidatingUnpickV3Visitor(IClassResolver classResolver, @Nullable UnpickV3Visitor downstream) {
 		super(downstream);
+		this.classResolver = classResolver;
 		this.memberChecker = classResolver.asMemberChecker();
 		// null logger is ok because lenient is false, so exceptions are thrown instead
 		this.data = new Data(null, false, classResolver.asConstantResolver(), classResolver.asInheritanceChecker());
@@ -131,6 +136,28 @@ public abstract class ValidatingUnpickV3Visitor extends ForwardingUnpickV3Visito
 		}
 
 		super.visitTargetMethod(targetMethod);
+	}
+
+	@Override
+	public void visitTargetAnnotation(TargetAnnotation targetAnnotation) {
+		try {
+			// check annotation exists
+			ClassNode node = classResolver.resolveClass(targetAnnotation.annotationName().replace('.', '/'));
+
+			if (node == null) {
+				throw new UnpickSyntaxException("No such annotation: " + targetAnnotation.annotationName());
+			}
+
+			if ((node.access & Opcodes.ACC_ANNOTATION) == 0) {
+				throw new UnpickSyntaxException("Not an annotation: " + targetAnnotation.annotationName());
+			}
+
+			data.visitTargetAnnotation(targetAnnotation);
+		} catch (UnpickSyntaxException e) {
+			errors.add(e);
+		}
+
+		super.visitTargetAnnotation(targetAnnotation);
 	}
 
 	public List<UnpickSyntaxException> finishValidation() {
