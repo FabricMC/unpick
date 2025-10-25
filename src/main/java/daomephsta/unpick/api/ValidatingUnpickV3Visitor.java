@@ -8,9 +8,9 @@ import java.util.Map;
 import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.ClassNode;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IMemberChecker;
@@ -142,13 +142,13 @@ public abstract class ValidatingUnpickV3Visitor extends ForwardingUnpickV3Visito
 	public void visitTargetAnnotation(TargetAnnotation targetAnnotation) {
 		try {
 			// check annotation exists
-			ClassReader reader = classResolver.resolveClass(targetAnnotation.annotationName().replace('.', '/'));
+			ClassNode node = classResolver.resolveClass(targetAnnotation.annotationName().replace('.', '/'));
 
-			if (reader == null) {
+			if (node == null) {
 				throw new UnpickSyntaxException("No such annotation: " + targetAnnotation.annotationName());
 			}
 
-			if ((reader.getAccess() & Opcodes.ACC_ANNOTATION) == 0) {
+			if ((node.access & Opcodes.ACC_ANNOTATION) == 0) {
 				throw new UnpickSyntaxException("Not an annotation: " + targetAnnotation.annotationName());
 			}
 

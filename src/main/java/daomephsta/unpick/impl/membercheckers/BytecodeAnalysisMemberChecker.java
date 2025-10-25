@@ -4,22 +4,26 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.AnnotationVisitor;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.AnnotationNode;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.ParameterNode;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IMemberChecker;
 
 public class BytecodeAnalysisMemberChecker implements IMemberChecker {
+	@SuppressWarnings("unchecked")
+	private static final List<AnnotationNode>[] EMPTY_ANNOTATION_LIST_ARRAY = new List[0];
+
 	private final IClassResolver classResolver;
 	private final ConcurrentMap<String, ClassInfo> classInfoCache = new ConcurrentHashMap<>();
 
@@ -56,82 +60,66 @@ public class BytecodeAnalysisMemberChecker implements IMemberChecker {
 	@Nullable
 	private ClassInfo getClassInfo(String className) {
 		return classInfoCache.computeIfAbsent(className, k -> {
-			ClassReader classReader = classResolver.resolveClass(k);
-			if (classReader == null) {
+			ClassNode node = classResolver.resolveClass(k);
+			if (node == null) {
 				return null;
 			}
 
 			List<MemberInfo> fields = new ArrayList<>();
+			for (FieldNode field : node.fields) {
+				fields.add(MemberInfo.create(field.access, field.name, field.desc).withAnnotations(getAnnotations(field.visibleAnnotations, field.invisibleAnnotations)));
+			}
+
 			List<MemberInfo> methods = new ArrayList<>();
 			Map<String, List<ParameterInfo>> parameters = new HashMap<>();
+			for (MethodNode method : node.methods) {
+				methods.add(MemberInfo.create(method.access, method.name, method.desc).withAnnotations(getAnnotations(method.visibleAnnotations, method.invisibleAnnotations)));
 
-			classReader.accept(new ClassVisitor(Opcodes.ASM9) {
-				@Override
-				public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
-					return new FieldVisitor(Opcodes.ASM9) {
-						final List<String> annotations = new ArrayList<>();
+				List<ParameterInfo> params = new ArrayList<>();
+				parameters.put(method.name + method.desc, params);
 
-						@Override
-						public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-							annotations.add(Type.getType(descriptor).getInternalName());
-							return null;
-						}
+				List<ParameterNode> paramNodes = Objects.requireNonNullElse(method.parameters, List.of());
+				List<AnnotationNode>[] visibleParamAnnotations = Objects.requireNonNullElse(method.visibleParameterAnnotations, EMPTY_ANNOTATION_LIST_ARRAY);
+				List<AnnotationNode>[] invisibleParamAnnotations = Objects.requireNonNullElse(method.invisibleParameterAnnotations, EMPTY_ANNOTATION_LIST_ARRAY);
+				int realParamIndex = 0;
+				int nonSyntheticParamIndex = 0;
+				while (nonSyntheticParamIndex < Math.max(visibleParamAnnotations.length, invisibleParamAnnotations.length)) {
+					while (realParamIndex < paramNodes.size() && (paramNodes.get(realParamIndex).access & Opcodes.ACC_SYNTHETIC) != 0) {
+						params.add(ParameterInfo.create(0));
+						realParamIndex++;
+					}
 
-						@Override
-						public void visitEnd() {
-							fields.add(MemberInfo.create(access, name, descriptor).withAnnotations(annotations));
-						}
-					};
+					int access = realParamIndex < paramNodes.size() ? paramNodes.get(realParamIndex).access : 0;
+					List<AnnotationNode> visibleAnnotations = nonSyntheticParamIndex < visibleParamAnnotations.length ? visibleParamAnnotations[nonSyntheticParamIndex] : null;
+					List<AnnotationNode> invisibleAnnotations = nonSyntheticParamIndex < invisibleParamAnnotations.length ? invisibleParamAnnotations[nonSyntheticParamIndex] : null;
+
+					params.add(ParameterInfo.create(access).withAnnotations(getAnnotations(visibleAnnotations, invisibleAnnotations)));
+
+					nonSyntheticParamIndex++;
+					realParamIndex++;
 				}
-
-				@Override
-				public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-					return new MethodVisitor(Opcodes.ASM9) {
-						final List<ParameterInfo> parameterInfos = new ArrayList<>();
-						final List<String> annotations = new ArrayList<>();
-
-						@Override
-						public AnnotationVisitor visitAnnotation(String descriptor, boolean visible) {
-							annotations.add(Type.getType(descriptor).getInternalName());
-							return null;
-						}
-
-						@Override
-						public void visitParameter(String name, int access) {
-							parameterInfos.add(ParameterInfo.create(access));
-						}
-
-						@Override
-						public AnnotationVisitor visitParameterAnnotation(int parameter, String descriptor, boolean visible) {
-							for (int i = 0; i <= parameter && i < parameterInfos.size(); i++) {
-								if ((parameterInfos.get(i).access() & Opcodes.ACC_SYNTHETIC) != 0) {
-									parameter++;
-								}
-							}
-
-							while (parameter >= parameterInfos.size()) {
-								parameterInfos.add(ParameterInfo.create(0));
-							}
-
-							ParameterInfo param = parameterInfos.get(parameter);
-							List<String> annotations = new ArrayList<>(param.annotations());
-							annotations.add(Type.getType(descriptor).getInternalName());
-							parameterInfos.set(parameter, param.withAnnotations(annotations));
-
-							return null;
-						}
-
-						@Override
-						public void visitEnd() {
-							methods.add(MemberInfo.create(access, name, descriptor).withAnnotations(annotations));
-							parameters.put(name + descriptor, parameterInfos);
-						}
-					};
-				}
-			}, ClassReader.SKIP_CODE);
+			}
 
 			return new ClassInfo(fields, methods, parameters);
 		});
+	}
+
+	private static List<String> getAnnotations(@Nullable List<AnnotationNode> visibleAnnotations, @Nullable List<AnnotationNode> invisibleAnnotations) {
+		List<String> annotations = new ArrayList<>();
+
+		if (visibleAnnotations != null) {
+			for (AnnotationNode annotation : visibleAnnotations) {
+				annotations.add(Type.getType(annotation.desc).getClassName());
+			}
+		}
+
+		if (invisibleAnnotations != null) {
+			for (AnnotationNode annotation : invisibleAnnotations) {
+				annotations.add(Type.getType(annotation.desc).getClassName());
+			}
+		}
+
+		return annotations;
 	}
 
 	private record ClassInfo(List<MemberInfo> fields, List<MemberInfo> methods, Map<String, List<ParameterInfo>> parameters) {

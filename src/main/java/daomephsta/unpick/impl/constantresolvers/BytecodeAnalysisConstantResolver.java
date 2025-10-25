@@ -12,13 +12,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.MethodInsnNode;
@@ -66,12 +66,12 @@ public class BytecodeAnalysisConstantResolver implements IConstantResolver {
 
 	@Nullable
 	protected Map<String, ResolvedConstant> extractConstants(String owner) {
-		ClassReader cr = classResolver.resolveClass(owner);
-		if (cr == null) {
+		ClassNode node = classResolver.resolveClass(owner);
+		if (node == null) {
 			return null;
 		}
 		ResolvedConstantsBuilder builder = new ResolvedConstantsBuilder(owner);
-		cr.accept(builder, 0);
+		node.accept(builder);
 		return builder.resolvedConstants;
 	}
 
