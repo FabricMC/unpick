@@ -6,12 +6,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.MethodNode;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
 import daomephsta.unpick.api.classresolvers.IMemberChecker;
@@ -41,42 +38,20 @@ public class BytecodeAnalysisMemberChecker implements IMemberChecker {
 	@Nullable
 	private ClassInfo getClassInfo(String className) {
 		return classInfoCache.computeIfAbsent(className, k -> {
-			ClassNode node = classResolver.resolveClassNode(k, 0);
-			if (node != null) {
-				List<MemberInfo> fields = new ArrayList<>();
-				for (var field : node.fields) {
-					fields.add(new MemberInfo(field.access, field.name, field.desc));
-				}
-
-				List<MemberInfo> methods = new ArrayList<>();
-				for (var method : node.methods) {
-					methods.add(new MemberInfo(method.access, method.name, method.desc));
-				}
-
-				return new ClassInfo(fields, methods);
-			}
-
-			ClassReader classReader = classResolver.resolveClass(k);
-			if (classReader == null) {
+			ClassNode node = classResolver.resolveClass(k);
+			if (node == null) {
 				return null;
 			}
 
 			List<MemberInfo> fields = new ArrayList<>();
+			for (FieldNode field : node.fields) {
+				fields.add(new MemberInfo(field.access, field.name, field.desc));
+			}
+
 			List<MemberInfo> methods = new ArrayList<>();
-
-			classReader.accept(new ClassVisitor(Opcodes.ASM9) {
-				@Override
-				public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
-					fields.add(new MemberInfo(access, name, descriptor));
-					return null;
-				}
-
-				@Override
-				public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-					methods.add(new MemberInfo(access, name, descriptor));
-					return null;
-				}
-			}, ClassReader.SKIP_CODE);
+			for (MethodNode method : node.methods) {
+				methods.add(new MemberInfo(method.access, method.name, method.desc));
+			}
 
 			return new ClassInfo(fields, methods);
 		});

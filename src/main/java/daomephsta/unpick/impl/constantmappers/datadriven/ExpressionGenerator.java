@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
-import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -604,7 +603,7 @@ public final class ExpressionGenerator {
 			return null;
 		}
 
-		ClassNode outerClass = context.getClassResolver().resolveClassNodeCreating(outerClassName, ClassReader.SKIP_CODE);
+		ClassNode outerClass = context.getClassResolver().resolveClass(outerClassName);
 		if (outerClass == null) {
 			return null;
 		}
