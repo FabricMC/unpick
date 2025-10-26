@@ -6,6 +6,7 @@ import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -201,6 +202,11 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 	}
 
 	private String resolveMethodOwner(String owner, String name, String desc) {
+		return Objects.requireNonNullElse(recursiveResolveMethodOwner(owner, name, desc), owner);
+	}
+
+	@Nullable
+	private String recursiveResolveMethodOwner(String owner, String name, String desc) {
 		MemberKey memberKey = new MemberKey(owner, name, desc);
 		String resolvedOwner = resolvedMethodOwnerCache.get(memberKey);
 		if (resolvedOwner != null) {
@@ -213,12 +219,12 @@ public class DataDrivenConstantGrouper implements IConstantGrouper {
 			IInheritanceChecker.ClassInfo classInfo = inheritanceChecker.getClassInfo(owner);
 			if (classInfo != null) {
 				if (classInfo.superClass() != null) {
-					resolvedOwner = resolveMethodOwner(classInfo.superClass(), name, desc);
+					resolvedOwner = recursiveResolveMethodOwner(classInfo.superClass(), name, desc);
 				}
 
 				if (resolvedOwner == null) {
 					for (String itf : classInfo.interfaces()) {
-						resolvedOwner = resolveMethodOwner(itf, name, desc);
+						resolvedOwner = recursiveResolveMethodOwner(itf, name, desc);
 						if (resolvedOwner != null) {
 							break;
 						}
