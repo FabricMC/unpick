@@ -46,6 +46,14 @@ public final class DataTypeUtils {
 		};
 	}
 
+	public static String getObjectName(DataType dataType) {
+		return switch (dataType) {
+			case STRING -> "java/lang/String";
+			case CLASS -> "java/lang/Class";
+			default -> throw new AssertionError("Non object data type: " + getTypeName(dataType));
+		};
+	}
+
 	@Nullable
 	@Contract("null -> null; !null -> !null")
 	public static DataType getDataType(@Nullable Object value) {

@@ -61,17 +61,6 @@ public class TestValidation {
 	}
 
 	@Test
-	public void testNonUnpickableField() throws IOException {
-		testValidation("""
-				group int access_flags
-					org.objectweb.asm.Opcodes.ACC_PUBLIC
-					org.objectweb.asm.Opcodes.ACC_ABSTRACT
-				target_field org.objectweb.asm.tree.ClassNode fields Ljava/util/List; access_flags
-				""",
-				"Not an unpickable data type: java.util.List");
-	}
-
-	@Test
 	public void testIncompatibleField() throws IOException {
 		testValidation("""
 				group int access_flags
@@ -79,7 +68,7 @@ public class TestValidation {
 					org.objectweb.asm.Opcodes.ACC_ABSTRACT
 				target_field org.objectweb.asm.tree.ClassNode name Ljava/lang/String; access_flags
 				""",
-				"Target of type String declares group access_flags of incompatible type int");
+				"Target of type java.lang.String declares group access_flags of incompatible type int");
 	}
 
 	@Test
@@ -91,7 +80,7 @@ public class TestValidation {
 				target_method org.objectweb.asm.Handle getOwner ()Ljava/lang/String;
 					return access_flags
 				""",
-				"Target of type String declares group access_flags of incompatible type int");
+				"Target of type java.lang.String declares group access_flags of incompatible type int");
 	}
 
 	@Test
@@ -103,7 +92,7 @@ public class TestValidation {
 				target_method org.objectweb.asm.Handle <init> (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V
 					param 1 access_flags
 				""",
-				"Target of type String declares group access_flags of incompatible type int");
+				"Target of type java.lang.String declares group access_flags of incompatible type int");
 	}
 
 	@Test
@@ -206,6 +195,41 @@ public class TestValidation {
 					param 0 access_flags
 				""",
 				"Duplicate param group: org.objectweb.asm.ClassVisitor.visit(IILjava/lang/String;Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;)V 0"
+		);
+	}
+
+	@Test
+	public void testWidenTypeUsageTargetField() throws IOException {
+		testValidation("""
+				group String name
+					java.lang.constant.ConstantDescs.INIT_NAME
+				target_field java.lang.StackFrameInfo memberName Ljava/lang/Object; name
+				""",
+				null
+		);
+	}
+
+	@Test
+	public void testWidenTypeUsageTargetMethodParam() throws IOException {
+		testValidation("""
+				group String name
+					java.lang.constant.ConstantDescs.INIT_NAME
+				target_method java.lang.StringBuilder append (Ljava/lang/CharSequence;)Ljava/lang/StringBuilder;
+					param 0 name
+				""",
+				null
+		);
+	}
+
+	@Test
+	public void testWidenTypeUsageTargetMethodReturn() throws IOException {
+		testValidation("""
+				group String name
+					java.lang.constant.ConstantDescs.INIT_NAME
+				target_method java.lang.StringBuilder subSequence (II)Ljava/lang/CharSequence;
+					return name
+				""",
+				null
 		);
 	}
 

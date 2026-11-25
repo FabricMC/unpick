@@ -1,8 +1,8 @@
 package daomephsta.unpick.api;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -13,6 +13,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
 
 import daomephsta.unpick.api.classresolvers.IClassResolver;
+import daomephsta.unpick.api.classresolvers.IInheritanceChecker;
 import daomephsta.unpick.api.classresolvers.IMemberChecker;
 import daomephsta.unpick.constantmappers.datadriven.parser.UnpickSyntaxException;
 import daomephsta.unpick.constantmappers.datadriven.tree.DataType;
@@ -37,10 +38,11 @@ import daomephsta.unpick.impl.constantmappers.datadriven.data.Data;
 public abstract class ValidatingUnpickV3Visitor extends ForwardingUnpickV3Visitor {
 	private final IClassResolver classResolver;
 	private final IMemberChecker memberChecker;
+	private final IInheritanceChecker inheritanceChecker;
 	private final Data data;
 
-	private final Map<String, DataType> actualGroupTypes = new HashMap<>();
-	private final Map<String, Set<DataType>> expectedGroupTypes = new HashMap<>();
+	private final Map<String, DataType> groupTypes = new HashMap<>();
+	private final Map<String, Set<Type>> targetTypes = new HashMap<>();
 
 	private final List<UnpickSyntaxException> errors = new ArrayList<>();
 
@@ -52,8 +54,9 @@ public abstract class ValidatingUnpickV3Visitor extends ForwardingUnpickV3Visito
 		super(downstream);
 		this.classResolver = classResolver;
 		this.memberChecker = classResolver.asMemberChecker();
+		this.inheritanceChecker = classResolver.asInheritanceChecker();
 		// null logger is ok because lenient is false, so exceptions are thrown instead
-		this.data = new Data(null, false, classResolver.asConstantResolver(), classResolver.asInheritanceChecker());
+		this.data = new Data(null, false, classResolver.asConstantResolver(), this.inheritanceChecker);
 	}
 
 	public abstract boolean packageExists(String packageName);
@@ -62,7 +65,7 @@ public abstract class ValidatingUnpickV3Visitor extends ForwardingUnpickV3Visito
 	public void visitGroupDefinition(GroupDefinition groupDefinition) {
 		try {
 			if (groupDefinition.name() != null) {
-				actualGroupTypes.put(groupDefinition.name(), groupDefinition.dataType());
+				groupTypes.put(groupDefinition.name(), groupDefinition.dataType());
 			}
 
 			for (GroupScope scope : groupDefinition.scopes()) {
@@ -100,7 +103,7 @@ public abstract class ValidatingUnpickV3Visitor extends ForwardingUnpickV3Visito
 				throw new UnpickSyntaxException("No such field: " + targetField.className() + "." + targetField.fieldName() + ":" + targetField.fieldDesc());
 			}
 
-			validateGroupType(targetField.groupName(), getDataTypeFromType(Type.getType(targetField.fieldDesc())));
+			validateGroupType(targetField.groupName(), Type.getType(targetField.fieldDesc()));
 
 			data.visitTargetField(targetField);
 		} catch (UnpickSyntaxException e) {
@@ -118,7 +121,7 @@ public abstract class ValidatingUnpickV3Visitor extends ForwardingUnpickV3Visito
 			}
 
 			if (targetMethod.returnGroup() != null) {
-				validateGroupType(targetMethod.returnGroup(), getDataTypeFromType(Type.getReturnType(targetMethod.methodDesc())));
+				validateGroupType(targetMethod.returnGroup(), Type.getReturnType(targetMethod.methodDesc()));
 			}
 
 			Type[] paramTypes = Type.getArgumentTypes(targetMethod.methodDesc());
@@ -127,7 +130,7 @@ public abstract class ValidatingUnpickV3Visitor extends ForwardingUnpickV3Visito
 					throw new UnpickSyntaxException("Parameter index out of bounds: " + paramIndex);
 				}
 
-				validateGroupType(paramGroup, getDataTypeFromType(paramTypes[paramIndex]));
+				validateGroupType(paramGroup, paramTypes[paramIndex]);
 			});
 
 			data.visitTargetMethod(targetMethod);
@@ -161,25 +164,30 @@ public abstract class ValidatingUnpickV3Visitor extends ForwardingUnpickV3Visito
 	}
 
 	public List<UnpickSyntaxException> finishValidation() {
-		expectedGroupTypes.forEach((groupName, expectedTypes) -> {
-			DataType actualType = actualGroupTypes.get(groupName);
+		targetTypes.forEach((groupName, expectedTypes) -> {
+			DataType actualType = groupTypes.get(groupName);
 			if (actualType == null) {
 				errors.add(new UnpickSyntaxException("Reference to undeclared group: " + groupName));
 				return;
 			}
 
-			for (DataType expectedType : expectedTypes) {
-				boolean compatible;
-				if (expectedType == DataType.CHAR) {
+			for (Type expectedType : expectedTypes) {
+				DataType targetType = DataTypeUtils.asmTypeToDataType(expectedType);
+				boolean compatible = false;
+				if (targetType == DataType.CHAR) {
 					compatible = actualType == DataType.INT || actualType == DataType.LONG;
-				} else if (DataTypeUtils.isPrimitive(expectedType)) {
+				} else if (DataTypeUtils.isPrimitive(targetType)) {
 					compatible = DataTypeUtils.isPrimitive(actualType);
-				} else {
-					compatible = expectedType == actualType;
+				} else if (targetType == actualType) {
+					compatible = true;
+				} else if (!DataTypeUtils.isPrimitive(actualType)) { // check widen types which might fit for non primitives
+					String type1 = expectedType.getInternalName();
+					String type2 = DataTypeUtils.getObjectName(actualType);
+					compatible = inheritanceChecker.isAssignableFrom(type1, type2);
 				}
 
 				if (!compatible) {
-					errors.add(new UnpickSyntaxException("Target of type " + DataTypeUtils.getTypeName(expectedType) + " declares group " + groupName + " of incompatible type " + DataTypeUtils.getTypeName(actualType)));
+					errors.add(new UnpickSyntaxException("Target of type " + expectedType.getClassName() + " declares group " + groupName + " of incompatible type " + DataTypeUtils.getTypeName(actualType)));
 				}
 			}
 		});
@@ -187,16 +195,7 @@ public abstract class ValidatingUnpickV3Visitor extends ForwardingUnpickV3Visito
 		return errors;
 	}
 
-	private DataType getDataTypeFromType(Type type) {
-		DataType result = DataTypeUtils.asmTypeToDataType(type);
-		if (result == null) {
-			throw new UnpickSyntaxException("Not an unpickable data type: " + type.getClassName());
-		}
-
-		return result;
-	}
-
-	private void validateGroupType(String groupName, DataType expectedType) {
-		expectedGroupTypes.computeIfAbsent(groupName, k -> EnumSet.noneOf(DataType.class)).add(expectedType);
+	private void validateGroupType(String groupName, Type expectedType) {
+		targetTypes.computeIfAbsent(groupName, k -> new HashSet<>()).add(expectedType);
 	}
 }
