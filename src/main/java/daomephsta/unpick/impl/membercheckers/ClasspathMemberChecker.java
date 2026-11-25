@@ -115,7 +115,7 @@ public class ClasspathMemberChecker implements IMemberChecker {
 				field.getModifiers(),
 				field.getName(),
 				Type.getDescriptor(field.getType())
-		).withAnnotations(convertAnnotations(field.getAnnotations()));
+		).withAnnotations(convertAnnotations(field.getAnnotatedType().getAnnotations(), field.getAnnotations()));
 	}
 
 	private static MemberInfo methodToMemberInfo(Method method) {
@@ -123,7 +123,7 @@ public class ClasspathMemberChecker implements IMemberChecker {
 				method.getModifiers(),
 				method.getName(),
 				Type.getMethodDescriptor(method)
-		).withAnnotations(convertAnnotations(method.getAnnotations()));
+		).withAnnotations(convertAnnotations(method.getAnnotatedReturnType().getAnnotations(), method.getAnnotations()));
 	}
 
 	private static MemberInfo constructorToMemberInfo(Constructor<?> constructor) {
@@ -131,15 +131,18 @@ public class ClasspathMemberChecker implements IMemberChecker {
 				constructor.getModifiers(),
 				"<init>",
 				Type.getConstructorDescriptor(constructor)
-		).withAnnotations(convertAnnotations(constructor.getAnnotations()));
+		).withAnnotations(convertAnnotations(constructor.getAnnotatedReturnType().getAnnotations(), constructor.getAnnotations()));
 	}
 
 	private static ParameterInfo parameterToParameterInfo(Parameter parameter) {
 		return ParameterInfo.create(parameter.getModifiers())
-				.withAnnotations(convertAnnotations(parameter.getAnnotations()));
+				.withAnnotations(convertAnnotations(parameter.getAnnotatedType().getAnnotations(), parameter.getAnnotations()));
 	}
 
-	private static List<String> convertAnnotations(Annotation[] annotations) {
-		return Arrays.stream(annotations).map(ann -> ann.annotationType().getName().replace('.', '/')).toList();
+	private static List<String> convertAnnotations(Annotation[] typeAnnotations, Annotation[] annotations) {
+		return Stream.concat(
+				Arrays.stream(typeAnnotations),
+				Arrays.stream(annotations)
+		).map(ann -> ann.annotationType().getName().replace('.', '/')).toList();
 	}
 }
